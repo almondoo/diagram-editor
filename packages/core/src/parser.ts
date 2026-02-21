@@ -1,4 +1,4 @@
-import type { ParseResult, DiagramNode } from "./types.js";
+import type { ParseResult, DiagramNode, DiagramGroup } from "./types.js";
 import { randomColor } from "./colors.js";
 
 export function parseProps(str: string): Record<string, string> {
@@ -11,123 +11,249 @@ export function parseProps(str: string): Record<string, string> {
   return props;
 }
 
+/**
+ * コードをセグメントに分割する。
+ * セグメントは単一行 or マルチラインブロック（{...} が複数行にまたがる場合）。
+ */
+function extractSegments(code: string): Array<{ text: string; startLine: number }> {
+  const segments: Array<{ text: string; startLine: number }> = [];
+  const lines = code.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith("//") || line.startsWith("#")) {
+      i++;
+      continue;
+    }
+
+    const opens = (line.match(/\{/g) ?? []).length;
+    const closes = (line.match(/\}/g) ?? []).length;
+
+    if (opens > closes) {
+      // マルチラインブロックの開始
+      const startLine = i + 1;
+      let depth = opens - closes;
+      const blockLines = [line];
+      i++;
+      while (i < lines.length && depth > 0) {
+        const bLine = lines[i].trim();
+        const bo = (bLine.match(/\{/g) ?? []).length;
+        const bc = (bLine.match(/\}/g) ?? []).length;
+        depth += bo - bc;
+        blockLines.push(bLine);
+        i++;
+      }
+      segments.push({ text: blockLines.join("\n"), startLine });
+    } else {
+      segments.push({ text: line, startLine: i + 1 });
+      i++;
+    }
+  }
+
+  return segments;
+}
+
+/**
+ * マルチラインブロックのボディを抽出する。
+ * ヘッダー行（line 0）と末尾の閉じ括弧行を除いた内側のテキストを返す。
+ */
+function extractMultilineBlockBody(blockText: string): string {
+  const lines = blockText.split("\n");
+  // ヘッダー行（lines[0]）をスキップ、末尾の "}" のみの行もスキップ
+  const bodyLines = lines.slice(1);
+  // 末尾が "}" だけの行なら除去
+  if (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === "}") {
+    bodyLines.pop();
+  }
+  return bodyLines.join("\n");
+}
+
 export function parseDSL(code: string): ParseResult {
   const nodes: DiagramNode[] = [];
   const edges: ParseResult["edges"] = [];
   const groups: ParseResult["groups"] = [];
   const notes: ParseResult["notes"] = [];
   const errors: ParseResult["errors"] = [];
-  const lines = code.split("\n");
   const nodeMap: Record<string, DiagramNode> = {};
 
-  lines.forEach((raw, idx) => {
-    const line = raw.trim();
-    if (!line || line.startsWith("//") || line.startsWith("#")) return;
+  const segments = extractSegments(code);
 
-    try {
-      // Group: group g1 "Label" { color=#hex }
-      const groupMatch = line.match(/^group\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
-      if (groupMatch) {
-        const props = parseProps(groupMatch[3] || "");
-        groups.push({
-          id: groupMatch[1],
-          label: groupMatch[2],
-          color: props.color || randomColor(),
-          x: parseFloat(props.x) || 0,
-          y: parseFloat(props.y) || 0,
-          w: parseFloat(props.w) || 300,
-          h: parseFloat(props.h) || 200,
-        });
-        return;
-      }
-
-      // Note: note n1 "text" { x=100 y=100 }
-      const noteMatch = line.match(/^note\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
-      if (noteMatch) {
-        const props = parseProps(noteMatch[3] || "");
-        notes.push({
-          id: noteMatch[1],
-          text: noteMatch[2],
-          x: parseFloat(props.x) || 50,
-          y: parseFloat(props.y) || 50,
-          color: props.color || "#fbbf24",
-        });
-        return;
-      }
-
-      // Node: node id "Label" { shape=rect color=#hex x=0 y=0 w=140 h=60 icon=⚙️ }
-      const nodeMatch = line.match(/^node\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
-      if (nodeMatch) {
-        const props = parseProps(nodeMatch[3] || "");
-        const id = nodeMatch[1];
-        const hasX = props.x !== undefined;
-        const hasY = props.y !== undefined;
-        const node: DiagramNode = {
-          id,
-          label: nodeMatch[2],
-          shape: props.shape || "rect",
-          color: props.color || "__RANDOM__",
-          textColor: props.text || "#ffffff",
-          x: hasX ? parseFloat(props.x) : NaN,
-          y: hasY ? parseFloat(props.y) : NaN,
-          w: parseFloat(props.w) || 150,
-          h: parseFloat(props.h) || 60,
-          icon: props.icon || "",
-          group: props.group || "",
-          fontSize: parseFloat(props.fontSize) || 13,
-          borderColor: props.border || "",
-          borderWidth: parseFloat(props.borderWidth) || 2,
-          opacity: parseFloat(props.opacity) || 1,
-          dashed: props.dashed === "true",
-          _needsPosition: !hasX || !hasY,
-          _explicitProps: new Set(['id', 'label', ...Object.keys(props)]),
-        };
-        nodes.push(node);
-        nodeMap[id] = node;
-        return;
-      }
-
-      // Edge: edge from -> to { label="text" color=#hex style=dashed animate=true }
-      const edgeMatch = line.match(/^edge\s+(\S+)\s*->\s*(\S+)(?:\s*\{([^}]*)\})?/);
-      if (edgeMatch) {
-        const props = parseProps(edgeMatch[3] || "");
-        edges.push({
-          from: edgeMatch[1],
-          to: edgeMatch[2],
-          label: props.label || "",
-          color: props.color || "#94a3b8",
-          style: props.style || "solid",
-          animate: props.animate === "true",
-          thickness: parseFloat(props.thickness) || 1.5,
-          arrow: props.arrow || "end",
-          curve: props.curve || "smooth",
-        });
-        return;
-      }
-
-      // Style shorthand: style id { props }
-      const styleMatch = line.match(/^style\s+(\S+)\s*\{([^}]*)\}/);
-      if (styleMatch) {
-        const id = styleMatch[1];
-        const props = parseProps(styleMatch[2]);
-        if (nodeMap[id]) {
-          Object.assign(nodeMap[id], {
-            ...(props.color && { color: props.color }),
-            ...(props.shape && { shape: props.shape }),
-            ...(props.border && { borderColor: props.border }),
-            ...(props.text && { textColor: props.text }),
-          });
-        }
-        return;
-      }
-
-      if (line.length > 0) {
-        errors.push({ line: idx + 1, message: `構文エラー: "${line}"` });
-      }
-    } catch (e) {
-      errors.push({ line: idx + 1, message: (e as Error).message });
-    }
-  });
+  for (const seg of segments) {
+    parseSegment(seg.text, seg.startLine, null, 0, 0, nodes, edges, groups, notes, errors, nodeMap);
+  }
 
   return { nodes, edges, groups, notes, errors };
+}
+
+function parseSegment(
+  text: string,
+  startLine: number,
+  parentGroupId: string | null,
+  offsetX: number,
+  offsetY: number,
+  nodes: DiagramNode[],
+  edges: ParseResult["edges"],
+  groups: DiagramGroup[],
+  notes: ParseResult["notes"],
+  errors: ParseResult["errors"],
+  nodeMap: Record<string, DiagramNode>,
+): void {
+  const firstLine = text.split("\n")[0].trim();
+  if (!firstLine || firstLine.startsWith("//") || firstLine.startsWith("#")) return;
+
+  try {
+    // Group: group id "label" { ... }
+    const groupHeaderMatch = firstLine.match(/^group\s+(\S+)\s+"([^"]*)"(?:\s*\{(.*))?/);
+    if (groupHeaderMatch) {
+      const isMultiLine = text.includes("\n");
+
+      if (isMultiLine) {
+        // ブロック構文: ヘッダー行のプロパティを取得
+        const headerPropsStr = groupHeaderMatch[3] ?? "";
+        const props = parseProps(headerPropsStr);
+
+        const relX = parseFloat(props.x) || 0;
+        const relY = parseFloat(props.y) || 0;
+        const absX = offsetX + relX;
+        const absY = offsetY + relY;
+
+        const group: DiagramGroup = {
+          id: groupHeaderMatch[1],
+          label: groupHeaderMatch[2],
+          color: props.color || randomColor(),
+          x: absX,
+          y: absY,
+          w: parseFloat(props.w) || 300,
+          h: parseFloat(props.h) || 200,
+          parentGroup: parentGroupId ?? undefined,
+        };
+        groups.push(group);
+
+        // ブロックボディを再帰的に解析
+        const body = extractMultilineBlockBody(text);
+        const bodySegments = extractSegments(body);
+        for (const bodySeg of bodySegments) {
+          parseSegment(
+            bodySeg.text,
+            startLine + bodySeg.startLine,
+            group.id,
+            absX,
+            absY,
+            nodes,
+            edges,
+            groups,
+            notes,
+            errors,
+            nodeMap,
+          );
+        }
+      } else {
+        // フラット構文: offsetを加算して絶対座標を計算
+        const props = parseProps(groupHeaderMatch[3] || "");
+        const group: DiagramGroup = {
+          id: groupHeaderMatch[1],
+          label: groupHeaderMatch[2],
+          color: props.color || randomColor(),
+          x: offsetX + (parseFloat(props.x) || 0),
+          y: offsetY + (parseFloat(props.y) || 0),
+          w: parseFloat(props.w) || 300,
+          h: parseFloat(props.h) || 200,
+          parentGroup: parentGroupId ?? undefined,
+        };
+        groups.push(group);
+      }
+      return;
+    }
+
+    // Note: note n1 "text" { x=100 y=100 }
+    const noteMatch = firstLine.match(/^note\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
+    if (noteMatch) {
+      const props = parseProps(noteMatch[3] || "");
+      notes.push({
+        id: noteMatch[1],
+        text: noteMatch[2],
+        x: offsetX + (parseFloat(props.x) || 50),
+        y: offsetY + (parseFloat(props.y) || 50),
+        color: props.color || "#fbbf24",
+      });
+      return;
+    }
+
+    // Node: node id "Label" { shape=rect ... }
+    const nodeMatch = firstLine.match(/^node\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
+    if (nodeMatch) {
+      const props = parseProps(nodeMatch[3] || "");
+      const id = nodeMatch[1];
+      const hasX = props.x !== undefined;
+      const hasY = props.y !== undefined;
+
+      // group=xxx が明示されていればそちらを優先、なければ親グループ
+      const groupId = props.group || parentGroupId || "";
+
+      const node: DiagramNode = {
+        id,
+        label: nodeMatch[2],
+        shape: props.shape || "rect",
+        color: props.color || "__RANDOM__",
+        textColor: props.text || "#ffffff",
+        x: hasX ? offsetX + parseFloat(props.x) : NaN,
+        y: hasY ? offsetY + parseFloat(props.y) : NaN,
+        w: parseFloat(props.w) || 150,
+        h: parseFloat(props.h) || 60,
+        icon: props.icon || "",
+        group: groupId,
+        fontSize: parseFloat(props.fontSize) || 13,
+        borderColor: props.border || "",
+        borderWidth: parseFloat(props.borderWidth) || 2,
+        opacity: parseFloat(props.opacity) || 1,
+        dashed: props.dashed === "true",
+        _needsPosition: !hasX || !hasY,
+        _explicitProps: new Set(["id", "label", ...Object.keys(props)]),
+      };
+      nodes.push(node);
+      nodeMap[id] = node;
+      return;
+    }
+
+    // Edge: edge from -> to { ... }
+    const edgeMatch = firstLine.match(/^edge\s+(\S+)\s*->\s*(\S+)(?:\s*\{([^}]*)\})?/);
+    if (edgeMatch) {
+      const props = parseProps(edgeMatch[3] || "");
+      edges.push({
+        from: edgeMatch[1],
+        to: edgeMatch[2],
+        label: props.label || "",
+        color: props.color || "#94a3b8",
+        style: props.style || "solid",
+        animate: props.animate === "true",
+        thickness: parseFloat(props.thickness) || 1.5,
+        arrow: props.arrow || "end",
+        curve: props.curve || "smooth",
+      });
+      return;
+    }
+
+    // Style shorthand: style id { props }
+    const styleMatch = firstLine.match(/^style\s+(\S+)\s*\{([^}]*)\}/);
+    if (styleMatch) {
+      const id = styleMatch[1];
+      const props = parseProps(styleMatch[2]);
+      if (nodeMap[id]) {
+        Object.assign(nodeMap[id], {
+          ...(props.color && { color: props.color }),
+          ...(props.shape && { shape: props.shape }),
+          ...(props.border && { borderColor: props.border }),
+          ...(props.text && { textColor: props.text }),
+        });
+      }
+      return;
+    }
+
+    if (firstLine.length > 0) {
+      errors.push({ line: startLine, message: `構文エラー: "${firstLine}"` });
+    }
+  } catch (e) {
+    errors.push({ line: startLine, message: (e as Error).message });
+  }
 }
