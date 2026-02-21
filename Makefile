@@ -1,4 +1,4 @@
-.PHONY: up down restart logs build typecheck test shell clean
+.PHONY: up down restart logs build typecheck lint test shell clean
 
 up:
 	docker compose up -d
@@ -20,6 +20,9 @@ build:
 
 typecheck:
 	docker compose exec app pnpm -r typecheck
+
+lint:
+	docker compose exec app pnpm -r lint
 
 test:
 	docker compose exec app pnpm --filter diagram-dsl-core test

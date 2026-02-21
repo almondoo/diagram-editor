@@ -4,10 +4,11 @@
 
 ## コマンド実行の原則
 
-**すべてのコマンドは必ず `docker compose exec app` を使って実行すること。**
+**pnpm・node など、すべてのコマンドは必ず `docker compose exec app <コマンド>` を使ってDockerコンテナ内で実行すること。ローカルの pnpm / node を直接使ってはならない。**
 
 ```bash
 docker compose exec app pnpm -r typecheck           # 全パッケージの型チェック
+docker compose exec app pnpm -r lint                # 全パッケージのlint
 docker compose exec app pnpm -r build               # 全パッケージのビルド
 docker compose exec app pnpm --filter diagram-dsl-core test   # coreのテスト
 docker compose exec app pnpm install                # 依存関係インストール
@@ -27,6 +28,19 @@ make test      # diagram-dsl-core のテスト
 ```
 
 `make up` を初回実行すると `pnpm install && pnpm -r build && pnpm --filter diagram-editor-web dev --host` が自動的に実行される。
+
+## コード変更後のチェック
+
+**コードを変更した際は、必ず以下をDockerコンテナ内で実行して確認すること:**
+
+```bash
+docker compose exec app pnpm -r typecheck   # 型チェック
+docker compose exec app pnpm -r lint        # lintチェック (ESLint)
+docker compose exec app pnpm -r build       # ビルド確認
+docker compose exec app pnpm --filter diagram-dsl-core test  # テスト (coreを変更した場合)
+```
+
+lintはルートの `eslint.config.mjs` で一元管理 (ESLint v9 flat config)。TypeScript + React + React Hooks の全ルールをカバー。
 
 ## モノレポ構造
 
