@@ -1,5 +1,7 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { TEMPLATES } from "diagram-dsl-core";
+import { SaveModal } from "./components/SaveModal.js";
+import { useLocalDiagrams } from "./hooks/useLocalDiagrams.js";
 import { ShapeNode } from "./components/ShapeNode.js";
 import { EdgeLine } from "./components/EdgeLine.js";
 import { GroupBox } from "./components/GroupBox.js";
@@ -24,8 +26,11 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showSyntax, setShowSyntax] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showMyDiagrams, setShowMyDiagrams] = useState(false);
+  const { savedDiagrams, saveDiagram, deleteDiagram } = useLocalDiagrams();
 
-  const { code, setCode, parsed, nodeById, setNodeLayout, addNode, exportSVG, formatCode, loadTemplate } =
+  const { code, setCode, parsed, nodeById, nodeStates, setNodeLayout, addNode, exportSVG, formatCode, loadTemplate, loadSaved } =
     useDiagramState(initialCode);
 
   const { zoom, pan, isPanning, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView } =
@@ -38,6 +43,17 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
 
   const canvasW = 1200;
   const canvasH = 800;
+
+  // showMyDiagrams 外クリックで閉じる
+  useEffect(() => {
+    if (!showMyDiagrams) return;
+    const handle = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-my-diagrams]")) setShowMyDiagrams(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [showMyDiagrams]);
 
   return (
     <div
@@ -160,6 +176,106 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
             + 新規
           </button>
         </div>
+
+        {/* マイ作品ドロップダウン */}
+        <div data-my-diagrams="" style={{ position: "relative", marginLeft: 12 }}>
+          <button
+            onClick={() => setShowMyDiagrams((v) => !v)}
+            style={{
+              background: showMyDiagrams ? "#1e2435" : "#131720",
+              border: `1px solid ${showMyDiagrams ? "#4338ca" : "#2d3548"}`,
+              color: showMyDiagrams ? "#a5b4fc" : "#94a3b8",
+              padding: "3px 10px",
+              borderRadius: 5,
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 500,
+            }}
+          >
+            マイ作品 {savedDiagrams.length > 0 ? `(${savedDiagrams.length})` : ""} ▾
+          </button>
+          {showMyDiagrams && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                left: 0,
+                background: "#0f1219",
+                border: "1px solid #2d3548",
+                borderRadius: 8,
+                minWidth: 220,
+                zIndex: 100,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                overflow: "hidden",
+              }}
+            >
+              {savedDiagrams.length === 0 ? (
+                <div style={{ padding: "12px 16px", fontSize: 12, color: "#475569" }}>
+                  保存済みの作品はありません
+                </div>
+              ) : (
+                savedDiagrams.map((d) => (
+                  <div
+                    key={d.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "8px 12px",
+                      borderBottom: "1px solid #1e293b",
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      onClick={() => {
+                        loadSaved(d.code, d.nodeStates);
+                        setShowMyDiagrams(false);
+                      }}
+                      style={{ flex: 1, cursor: "pointer" }}
+                    >
+                      <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500 }}>{d.name}</div>
+                      <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>
+                        {new Date(d.savedAt).toLocaleDateString("ja-JP")}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteDiagram(d.id)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "#475569",
+                        cursor: "pointer",
+                        fontSize: 14,
+                        padding: "2px 4px",
+                        borderRadius: 3,
+                      }}
+                      title="削除"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 保存ボタン */}
+        <button
+          onClick={() => setShowSaveModal(true)}
+          style={{
+            background: "#312e81",
+            border: "1px solid #4338ca",
+            color: "#c7d2fe",
+            padding: "3px 12px",
+            borderRadius: 5,
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 600,
+            marginLeft: 8,
+          }}
+        >
+          保存
+        </button>
 
         <div style={{ flex: 1 }} />
 
@@ -368,6 +484,14 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
           </div>
         </div>
       </div>
+
+      {showSaveModal && (
+        <SaveModal
+          existingNames={savedDiagrams.map((d) => d.name)}
+          onSave={(name) => saveDiagram(name, code, nodeStates)}
+          onClose={() => setShowSaveModal(false)}
+        />
+      )}
     </div>
   );
 }
