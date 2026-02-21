@@ -1,3 +1,4 @@
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Link } from "react-router";
 import { useLocalDiagrams } from "~/hooks/useLocalDiagrams";
@@ -11,7 +12,7 @@ export function meta() {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { savedDiagrams, deleteDiagram } = useLocalDiagrams();
+  const { savedDiagrams, deleteDiagram, renameDiagram } = useLocalDiagrams();
 
   return (
     <div
@@ -139,10 +140,12 @@ export default function Home() {
             {savedDiagrams.map((d) => (
               <DiagramCard
                 key={d.id}
+                id={d.id}
                 name={d.name}
                 savedAt={d.savedAt}
                 onClick={() => navigate(`/diagrams/${d.id}`)}
                 onDelete={() => deleteDiagram(d.id)}
+                onRename={renameDiagram}
               />
             ))}
           </div>
@@ -153,19 +156,56 @@ export default function Home() {
 }
 
 function DiagramCard({
+  id,
   name,
   savedAt,
   onClick,
   onDelete,
+  onRename,
 }: {
+  id: string;
   name: string;
   savedAt: number;
   onClick: () => void;
   onDelete: () => void;
+  onRename: (id: string, name: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(name);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditName(name);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitEdit = () => {
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== name) onRename(id, trimmed);
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") commitEdit();
+    if (e.key === "Escape") setEditing(false);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirmDelete) {
+      onDelete();
+    } else {
+      setConfirmDelete(true);
+    }
+  };
+
   return (
     <div
-      onClick={onClick}
+      onClick={() => { setConfirmDelete(false); onClick(); }}
+      onMouseLeave={() => setConfirmDelete(false)}
       style={{
         background: "#0f1219",
         border: "1px solid #1e293b",
@@ -181,47 +221,92 @@ function DiagramCard({
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLDivElement).style.borderColor = "#4338ca";
       }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "#1e293b";
-      }}
     >
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#e2e8f0",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {name}
-        </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+            style={{
+              width: "100%",
+              background: "#131720",
+              border: "1px solid #4338ca",
+              borderRadius: 4,
+              padding: "2px 6px",
+              color: "#e2e8f0",
+              fontSize: 14,
+              fontWeight: 600,
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#e2e8f0",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            onDoubleClick={startEdit}
+            title="ダブルクリックで名前変更"
+          >
+            {name}
+          </div>
+        )}
         <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
           {new Date(savedAt).toLocaleDateString("ja-JP")}
         </div>
       </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        style={{
-          background: "transparent",
-          border: "none",
-          color: "#475569",
-          cursor: "pointer",
-          fontSize: 16,
-          padding: "4px 6px",
-          borderRadius: 4,
-          flexShrink: 0,
-          lineHeight: 1,
-        }}
-        title="削除"
+      {/* アクションボタン */}
+      <div
+        style={{ display: "flex", gap: 4, flexShrink: 0 }}
+        onClick={(e) => e.stopPropagation()}
       >
-        ×
-      </button>
+        {!editing && (
+          <button
+            onClick={startEdit}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#475569",
+              cursor: "pointer",
+              fontSize: 13,
+              padding: "4px 6px",
+              borderRadius: 4,
+              lineHeight: 1,
+            }}
+            title="名前変更"
+          >
+            ✎
+          </button>
+        )}
+        <button
+          onClick={handleDeleteClick}
+          style={{
+            background: confirmDelete ? "#7f1d1d" : "transparent",
+            border: confirmDelete ? "1px solid #ef4444" : "none",
+            color: confirmDelete ? "#fca5a5" : "#475569",
+            cursor: "pointer",
+            fontSize: confirmDelete ? 11 : 13,
+            padding: "4px 6px",
+            borderRadius: 4,
+            lineHeight: 1,
+            fontWeight: confirmDelete ? 600 : 400,
+            whiteSpace: "nowrap",
+          }}
+          title="削除"
+        >
+          {confirmDelete ? "確認？" : "🗑"}
+        </button>
+      </div>
     </div>
   );
 }
