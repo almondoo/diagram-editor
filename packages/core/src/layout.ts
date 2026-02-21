@@ -187,7 +187,9 @@ export function autoLayout(
   }
 
   // グループ自体を dagre でレイアウト（重なり解消）
-  const repositionedGroups = layoutGroupsDagre(groups, groupUpdates, edges, nodes);
+  // groupUpdates にあるグループのみ再配置（ユーザーが位置設定済みのグループは動かさない）
+  const groupsToReposition = groups.filter((g) => groupUpdates[g.id] !== undefined);
+  const repositionedGroups = layoutGroupsDagre(groupsToReposition, groupUpdates, edges, nodes);
   // グループ位置の変化をノードに適用
   for (const [groupId, newG] of Object.entries(repositionedGroups)) {
     const oldG = groupUpdates[groupId] ?? groupById[groupId];
