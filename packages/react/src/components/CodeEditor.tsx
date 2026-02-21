@@ -27,7 +27,7 @@ export function CodeEditor({ code, onChange, errors, onFormat }: CodeEditorProps
   };
 
   const highlighted = useMemo(() => {
-    return lines.map((line) => highlightLine(line));
+    return code.split("\n").map((line) => highlightLine(line));
   }, [code]);
 
   return (

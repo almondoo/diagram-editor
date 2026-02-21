@@ -16,7 +16,7 @@ export function useSplitPane(containerRef: React.RefObject<HTMLDivElement | null
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
     return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
-  }, [isResizing]);
+  }, [isResizing, containerRef]);
 
   return { splitPos, isResizing, setIsResizing };
 }
