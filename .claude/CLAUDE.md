@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 このファイルはリポジトリで作業する際のClaude Code (claude.ai/code) へのガイダンスを提供します。
 
 ## 開発サーバー
@@ -46,6 +48,19 @@ docker compose exec app pnpm --filter diagram-dsl-core test  # テスト (core�
 
 lintはルートの `eslint.config.mjs` で一元管理 (ESLint v9 flat config)。TypeScript + React + React Hooks の全ルールをカバー。
 
+## packages 変更後のビルド必須
+
+`packages/core` または `packages/react` を変更した場合、**必ずビルドを実行すること**。
+`apps/web` の開発サーバーはビルド済みの `dist/` を参照しているため、ソース変更だけではブラウザに反映されない。
+
+```bash
+docker compose exec app pnpm --filter diagram-dsl-core build    # core を変更した場合
+docker compose exec app pnpm --filter diagram-dsl-react build   # react を変更した場合
+docker compose exec app pnpm -r build                           # 両方変更した場合
+```
+
+ビルド後はブラウザをリロードすること。
+
 ## モノレポ構造
 
 ```
@@ -55,24 +70,20 @@ diagram-editor/
 │   │   └── src/       # types, parser, layout, formatter, syntax, geometry, svg-export, templates
 │   └── react/         # diagram-dsl-react
 │       └── src/
-│           ├── components/  # SVGコンポーネント群
-│           ├── hooks/       # useDiagramState, useNodeDrag, useCanvasInteraction, useSplitPane
+│           ├── components/  # SVGコンポーネント群 + SaveModal
+│           ├── hooks/       # useDiagramState, useNodeDrag, useGroupDrag,
+│           │                #   useCanvasInteraction, useSplitPane,
+│           │                #   useLocalDiagrams, syncNodes, syncGroups
 │           ├── DiagramEditor.tsx
 │           └── styles.ts
 ├── apps/
 │   └── web/           # diagram-editor-web (React Router v7 SPA)
-│       ├── app/
-│       │   ├── routes/home.tsx  # import { DiagramEditor } from "diagram-dsl-react"
-│       │   ├── root.tsx
-│       │   ├── routes.ts
-│       │   └── app.css
-│       ├── vite.config.ts
-│       └── react-router.config.ts
+│       └── app/
+│           └── routes/home.tsx  # import { DiagramEditor } from "diagram-dsl-react"
 ├── docker-compose.yml
 ├── Dockerfile
 ├── Makefile
-├── pnpm-workspace.yaml
-└── tsconfig.base.json
+└── pnpm-workspace.yaml
 ```
 
 ## アーキテクチャ
@@ -82,11 +93,20 @@ diagram-editor/
 ```
 code (文字列ステート)
   → parseDSL()       → ParseResult { nodes, edges, groups, notes, errors }
+  → nodeStates / groupStates (ドラッグ位置を保持するミラーステート)
   → autoLayout()     → 位置が割り当てられ、__RANDOM__ カラーが解決される
-  → SVG コンポーネント → <DiagramEditor> でレンダリング
+  → parsed (useMemo) → SVG コンポーネントでレンダリング
 ```
 
-`parsed` は `useDiagramState` フック内の単一の `useMemo` で管理。
+### 二層ステートモデル
+
+`useDiagramState` が管理する状態は DSL コードと位置ステートの2層：
+
+- **`code`**: DSL 文字列。パース・フォーマット・ドラッグ書き戻しのソース
+- **`nodeStates`** (`Record<string, DiagramNode>`): ドラッグ操作で変更されたノードの位置・サイズ
+- **`groupStates`** (`Record<string, DiagramGroup>`): ドラッグ/リサイズで変更されたグループの位置・サイズ
+
+`syncNodes.ts` / `syncGroups.ts` が `code` 変更時にステートを同期（新規追加は `_needsPosition: true` でマーク → `autoLayout` で配置）。
 
 ### ドラッグ→コード書き戻し
 
@@ -96,10 +116,20 @@ code (文字列ステート)
 line.replace(/x=\S+/, `x=${newX}`)
 ```
 
+グループドラッグは `useGroupDrag` が担当し、グループと内包ノード（子孫グループ含む）を一括移動する。
+
+### localStorage 永続化
+
+`useLocalDiagrams` フック（`packages/react/src/hooks/useLocalDiagrams.ts`）が管理:
+
+- **ストレージキー**: `diagramcraft_saved_diagrams`
+- **保存データ**: `SavedDiagram { id, name, code, nodeStates, groupStates, savedAt }`
+- `DiagramEditor` が `currentDiagramId: string | null` を追跡し、Command+S で上書き保存 / 未保存なら名前入力モーダルを開く
+
 ### geometry.ts の役割
 
 `packages/core/src/geometry.ts` が `getShapePath`, `getNodeCenter`, `getEdgePoints` を提供。
-ShapeNode.tsx と EdgeLine.tsx はこれをimportし、svg-export.ts も同様にgeometry.tsからimportする。
+`ShapeNode.tsx`、`EdgeLine.tsx`、`svg-export.ts` の3箇所が共通してこれをインポートする。
 
 ## 主な制約
 
@@ -113,10 +143,15 @@ ShapeNode.tsx と EdgeLine.tsx はこれをimportし、svg-export.ts も同様�
 ```
 node <id> "ラベル" { shape=rect color=#6366f1 x=100 y=100 w=150 h=60 }
 edge <from> -> <to> { label="テキスト" color=#hex style=dashed|solid animate=true }
-group <id> "ラベル" { color=#hex x=0 y=0 w=300 h=200 }
+group <id> "ラベル" { color=#hex x=0 y=0 w=300 h=200
+  group <child-id> "子グループ" { ... }   # ネストされたグループ
+  node <id> ...                            # グループ内ノード
+}
 note <id> "テキスト" { x=0 y=0 color=#hex }
 style <nodeId> { color=#hex shape=rect border=#hex text=#hex }
 // または # でコメント
 ```
 
 シェイプ: `rect`, `stadium`, `diamond`, `ellipse`, `circle`, `cylinder`, `hexagon`, `parallelogram`, `trapezoid`
+
+グループはネスト可能。`DiagramGroup.parentGroup` フィールドで親子関係を表現する。
