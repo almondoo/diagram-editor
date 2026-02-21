@@ -46,14 +46,9 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
             ["text", "#hex — テキスト色", "#ffffff"],
             ["border", "#hex — 枠線色", "colorと同じ"],
             ["borderWidth", "数値 (px)", "2"],
-            ["x", "数値 — X座標 (px)、未指定時は自動配置", "自動"],
-            ["y", "数値 — Y座標 (px)、未指定時は自動配置", "自動"],
-            ["w", "数値 — 幅 (px)", "150"],
-            ["h", "数値 — 高さ (px)", "60"],
             ["icon", "絵文字 (例: ⚙️ ⚡ 🔄)", "なし"],
             ["group", "グループID — 所属グループ", "なし"],
             ["fontSize", "数値 (px)", "13"],
-            ["opacity", "0〜1 の小数", "1"],
             ["dashed", "true | false — 枠線を破線に", "false"],
           ].map(([k, v, d]) => (
             <tr key={k} style={{ borderBottom: "1px solid #1e293b" }}>
@@ -107,10 +102,6 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
         <tbody>
           {[
             ["color", "#hex — グループの色", "ランダム"],
-            ["x", "数値 — X座標 (px)", "0"],
-            ["y", "数値 — Y座標 (px)", "0"],
-            ["w", "数値 — 幅 (px)", "300"],
-            ["h", "数値 — 高さ (px)", "200"],
           ].map(([k, v, d]) => (
             <tr key={k} style={{ borderBottom: "1px solid #1e293b" }}>
               <td style={{ padding: "3px 6px", color: "#60a5fa" }}>{k}</td>
@@ -133,8 +124,6 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
         </thead>
         <tbody>
           {[
-            ["x", "数値 — X座標 (px)", "50"],
-            ["y", "数値 — Y座標 (px)", "50"],
             ["color", "#hex — ノートの色", "#fbbf24"],
           ].map(([k, v, d]) => (
             <tr key={k} style={{ borderBottom: "1px solid #1e293b" }}>
