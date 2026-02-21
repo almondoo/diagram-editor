@@ -164,7 +164,7 @@ export function useDiagramState(initialCode?: string) {
     ) {
       setGroupStates((prev) => ({
         ...prev,
-        [node.group as string]: {
+        [node.group]: {
           ...group,
           x: newGroupX,
           y: newGroupY,
