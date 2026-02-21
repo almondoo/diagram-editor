@@ -4,13 +4,14 @@ import type { ResizeHandle } from "../hooks/useGroupDrag.js";
 
 interface GroupBoxProps {
   group: DiagramGroup;
+  isSelected?: boolean;
   onMoveMouseDown: (e: MouseEvent) => void;
   onResizeMouseDown: (e: MouseEvent, handle: ResizeHandle) => void;
 }
 
 const HANDLE = 8; // リサイズハンドルのサイズ
 
-export function GroupBox({ group, onMoveMouseDown, onResizeMouseDown }: GroupBoxProps) {
+export function GroupBox({ group, isSelected, onMoveMouseDown, onResizeMouseDown }: GroupBoxProps) {
   const { x, y, w, h, color, label } = group;
 
   return (
@@ -23,9 +24,9 @@ export function GroupBox({ group, onMoveMouseDown, onResizeMouseDown }: GroupBox
         height={h}
         rx={12}
         fill={color}
-        fillOpacity={0.08}
+        fillOpacity={isSelected ? 0.15 : 0.08}
         stroke={color}
-        strokeWidth={1.5}
+        strokeWidth={isSelected ? 2.5 : 1.5}
         strokeDasharray="8,4"
         style={{ pointerEvents: "none" }}
       />

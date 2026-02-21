@@ -67,9 +67,12 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
     isSelected,
   } = useMultiSelect();
 
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
+
   const onMultiMove = useCallback((dx: number, dy: number) => {
-    multiMoveLayout(selectedIds, dx, dy);
-  }, [selectedIds, multiMoveLayout]);
+    multiMoveLayout(selectedIdsRef.current, dx, dy);
+  }, [multiMoveLayout]);
 
   const showToast = useCallback(() => {
     setToastVisible(true);
@@ -123,6 +126,9 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
     };
   }, [noteDragInfo, zoom, noteStates, parsed.notes, setNoteLayout, onMultiMove]);
 
+  const parsedRef = useRef(parsed);
+  parsedRef.current = parsed;
+
   useEffect(() => {
     if (!selectionRect) return;
     const handleMove = (e: MouseEvent) => {
@@ -134,7 +140,8 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
       updateSelectionRect(canvasX, canvasY);
     };
     const handleUp = () => {
-      endSelectionRect(parsed.nodes, parsed.groups, parsed.notes);
+      const p = parsedRef.current;
+      endSelectionRect(p.nodes, p.groups, p.notes);
     };
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
@@ -142,7 +149,7 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [selectionRect, pan, zoom, parsed.nodes, parsed.groups, parsed.notes, updateSelectionRect, endSelectionRect]);
+  }, [selectionRect, pan, zoom, updateSelectionRect, endSelectionRect]);
 
   const { handleNodeMouseDown } =
     useNodeDrag(nodeById, zoom, selectedIds, setNodeLayout, onMultiMove);
@@ -591,7 +598,11 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
                     <GroupBox
                       key={g.id}
                       group={g}
-                      onMoveMouseDown={(e) => handleGroupMoveMouseDown(e, g.id)}
+                      isSelected={isSelected(g.id)}
+                      onMoveMouseDown={(e) => {
+                        if (!isSelected(g.id)) selectSingle(g.id);
+                        handleGroupMoveMouseDown(e, g.id);
+                      }}
                       onResizeMouseDown={(e, handle) => handleGroupResizeMouseDown(e, g.id, handle)}
                     />
                   ))}
