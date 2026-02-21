@@ -74,5 +74,13 @@ export function useLocalDiagrams() {
     });
   }, []);
 
-  return { savedDiagrams, saveDiagram, deleteDiagram };
+  const renameDiagram = useCallback((id: string, name: string) => {
+    setSavedDiagrams((prev) => {
+      const next = prev.map((d) => (d.id === id ? { ...d, name } : d));
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
+
+  return { savedDiagrams, saveDiagram, deleteDiagram, renameDiagram };
 }
