@@ -60,7 +60,7 @@ export const ShapeNode = memo(
     let textEl: React.ReactElement;
     if (icon) {
       // アイコン + ラベルを縦に並べる（折り返しなし）
-      const iconFS = fontSize + 4;
+      const iconFS = Math.round(fontSize * 2.5);
       const iconLineH = Math.ceil(iconFS * 1.2);
       const gap = 2;
       const totalH = iconLineH + gap + lineHeight;
