@@ -181,18 +181,31 @@ export function useDiagramState(initialCode?: string) {
     });
   }, []);
 
-  // グループ移動: グループとその内包ノードを一括移動
+  // グループ移動: グループとその内包ノードを一括移動（子孫グループも再帰的に移動）
   const setGroupLayout = useCallback((groupId: string, dx: number, dy: number) => {
+    // 再帰的に全子孫グループIDを収集する
+    const collectDescendants = (id: string): string[] => {
+      const children = Object.values(groupStatesRef.current).filter(
+        (g) => g.parentGroup === id,
+      );
+      return [id, ...children.flatMap((c) => collectDescendants(c.id))];
+    };
+
+    const groupsToMove = collectDescendants(groupId);
+
     setGroupStates((prev) => {
-      const g = prev[groupId];
-      if (!g) return prev;
-      return { ...prev, [groupId]: { ...g, x: g.x + dx, y: g.y + dy } };
+      const updates: Record<string, DiagramGroup> = {};
+      for (const gid of groupsToMove) {
+        const g = prev[gid];
+        if (g) updates[gid] = { ...g, x: g.x + dx, y: g.y + dy };
+      }
+      return { ...prev, ...updates };
     });
     setNodeStates((prev) => {
       let changed = false;
       const updates: Record<string, DiagramNode> = {};
       for (const [id, node] of Object.entries(prev)) {
-        if (node.group === groupId) {
+        if (groupsToMove.includes(node.group)) {
           updates[id] = { ...node, x: node.x + dx, y: node.y + dy };
           changed = true;
         }

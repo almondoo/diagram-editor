@@ -17,6 +17,12 @@ import { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
 
+function getGroupDepth(groupId: string, groups: import("diagram-dsl-core").DiagramGroup[]): number {
+  const group = groups.find((g) => g.id === groupId);
+  if (!group?.parentGroup) return 0;
+  return 1 + getGroupDepth(group.parentGroup, groups);
+}
+
 interface DiagramEditorProps {
   initialCode?: string;
   className?: string;
@@ -441,14 +447,16 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
               <rect width="100%" height="100%" fill="url(#gridLarge)" data-bg="true" />
 
               <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-                {parsed.groups.map((g) => (
-                  <GroupBox
-                    key={g.id}
-                    group={g}
-                    onMoveMouseDown={(e) => handleGroupMoveMouseDown(e, g.id)}
-                    onResizeMouseDown={(e, handle) => handleGroupResizeMouseDown(e, g.id, handle)}
-                  />
-                ))}
+                {[...parsed.groups]
+                  .sort((a, b) => getGroupDepth(a.id, parsed.groups) - getGroupDepth(b.id, parsed.groups))
+                  .map((g) => (
+                    <GroupBox
+                      key={g.id}
+                      group={g}
+                      onMoveMouseDown={(e) => handleGroupMoveMouseDown(e, g.id)}
+                      onResizeMouseDown={(e, handle) => handleGroupResizeMouseDown(e, g.id, handle)}
+                    />
+                  ))}
                 {parsed.notes.map((n) => (
                   <NoteBox key={n.id} note={n} />
                 ))}
