@@ -68,3 +68,22 @@ describe("x/y/w/h exclusion", () => {
     expect(result).toContain("color=#ff0000");
   });
 });
+
+describe("nested block syntax", () => {
+  it("ネストグループブロック構文をフォーマットする", () => {
+    const code = `group outer "外側" {color=#6366f1
+  group inner  "内側"  {color=#f59e0b  x=20  y=40}
+  node n1 "ノード"  {shape=rect  x=50  y=80}
+}`;
+    const result = formatDSLCode(code);
+    // ブロック構造が保たれる (outer の開きブレースがある)
+    expect(result).toContain('group outer "外側"');
+    expect(result).toContain('{');
+    // inner と n1 がインデント付きで含まれる
+    expect(result).toContain('group inner "内側" { color=#f59e0b }');
+    expect(result).toContain('node n1 "ノード" { shape=rect }');
+    // ブロックが閉じられる
+    const lines = result.split('\n');
+    expect(lines[lines.length - 1].trim()).toBe('}');
+  });
+});
