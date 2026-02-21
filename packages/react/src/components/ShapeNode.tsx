@@ -55,36 +55,62 @@ export const ShapeNode = memo(
     const stroke = borderColor || color;
     const dashArr = dashed ? "6,3" : "none";
 
-    const lines = wrapText(label, w, fontSize);
     const lineHeight = Math.ceil(fontSize * 1.35);
-    const textBlockH = lines.length * lineHeight;
-    const iconOffset = icon ? lineHeight : 0;
-    const startY = y + h / 2 - (textBlockH - lineHeight) / 2 + iconOffset / 2;
 
-    const textEl = (
-      <text
-        x={x + w / 2}
-        y={startY}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill={textColor}
-        fontSize={fontSize}
-        fontFamily="'IBM Plex Sans', 'Noto Sans JP', system-ui, sans-serif"
-        fontWeight="500"
-        style={{ pointerEvents: "none", userSelect: "none" }}
-      >
-        {icon && (
-          <tspan x={x + w / 2} dy={-iconOffset} fontSize={fontSize + 4}>
+    let textEl: React.ReactElement;
+    if (icon) {
+      // アイコン + ラベルを縦に並べる（折り返しなし）
+      const iconFS = fontSize + 4;
+      const iconLineH = Math.ceil(iconFS * 1.2);
+      const gap = 2;
+      const totalH = iconLineH + gap + lineHeight;
+      const iconCenterY = y + h / 2 - totalH / 2 + iconLineH / 2;
+      const labelDy = iconLineH / 2 + gap + lineHeight / 2;
+      textEl = (
+        <text
+          x={x + w / 2}
+          y={iconCenterY}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill={textColor}
+          fontSize={fontSize}
+          fontFamily="'IBM Plex Sans', 'Noto Sans JP', system-ui, sans-serif"
+          fontWeight="500"
+          style={{ pointerEvents: "none", userSelect: "none" }}
+        >
+          <tspan x={x + w / 2} fontSize={iconFS}>
             {icon}
           </tspan>
-        )}
-        {lines.map((line, i) => (
-          <tspan key={i} x={x + w / 2} dy={i === 0 ? 0 : lineHeight}>
-            {line}
+          <tspan x={x + w / 2} dy={labelDy}>
+            {label}
           </tspan>
-        ))}
-      </text>
-    );
+        </text>
+      );
+    } else {
+      // アイコンなし: ノード幅に合わせて折り返し表示
+      const lines = wrapText(label, w, fontSize);
+      const textBlockH = lines.length * lineHeight;
+      const startY = y + h / 2 - (textBlockH - lineHeight) / 2;
+      textEl = (
+        <text
+          x={x + w / 2}
+          y={startY}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill={textColor}
+          fontSize={fontSize}
+          fontFamily="'IBM Plex Sans', 'Noto Sans JP', system-ui, sans-serif"
+          fontWeight="500"
+          style={{ pointerEvents: "none", userSelect: "none" }}
+        >
+          {lines.map((line, i) => (
+            <tspan key={i} x={x + w / 2} dy={i === 0 ? 0 : lineHeight}>
+              {line}
+            </tspan>
+          ))}
+        </text>
+      );
+    }
 
     const resizeHandle = isSelected && onResizeMouseDown ? (
       <rect
