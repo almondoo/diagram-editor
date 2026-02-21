@@ -24,6 +24,10 @@ export function useDiagramState(initialCode?: string) {
   const groupStatesRef = useRef(groupStates);
   groupStatesRef.current = groupStates;
 
+  // ノード状態の ref（setNodeLayout の stable callback から読むため）
+  const nodeStatesRef = useRef(nodeStates);
+  nodeStatesRef.current = nodeStates;
+
   // コードをパース
   const parsedRaw = useMemo(() => parseDSL(code), [code]);
 
@@ -93,30 +97,87 @@ export function useDiagramState(initialCode?: string) {
     return map;
   }, [displayGroups]);
 
-  // ドラッグ用: nodeStates の x/y を更新（グループ境界でクランプ）
+  // ドラッグ用: nodeStates の x/y を更新（グループを自動拡張）
   const setNodeLayout = useCallback((nodeId: string, x: number, y: number) => {
+    const node = nodeStatesRef.current[nodeId];
+    if (!node) return;
+
+    if (!node.group) {
+      setNodeStates((prev) => {
+        const n = prev[nodeId];
+        if (!n) return prev;
+        return { ...prev, [nodeId]: { ...n, x, y } };
+      });
+      return;
+    }
+
+    const group = groupStatesRef.current[node.group];
+    if (!group) {
+      setNodeStates((prev) => {
+        const n = prev[nodeId];
+        if (!n) return prev;
+        return { ...prev, [nodeId]: { ...n, x, y } };
+      });
+      return;
+    }
+
+    // グループ拡張計算
+    let newGroupX = group.x;
+    let newGroupY = group.y;
+    let newGroupW = group.w;
+    let newGroupH = group.h;
+
+    // 左方向: ノードがグループ左端より左に出ようとしている
+    const leftEdge = group.x + GROUP_PADDING;
+    if (x < leftEdge) {
+      const expand = leftEdge - x;
+      newGroupX = group.x - expand;
+      newGroupW = group.w + expand;
+    }
+
+    // 右方向: ノードがグループ右端より右に出ようとしている
+    const rightEdge = newGroupX + newGroupW - node.w - GROUP_PADDING;
+    if (x > rightEdge) {
+      newGroupW = newGroupW + (x - rightEdge);
+    }
+
+    // 上方向: ノードがグループ上端より上に出ようとしている
+    const topEdge = group.y + GROUP_LABEL_H + GROUP_PADDING;
+    if (y < topEdge) {
+      const expand = topEdge - y;
+      newGroupY = group.y - expand;
+      newGroupH = group.h + expand;
+    }
+
+    // 下方向: ノードがグループ下端より下に出ようとしている
+    const bottomEdge = newGroupY + newGroupH - node.h - GROUP_PADDING;
+    if (y > bottomEdge) {
+      newGroupH = newGroupH + (y - bottomEdge);
+    }
+
+    // グループが変更されていたら更新
+    if (
+      newGroupX !== group.x ||
+      newGroupY !== group.y ||
+      newGroupW !== group.w ||
+      newGroupH !== group.h
+    ) {
+      setGroupStates((prev) => ({
+        ...prev,
+        [node.group as string]: {
+          ...group,
+          x: newGroupX,
+          y: newGroupY,
+          w: newGroupW,
+          h: newGroupH,
+        },
+      }));
+    }
+
     setNodeStates((prev) => {
-      const node = prev[nodeId];
-      if (!node) return prev;
-
-      let clampedX = x;
-      let clampedY = y;
-
-      if (node.group) {
-        const group = groupStatesRef.current[node.group];
-        if (group) {
-          clampedX = Math.max(
-            group.x + GROUP_PADDING,
-            Math.min(group.x + group.w - node.w - GROUP_PADDING, x),
-          );
-          clampedY = Math.max(
-            group.y + GROUP_LABEL_H + GROUP_PADDING,
-            Math.min(group.y + group.h - node.h - GROUP_PADDING, y),
-          );
-        }
-      }
-
-      return { ...prev, [nodeId]: { ...node, x: clampedX, y: clampedY } };
+      const n = prev[nodeId];
+      if (!n) return prev;
+      return { ...prev, [nodeId]: { ...n, x, y } };
     });
   }, []);
 
