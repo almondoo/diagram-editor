@@ -29,6 +29,9 @@ interface DiagramEditorProps {
 
 export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const svgGroupRef = useRef<SVGGElement>(null);
+  const gridRef = useRef<SVGPatternElement>(null);
+  const gridLargeRef = useRef<SVGPatternElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showSyntax, setShowSyntax] = useState(false);
   const [noteDragInfo, setNoteDragInfo] = useState<{
@@ -44,8 +47,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     addNode, exportSVG, formatCode, resetLayout,
   } = state;
 
-  const { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
-    useCanvasInteraction(svgRef);
+  const { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
+    useCanvasInteraction(svgRef, svgGroupRef, gridRef, gridLargeRef);
 
   const {
     selectedIds,
@@ -105,8 +108,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       const svgEl = svgRef.current;
       if (!svgEl) return;
       const rect = svgEl.getBoundingClientRect();
-      const canvasX = (e.clientX - rect.left - pan.x) / zoom;
-      const canvasY = (e.clientY - rect.top - pan.y) / zoom;
+      const canvasX = (e.clientX - rect.left - panRef.current.x) / zoom;
+      const canvasY = (e.clientY - rect.top - panRef.current.y) / zoom;
       updateSelectionRect(canvasX, canvasY);
     };
     const handleUp = () => {
@@ -119,7 +122,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [selectionRect, pan, zoom, updateSelectionRect, endSelectionRect]);
+  }, [selectionRect, zoom, updateSelectionRect, endSelectionRect]);
 
   const { handleNodeMouseDown } =
     useNodeDrag(nodeById, zoom, selectedIds, setNodeLayout, onMultiMove);
@@ -276,8 +279,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   const svgEl = svgRef.current;
                   if (!svgEl) return;
                   const rect = svgEl.getBoundingClientRect();
-                  const canvasX = (e.clientX - rect.left - pan.x) / zoom;
-                  const canvasY = (e.clientY - rect.top - pan.y) / zoom;
+                  const canvasX = (e.clientX - rect.left - panRef.current.x) / zoom;
+                  const canvasY = (e.clientY - rect.top - panRef.current.y) / zoom;
                   startSelectionRect(canvasX, canvasY);
                 }
               }
@@ -292,19 +295,21 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               <defs>
                 <pattern
                   id="grid"
+                  ref={gridRef}
                   width="24"
                   height="24"
                   patternUnits="userSpaceOnUse"
-                  patternTransform={`translate(${pan.x},${pan.y}) scale(${zoom})`}
+                  patternTransform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}
                 >
                   <circle cx="12" cy="12" r="0.5" fill="#334155" />
                 </pattern>
                 <pattern
                   id="gridLarge"
+                  ref={gridLargeRef}
                   width="120"
                   height="120"
                   patternUnits="userSpaceOnUse"
-                  patternTransform={`translate(${pan.x},${pan.y}) scale(${zoom})`}
+                  patternTransform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}
                 >
                   <rect width="120" height="120" fill="url(#grid)" />
                   <line x1="0" y1="0" x2="120" y2="0" stroke="#1e293b" strokeWidth="0.5" />
@@ -313,7 +318,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               </defs>
               <rect width="100%" height="100%" fill="url(#gridLarge)" data-bg="true" />
 
-              <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+              <g ref={svgGroupRef} transform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}>
                 {[...parsed.groups]
                   .sort((a, b) => getGroupDepth(a.id, parsed.groups) - getGroupDepth(b.id, parsed.groups))
                   .map((g) => (
@@ -360,7 +365,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 ))}
               </g>
               {selectionRect && (
-                <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+                <g transform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}>
                   <rect
                     x={selectionRect.x}
                     y={selectionRect.y}
@@ -379,7 +384,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
             <Minimap
               nodes={parsed.nodes}
-              viewBox={{ x: -pan.x / zoom, y: -pan.y / zoom, w: canvasW / zoom, h: canvasH / zoom }}
+              viewBox={{ x: -panRef.current.x / zoom, y: -panRef.current.y / zoom, w: canvasW / zoom, h: canvasH / zoom }}
               canvasW={canvasW}
               canvasH={canvasH}
             />

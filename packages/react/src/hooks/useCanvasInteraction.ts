@@ -1,15 +1,29 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { DiagramNode, DiagramGroup } from "diagram-dsl-core";
 
-export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | null>) {
+export function useCanvasInteraction(
+  svgRef: React.RefObject<SVGSVGElement | null>,
+  svgGroupRef: React.RefObject<SVGGElement | null>,
+  gridRef: React.RefObject<SVGPatternElement | null>,
+  gridLargeRef: React.RefObject<SVGPatternElement | null>,
+) {
   const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null);
   const [isSpaceHeld, setIsSpaceHeld] = useState(false);
 
-  const panRef = useRef(pan);
-  panRef.current = pan;
+  const panRef = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
+  const panStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const applyPanDirect = useCallback((x: number, y: number) => {
+    panRef.current = { x, y };
+    const t = `translate(${x},${y}) scale(${zoomRef.current})`;
+    svgGroupRef.current?.setAttribute("transform", t);
+    gridRef.current?.setAttribute("patternTransform", t);
+    gridLargeRef.current?.setAttribute("patternTransform", t);
+  }, [svgGroupRef, gridRef, gridLargeRef]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -38,8 +52,11 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
         // ピンチズーム（トラックパッド）またはCtrl+ホイール
         setZoom((z) => Math.max(0.2, Math.min(3, z - e.deltaY * 0.005)));
       } else {
-        // 2本指スクロール → パン
-        setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+        // 2本指スクロール → パン（React 再レンダリングをバイパスして DOM 直接操作）
+        applyPanDirect(
+          panRef.current.x - e.deltaX,
+          panRef.current.y - e.deltaY,
+        );
       }
     };
 
@@ -64,7 +81,7 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
         e.preventDefault();
         const dx = e.touches[0].clientX - touchStartX;
         const dy = e.touches[0].clientY - touchStartY;
-        setPan({ x: touchStartPanX + dx, y: touchStartPanY + dy });
+        applyPanDirect(touchStartPanX + dx, touchStartPanY + dy);
       }
     };
 
@@ -77,7 +94,7 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
     };
-  }, [svgRef]);
+  }, [svgRef, applyPanDirect]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent, onDeselect: () => void) => {
     const target = e.target as SVGElement;
@@ -85,20 +102,32 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
       onDeselect();
       if (isSpaceHeld) {
         setIsPanning(true);
-        setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+        panStartRef.current = { x: e.clientX - panRef.current.x, y: e.clientY - panRef.current.y };
       }
       // Space なしの場合は選択矩形モード（DiagramEditor.tsx が処理）
     }
   };
 
   useEffect(() => {
-    if (!isPanning || !panStart) return;
-    const move = (e: MouseEvent) => setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
-    const up = () => setIsPanning(false);
+    if (!isPanning) return;
+    const move = (e: MouseEvent) => {
+      if (!panStartRef.current) return;
+      applyPanDirect(
+        e.clientX - panStartRef.current.x,
+        e.clientY - panStartRef.current.y,
+      );
+    };
+    const up = () => {
+      setIsPanning(false);
+      panStartRef.current = null;
+    };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
-    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
-  }, [isPanning, panStart]);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+  }, [isPanning, applyPanDirect]);
 
   const zoomIn = () => setZoom((z) => Math.min(3, z + 0.15));
   const zoomOut = () => setZoom((z) => Math.max(0.2, z - 0.15));
@@ -115,7 +144,7 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
 
       if (rects.length === 0) {
         setZoom(1);
-        setPan({ x: 0, y: 0 });
+        applyPanDirect(0, 0);
         return;
       }
 
@@ -128,7 +157,7 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
 
       if (contentW <= 0 || contentH <= 0) {
         setZoom(1);
-        setPan({ x: 0, y: 0 });
+        applyPanDirect(0, 0);
         return;
       }
 
@@ -139,14 +168,14 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
         (svgH - pad * 2) / contentH,
       )));
 
-      setPan({
-        x: pad - minX * newZoom + (svgW - pad * 2 - contentW * newZoom) / 2,
-        y: pad - minY * newZoom + (svgH - pad * 2 - contentH * newZoom) / 2,
-      });
+      applyPanDirect(
+        pad - minX * newZoom + (svgW - pad * 2 - contentW * newZoom) / 2,
+        pad - minY * newZoom + (svgH - pad * 2 - contentH * newZoom) / 2,
+      );
       setZoom(newZoom);
     },
-    [svgRef],
+    [svgRef, applyPanDirect],
   );
 
-  return { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView };
+  return { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView };
 }
