@@ -39,6 +39,7 @@ export interface DiagramGroup {
   y: number;
   w: number;
   h: number;
+  parentGroup?: string;
 }
 
 export interface DiagramNote {
