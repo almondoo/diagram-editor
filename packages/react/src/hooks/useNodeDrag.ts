@@ -5,21 +5,23 @@ interface DragInfo {
   nodeId: string;
   startX: number;
   startY: number;
+  isMulti: boolean;
 }
 
 export function useNodeDrag(
   nodeById: Record<string, DiagramNode>,
   zoom: number,
-  setNodeLayout: (nodeId: string, x: number, y: number) => void
+  selectedIds: Set<string>,
+  setNodeLayout: (nodeId: string, x: number, y: number) => void,
+  onMultiMove: (dx: number, dy: number) => void,
 ) {
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
 
   const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation();
     if (e.button === 1 || e.button === 2) return;
-    setSelectedNodeId(nodeId);
-    setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY });
+    const isMulti = selectedIds.size > 1 && selectedIds.has(nodeId);
+    setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY, isMulti });
   };
 
   useEffect(() => {
@@ -28,12 +30,14 @@ export function useNodeDrag(
       const dx = (e.clientX - dragInfo.startX) / zoom;
       const dy = (e.clientY - dragInfo.startY) / zoom;
       if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
-      const node = nodeById[dragInfo.nodeId];
-      if (!node) return;
-      const newX = Math.round(node.x + dx);
-      const newY = Math.round(node.y + dy);
 
-      setNodeLayout(dragInfo.nodeId, newX, newY);
+      if (dragInfo.isMulti) {
+        onMultiMove(dx, dy);
+      } else {
+        const node = nodeById[dragInfo.nodeId];
+        if (!node) return;
+        setNodeLayout(dragInfo.nodeId, Math.round(node.x + dx), Math.round(node.y + dy));
+      }
       setDragInfo((d) => (d ? { ...d, startX: e.clientX, startY: e.clientY } : null));
     };
     const handleUp = () => setDragInfo(null);
@@ -43,7 +47,7 @@ export function useNodeDrag(
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [dragInfo, nodeById, zoom, setNodeLayout]);
+  }, [dragInfo, nodeById, zoom, setNodeLayout, onMultiMove]);
 
-  return { selectedNodeId, setSelectedNodeId, handleNodeMouseDown };
+  return { handleNodeMouseDown };
 }

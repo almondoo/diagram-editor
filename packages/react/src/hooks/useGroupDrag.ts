@@ -9,24 +9,27 @@ interface GroupDragInfo {
   handle?: ResizeHandle;
   startClientX: number;
   startClientY: number;
+  isMulti: boolean;
 }
 
 export function useGroupDrag(
   groupById: Record<string, DiagramGroup>,
   zoom: number,
+  selectedIds: Set<string>,
   setGroupLayout: (groupId: string, dx: number, dy: number) => void,
   setGroupSize: (groupId: string, newW: number, newH: number) => void,
+  onMultiMove: (dx: number, dy: number) => void,
 ) {
   const [dragInfo, setDragInfo] = useState<GroupDragInfo | null>(null);
 
-  // Ref で最新の groupById を参照（effect の再登録を減らすため）
   const groupByIdRef = useRef(groupById);
   groupByIdRef.current = groupById;
 
   const handleGroupMoveMouseDown = (e: React.MouseEvent, groupId: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    setDragInfo({ groupId, type: "move", startClientX: e.clientX, startClientY: e.clientY });
+    const isMulti = selectedIds.size > 1 && selectedIds.has(groupId);
+    setDragInfo({ groupId, type: "move", startClientX: e.clientX, startClientY: e.clientY, isMulti });
   };
 
   const handleGroupResizeMouseDown = (
@@ -36,7 +39,7 @@ export function useGroupDrag(
   ) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    setDragInfo({ groupId, type: "resize", handle, startClientX: e.clientX, startClientY: e.clientY });
+    setDragInfo({ groupId, type: "resize", handle, startClientX: e.clientX, startClientY: e.clientY, isMulti: false });
   };
 
   useEffect(() => {
@@ -48,7 +51,11 @@ export function useGroupDrag(
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
 
       if (dragInfo.type === "move") {
-        setGroupLayout(dragInfo.groupId, dx, dy);
+        if (dragInfo.isMulti) {
+          onMultiMove(dx, dy);
+        } else {
+          setGroupLayout(dragInfo.groupId, dx, dy);
+        }
       } else {
         const g = groupByIdRef.current[dragInfo.groupId];
         if (!g) return;
@@ -68,7 +75,7 @@ export function useGroupDrag(
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [dragInfo, zoom, setGroupLayout, setGroupSize]);
+  }, [dragInfo, zoom, setGroupLayout, setGroupSize, onMultiMove]);
 
   return { handleGroupMoveMouseDown, handleGroupResizeMouseDown };
 }

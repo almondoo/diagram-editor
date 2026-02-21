@@ -6,13 +6,32 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null);
+  const [isSpaceHeld, setIsSpaceHeld] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat) setIsSpaceHeld(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") setIsSpaceHeld(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
 
   const handleCanvasMouseDown = (e: React.MouseEvent, onDeselect: () => void) => {
     const target = e.target as SVGElement;
     if (target === svgRef.current || target.getAttribute("data-bg")) {
       onDeselect();
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      if (isSpaceHeld) {
+        setIsPanning(true);
+        setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      }
+      // Space なしの場合は選択矩形モード（DiagramEditor.tsx が処理）
     }
   };
 
@@ -80,5 +99,5 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
     [svgRef],
   );
 
-  return { zoom, pan, isPanning, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView };
+  return { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView };
 }

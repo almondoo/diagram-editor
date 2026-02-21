@@ -14,6 +14,7 @@ import { useDiagramState } from "./hooks/useDiagramState.js";
 import { useNodeDrag } from "./hooks/useNodeDrag.js";
 import { useGroupDrag } from "./hooks/useGroupDrag.js";
 import { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
+import { useMultiSelect } from "./hooks/useMultiSelect.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
 
@@ -36,18 +37,39 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showMyDiagrams, setShowMyDiagrams] = useState(false);
   const [currentDiagramId, setCurrentDiagramId] = useState<string | null>(null);
+  const [noteDragInfo, setNoteDragInfo] = useState<{
+    noteId: string;
+    startX: number;
+    startY: number;
+    isMulti: boolean;
+  } | null>(null);
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { savedDiagrams, saveDiagram, deleteDiagram } = useLocalDiagrams();
 
   const {
-    code, setCode, parsed, nodeById, groupById, nodeStates, groupStates,
-    setNodeLayout, setGroupLayout, setGroupSize,
+    code, setCode, parsed, nodeById, groupById, noteStates, nodeStates, groupStates,
+    setNodeLayout, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
     addNode, exportSVG, formatCode, resetLayout, loadTemplate, loadSaved,
   } = useDiagramState(initialCode);
 
-  const { zoom, pan, isPanning, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView } =
+  const { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef);
+
+  const {
+    selectedIds,
+    selectionRect,
+    startSelectionRect,
+    updateSelectionRect,
+    endSelectionRect,
+    clearSelection,
+    selectSingle,
+    isSelected,
+  } = useMultiSelect();
+
+  const onMultiMove = useCallback((dx: number, dy: number) => {
+    multiMoveLayout(selectedIds, dx, dy);
+  }, [selectedIds, multiMoveLayout]);
 
   const showToast = useCallback(() => {
     setToastVisible(true);
@@ -70,11 +92,63 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
     }
   }, [currentDiagramId, code, nodeStates, groupStates, savedDiagrams, saveDiagram, showToast]);
 
-  const { selectedNodeId, setSelectedNodeId, handleNodeMouseDown } =
-    useNodeDrag(nodeById, zoom, setNodeLayout);
+  const handleNoteMouseDown = useCallback((e: React.MouseEvent, noteId: string) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    const isMulti = selectedIds.size > 1 && selectedIds.has(noteId);
+    setNoteDragInfo({ noteId, startX: e.clientX, startY: e.clientY, isMulti });
+  }, [selectedIds]);
+
+  useEffect(() => {
+    if (!noteDragInfo) return;
+    const handleMove = (e: MouseEvent) => {
+      const dx = (e.clientX - noteDragInfo.startX) / zoom;
+      const dy = (e.clientY - noteDragInfo.startY) / zoom;
+      if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+      if (noteDragInfo.isMulti) {
+        onMultiMove(dx, dy);
+      } else {
+        const note = noteStates[noteDragInfo.noteId] ?? parsed.notes.find((n) => n.id === noteDragInfo.noteId);
+        if (!note) return;
+        setNoteLayout(noteDragInfo.noteId, Math.round(note.x + dx), Math.round(note.y + dy));
+      }
+      setNoteDragInfo((d) => d ? { ...d, startX: e.clientX, startY: e.clientY } : null);
+    };
+    const handleUp = () => setNoteDragInfo(null);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [noteDragInfo, zoom, noteStates, parsed.notes, setNoteLayout, onMultiMove]);
+
+  useEffect(() => {
+    if (!selectionRect) return;
+    const handleMove = (e: MouseEvent) => {
+      const svgEl = svgRef.current;
+      if (!svgEl) return;
+      const rect = svgEl.getBoundingClientRect();
+      const canvasX = (e.clientX - rect.left - pan.x) / zoom;
+      const canvasY = (e.clientY - rect.top - pan.y) / zoom;
+      updateSelectionRect(canvasX, canvasY);
+    };
+    const handleUp = () => {
+      endSelectionRect(parsed.nodes, parsed.groups, parsed.notes);
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [selectionRect, pan, zoom, parsed.nodes, parsed.groups, parsed.notes, updateSelectionRect, endSelectionRect]);
+
+  const { handleNodeMouseDown } =
+    useNodeDrag(nodeById, zoom, selectedIds, setNodeLayout, onMultiMove);
 
   const { handleGroupMoveMouseDown, handleGroupResizeMouseDown } =
-    useGroupDrag(groupById, zoom, setGroupLayout, setGroupSize);
+    useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove);
 
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
 
@@ -464,13 +538,27 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
           <div
             style={{ flex: 1, position: "relative", overflow: "hidden", background: "#0a0c12" }}
             onWheel={handleWheel}
-            onMouseDown={(e) => handleCanvasMouseDown(e, () => setSelectedNodeId(null))}
+            onMouseDown={(e) => {
+              const target = e.target as SVGElement;
+              if (target === svgRef.current || target.getAttribute("data-bg")) {
+                clearSelection();
+                handleCanvasMouseDown(e, () => {});
+                if (!isSpaceHeld) {
+                  const svgEl = svgRef.current;
+                  if (!svgEl) return;
+                  const rect = svgEl.getBoundingClientRect();
+                  const canvasX = (e.clientX - rect.left - pan.x) / zoom;
+                  const canvasY = (e.clientY - rect.top - pan.y) / zoom;
+                  startSelectionRect(canvasX, canvasY);
+                }
+              }
+            }}
           >
             <svg
               ref={svgRef}
               width="100%"
               height="100%"
-              style={{ cursor: isPanning ? "grabbing" : "default" }}
+              style={{ cursor: selectionRect ? "crosshair" : isPanning ? "grabbing" : isSpaceHeld ? "grab" : "default" }}
             >
               <defs>
                 <pattern
@@ -508,7 +596,15 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
                     />
                   ))}
                 {parsed.notes.map((n) => (
-                  <NoteBox key={n.id} note={n} />
+                  <NoteBox
+                    key={n.id}
+                    note={n}
+                    isSelected={isSelected(n.id)}
+                    onMouseDown={(e) => {
+                      if (!isSelected(n.id)) selectSingle(n.id);
+                      handleNoteMouseDown(e, n.id);
+                    }}
+                  />
                 ))}
                 {parsed.edges.map((edge, i) => (
                   <EdgeLine
@@ -522,11 +618,30 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
                   <ShapeNode
                     key={node.id}
                     node={node}
-                    isSelected={selectedNodeId === node.id}
-                    onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                    isSelected={isSelected(node.id)}
+                    onMouseDown={(e) => {
+                      if (!isSelected(node.id)) selectSingle(node.id);
+                      handleNodeMouseDown(e, node.id);
+                    }}
                   />
                 ))}
               </g>
+              {selectionRect && (
+                <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+                  <rect
+                    x={selectionRect.x}
+                    y={selectionRect.y}
+                    width={selectionRect.w}
+                    height={selectionRect.h}
+                    fill="#6366f1"
+                    fillOpacity={0.08}
+                    stroke="#6366f1"
+                    strokeWidth={1 / zoom}
+                    strokeDasharray={`${4 / zoom},${2 / zoom}`}
+                    style={{ pointerEvents: "none" }}
+                  />
+                </g>
+              )}
             </svg>
 
             <Minimap

@@ -7,9 +7,10 @@ import {
   randomColor,
   TEMPLATES,
 } from "diagram-dsl-core";
-import type { ParseResult, DiagramNode, DiagramGroup } from "diagram-dsl-core";
+import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
 import { syncNodes } from "./syncNodes.js";
 import { syncGroups } from "./syncGroups.js";
+import { syncNotes } from "./syncNotes.js";
 
 // グループ内ノードの境界クランプ用定数（layout.ts と合わせる）
 const GROUP_PADDING = 12;
@@ -19,6 +20,7 @@ export function useDiagramState(initialCode?: string) {
   const [code, setCode] = useState(initialCode ?? TEMPLATES.architecture);
   const [nodeStates, setNodeStates] = useState<Record<string, DiagramNode>>({});
   const [groupStates, setGroupStates] = useState<Record<string, DiagramGroup>>({});
+  const [noteStates, setNoteStates] = useState<Record<string, DiagramNote>>({});
 
   // グループ状態の ref（setNodeLayout の stable callback から読むため）
   const groupStatesRef = useRef(groupStates);
@@ -27,6 +29,9 @@ export function useDiagramState(initialCode?: string) {
   // ノード状態の ref（setNodeLayout の stable callback から読むため）
   const nodeStatesRef = useRef(nodeStates);
   nodeStatesRef.current = nodeStates;
+
+  const noteStatesRef = useRef(noteStates);
+  noteStatesRef.current = noteStates;
 
   // コードをパース
   const parsedRaw = useMemo(() => parseDSL(code), [code]);
@@ -41,10 +46,20 @@ export function useDiagramState(initialCode?: string) {
     setGroupStates((prev) => syncGroups(parsedRaw.groups, prev));
   }, [parsedRaw]);
 
+  // コード変更時に noteStates を同期
+  useEffect(() => {
+    setNoteStates((prev) => syncNotes(parsedRaw.notes, prev));
+  }, [parsedRaw]);
+
   // displayGroups: groupStates の値を優先（ドラッグ/リサイズを反映）
   const displayGroups = useMemo<DiagramGroup[]>(() => {
     return parsedRaw.groups.map((g) => groupStates[g.id] ?? g);
   }, [parsedRaw.groups, groupStates]);
+
+  // displayNotes: noteStates の値を優先（ドラッグを反映）
+  const displayNotes = useMemo<DiagramNote[]>(() => {
+    return parsedRaw.notes.map((n) => noteStates[n.id] ?? n);
+  }, [parsedRaw.notes, noteStates]);
 
   // displayNodes: nodeStates に autoLayout を適用（displayGroups を渡す）
   const layoutResult = useMemo(() => {
@@ -81,8 +96,8 @@ export function useDiagramState(initialCode?: string) {
 
   // 最終的な parsed（consumers はこれを使う）
   const parsed: ParseResult = useMemo(
-    () => ({ ...parsedRaw, nodes: displayNodes, groups: displayGroups }),
-    [parsedRaw, displayNodes, displayGroups],
+    () => ({ ...parsedRaw, nodes: displayNodes, groups: displayGroups, notes: displayNotes }),
+    [parsedRaw, displayNodes, displayGroups, displayNotes],
   );
 
   const nodeById = useMemo(() => {
@@ -223,6 +238,75 @@ export function useDiagramState(initialCode?: string) {
     });
   }, []);
 
+  // ノートの位置更新
+  const setNoteLayout = useCallback((noteId: string, x: number, y: number) => {
+    setNoteStates((prev) => {
+      const n = prev[noteId];
+      if (!n) return prev;
+      return { ...prev, [noteId]: { ...n, x, y } };
+    });
+  }, []);
+
+  // 複数要素の一括移動
+  const multiMoveLayout = useCallback((selectedIds: Set<string>, dx: number, dy: number) => {
+    // 選択グループの子孫グループを収集
+    const collectDescendants = (id: string): string[] => {
+      const children = Object.values(groupStatesRef.current).filter(
+        (g) => g.parentGroup === id,
+      );
+      return [id, ...children.flatMap((c) => collectDescendants(c.id))];
+    };
+
+    // トップレベルの選択グループのみ展開（親グループが選択済みの場合はスキップ）
+    const groupsToMove = new Set<string>();
+    for (const id of selectedIds) {
+      const group = groupStatesRef.current[id];
+      if (group) {
+        const parentSelected = group.parentGroup && selectedIds.has(group.parentGroup);
+        if (!parentSelected) {
+          for (const gid of collectDescendants(id)) {
+            groupsToMove.add(gid);
+          }
+        }
+      }
+    }
+
+    // グループ移動
+    if (groupsToMove.size > 0) {
+      setGroupStates((prev) => {
+        const updates: Record<string, DiagramGroup> = {};
+        for (const gid of groupsToMove) {
+          const g = prev[gid];
+          if (g) updates[gid] = { ...g, x: g.x + dx, y: g.y + dy };
+        }
+        return { ...prev, ...updates };
+      });
+    }
+
+    // ノード移動: 選択済み（移動グループ外）または移動グループ内のノード
+    setNodeStates((prev) => {
+      const updates: Record<string, DiagramNode> = {};
+      for (const [id, node] of Object.entries(prev)) {
+        const inMovedGroup = groupsToMove.has(node.group);
+        const isSelected = selectedIds.has(id);
+        if (isSelected || inMovedGroup) {
+          updates[id] = { ...node, x: node.x + dx, y: node.y + dy };
+        }
+      }
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+    });
+
+    // ノート移動
+    setNoteStates((prev) => {
+      const updates: Record<string, DiagramNote> = {};
+      for (const id of selectedIds) {
+        const note = prev[id];
+        if (note) updates[id] = { ...note, x: note.x + dx, y: note.y + dy };
+      }
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+    });
+  }, []);
+
   // ノード追加
   const addNode = (shape: string) => {
     const id = `n${Date.now().toString(36)}`;
@@ -302,9 +386,12 @@ export function useDiagramState(initialCode?: string) {
     groupById,
     nodeStates,
     groupStates,
+    noteStates,
     setNodeLayout,
     setGroupLayout,
     setGroupSize,
+    setNoteLayout,
+    multiMoveLayout,
     addNode,
     exportSVG,
     formatCode,
