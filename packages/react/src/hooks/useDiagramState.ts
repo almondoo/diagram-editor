@@ -284,9 +284,13 @@ export function useDiagramState(initialCode?: string) {
   };
 
   // 保存済みダイアグラムを読み込む
-  const loadSaved = (savedCode: string, savedNodeStates: Record<string, DiagramNode>) => {
+  const loadSaved = (
+    savedCode: string,
+    savedNodeStates: Record<string, DiagramNode>,
+    savedGroupStates: Record<string, DiagramGroup>
+  ) => {
     setNodeStates(savedNodeStates);
-    setGroupStates({}); // syncGroups effect が走って parsedRaw から初期化される
+    setGroupStates(savedGroupStates);
     setCode(savedCode);
   };
 
@@ -297,6 +301,7 @@ export function useDiagramState(initialCode?: string) {
     nodeById,
     groupById,
     nodeStates,
+    groupStates,
     setNodeLayout,
     setGroupLayout,
     setGroupSize,

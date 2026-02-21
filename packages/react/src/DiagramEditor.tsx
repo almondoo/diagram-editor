@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { TEMPLATES } from "diagram-dsl-core";
 import { SaveModal } from "./components/SaveModal.js";
 import { useLocalDiagrams } from "./hooks/useLocalDiagrams.js";
@@ -35,16 +35,39 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
   const [showSyntax, setShowSyntax] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showMyDiagrams, setShowMyDiagrams] = useState(false);
+  const [currentDiagramId, setCurrentDiagramId] = useState<string | null>(null);
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { savedDiagrams, saveDiagram, deleteDiagram } = useLocalDiagrams();
 
   const {
-    code, setCode, parsed, nodeById, groupById, nodeStates,
+    code, setCode, parsed, nodeById, groupById, nodeStates, groupStates,
     setNodeLayout, setGroupLayout, setGroupSize,
     addNode, exportSVG, formatCode, resetLayout, loadTemplate, loadSaved,
   } = useDiagramState(initialCode);
 
   const { zoom, pan, isPanning, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef);
+
+  const showToast = useCallback(() => {
+    setToastVisible(true);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastVisible(false), 2000);
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(toastTimerRef.current);
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (currentDiagramId) {
+      const name = savedDiagrams.find((d) => d.id === currentDiagramId)?.name ?? "無題";
+      saveDiagram(name, currentDiagramId, code, nodeStates, groupStates);
+      showToast();
+    } else {
+      setShowSaveModal(true);
+    }
+  }, [currentDiagramId, code, nodeStates, groupStates, savedDiagrams, saveDiagram, showToast]);
 
   const { selectedNodeId, setSelectedNodeId, handleNodeMouseDown } =
     useNodeDrag(nodeById, zoom, setNodeLayout);
@@ -67,6 +90,17 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [showMyDiagrams]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [handleSave]);
 
   return (
     <div
@@ -152,7 +186,10 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
               <button
                 key={key}
                 className="tmpl-btn"
-                onClick={() => loadTemplate(val)}
+                onClick={() => {
+                  loadTemplate(val);
+                  setCurrentDiagramId(null);
+                }}
                 style={{
                   background: "#131720",
                   border: "1px solid #2d3548",
@@ -175,7 +212,10 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
             ))}
           <button
             className="tmpl-btn"
-            onClick={() => loadTemplate(TEMPLATES.empty)}
+            onClick={() => {
+              loadTemplate(TEMPLATES.empty);
+              setCurrentDiagramId(null);
+            }}
             style={{
               background: "#131720",
               border: "1px solid #2d3548",
@@ -240,12 +280,18 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
                   >
                     <div
                       onClick={() => {
-                        loadSaved(d.code, d.nodeStates);
+                        loadSaved(d.code, d.nodeStates, d.groupStates);
+                        setCurrentDiagramId(d.id);
                         setShowMyDiagrams(false);
                       }}
                       style={{ flex: 1, cursor: "pointer" }}
                     >
-                      <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500 }}>{d.name}</div>
+                      <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500 }}>
+                        {d.id === currentDiagramId && (
+                          <span style={{ color: "#6366f1", marginRight: 4 }}>✓</span>
+                        )}
+                        {d.name}
+                      </div>
                       <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>
                         {new Date(d.savedAt).toLocaleDateString("ja-JP")}
                       </div>
@@ -274,7 +320,7 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
 
         {/* 保存ボタン */}
         <button
-          onClick={() => setShowSaveModal(true)}
+          onClick={handleSave}
           style={{
             background: "#312e81",
             border: "1px solid #4338ca",
@@ -287,7 +333,7 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
             marginLeft: 8,
           }}
         >
-          保存
+          {currentDiagramId ? "更新" : "保存"}
         </button>
 
         <div style={{ flex: 1 }} />
@@ -509,9 +555,35 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
       {showSaveModal && (
         <SaveModal
           existingNames={savedDiagrams.map((d) => d.name)}
-          onSave={(name) => saveDiagram(name, code, nodeStates)}
+          onSave={(name) => {
+            const saved = saveDiagram(name, null, code, nodeStates, groupStates);
+            setCurrentDiagramId(saved.id);
+          }}
           onClose={() => setShowSaveModal(false)}
         />
+      )}
+      {toastVisible && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            background: "#1e2435",
+            border: "1px solid #4338ca",
+            borderRadius: 8,
+            padding: "10px 18px",
+            fontSize: 12,
+            color: "#a5b4fc",
+            fontWeight: 600,
+            zIndex: 2000,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span style={{ color: "#6366f1" }}>✓</span> 保存しました
+        </div>
       )}
     </div>
   );
