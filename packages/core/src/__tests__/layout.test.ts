@@ -87,7 +87,7 @@ describe("autoLayout", () => {
   it("グループ内ノードはグループ枠内に配置される", () => {
     const group = makeGroup("g1", 10, 10, 400, 300);
     const nodes = [makeNode("a", true, "g1"), makeNode("b", true, "g1")];
-    const { nodes: result, groupUpdates } = autoLayout(nodes, [], [group]);
+    const { groupUpdates } = autoLayout(nodes, [], [group]);
     // グループ更新が返される
     expect(groupUpdates["g1"]).toBeDefined();
     // groupUpdates の幅・高さは正の値

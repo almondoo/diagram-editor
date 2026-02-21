@@ -401,7 +401,7 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
             onExportSVG={exportSVG}
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}
-            onFitView={fitView}
+            onFitView={() => fitView(parsed.nodes, parsed.groups)}
             onResetLayout={resetLayout}
           />
 
