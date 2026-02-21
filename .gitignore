@@ -10,3 +10,4 @@
 /.pnpm-store/
 
 .claude/settings.local.json
+./CLAUDE.md
