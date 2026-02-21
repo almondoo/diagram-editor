@@ -145,6 +145,18 @@ export const ShapeNode = memo(
       />
     ) : null;
 
+    // アイコンあり: シェイプを描画せずアイコン+ラベルのみ
+    if (icon) {
+      return (
+        <g onMouseDown={handleMouseDown} style={{ cursor: "grab", opacity }}>
+          {selOutline}
+          <rect x={x} y={y} width={w} height={h} fill="transparent" stroke="none" />
+          {textEl}
+          {resizeHandle}
+        </g>
+      );
+    }
+
     const path = getShapePath(shape, x, y, w, h);
 
     if (shape === "ellipse" || shape === "circle") {
