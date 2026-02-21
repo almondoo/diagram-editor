@@ -15,6 +15,9 @@ logs:
 ps:
 	docker compose ps
 
+dev:
+	docker compose exec app pnpm dev
+
 build:
 	docker compose exec app pnpm -r build
 
