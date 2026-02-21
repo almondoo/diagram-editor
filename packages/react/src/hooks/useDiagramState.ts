@@ -5,7 +5,6 @@ import {
   formatDSLCode,
   generateExportSVG,
   randomColor,
-  TEMPLATES,
 } from "diagram-dsl-core";
 import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
 import { syncNodes } from "./syncNodes.js";
@@ -16,8 +15,30 @@ import { syncNotes } from "./syncNotes.js";
 const GROUP_PADDING = 12;
 const GROUP_LABEL_H = 26;
 
-export function useDiagramState(initialCode?: string) {
-  const [code, setCode] = useState(initialCode ?? TEMPLATES.architecture);
+export interface DiagramState {
+  code: string;
+  setCode: React.Dispatch<React.SetStateAction<string>>;
+  parsed: ParseResult;
+  nodeById: Record<string, DiagramNode>;
+  groupById: Record<string, DiagramGroup>;
+  nodeStates: Record<string, DiagramNode>;
+  groupStates: Record<string, DiagramGroup>;
+  noteStates: Record<string, DiagramNote>;
+  setNodeLayout: (nodeId: string, x: number, y: number) => void;
+  setGroupLayout: (groupId: string, dx: number, dy: number) => void;
+  setGroupSize: (groupId: string, newW: number, newH: number) => void;
+  setNoteLayout: (noteId: string, x: number, y: number) => void;
+  multiMoveLayout: (selectedIds: Set<string>, dx: number, dy: number) => void;
+  addNode: (shape: string) => void;
+  exportSVG: () => void;
+  formatCode: () => void;
+  resetLayout: () => void;
+  loadTemplate: (templateCode: string) => void;
+  loadSaved: (code: string, nodeStates: Record<string, DiagramNode>, groupStates: Record<string, DiagramGroup>) => void;
+}
+
+export function useDiagramState(initialCode: string = ""): DiagramState {
+  const [code, setCode] = useState(initialCode);
   const [nodeStates, setNodeStates] = useState<Record<string, DiagramNode>>({});
   const [groupStates, setGroupStates] = useState<Record<string, DiagramGroup>>({});
   const [noteStates, setNoteStates] = useState<Record<string, DiagramNote>>({});

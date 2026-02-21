@@ -16,4 +16,3 @@ export { formatPropsString, formatDSLCode } from "./formatter.js";
 export { highlightLine } from "./syntax.js";
 export { getShapePath, getNodeCenter, getEdgePoints } from "./geometry.js";
 export { escapeXml, generateExportSVG } from "./svg-export.js";
-export { TEMPLATES } from "./templates.js";

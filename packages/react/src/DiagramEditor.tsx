@@ -1,7 +1,4 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { TEMPLATES } from "diagram-dsl-core";
-import { SaveModal } from "./components/SaveModal.js";
-import { useLocalDiagrams } from "./hooks/useLocalDiagrams.js";
 import { ShapeNode } from "./components/ShapeNode.js";
 import { EdgeLine } from "./components/EdgeLine.js";
 import { GroupBox } from "./components/GroupBox.js";
@@ -10,13 +7,13 @@ import { CodeEditor } from "./components/CodeEditor.js";
 import { Toolbar } from "./components/Toolbar.js";
 import { Minimap } from "./components/Minimap.js";
 import { SyntaxPanel } from "./components/SyntaxPanel.js";
-import { useDiagramState } from "./hooks/useDiagramState.js";
 import { useNodeDrag } from "./hooks/useNodeDrag.js";
 import { useGroupDrag } from "./hooks/useGroupDrag.js";
 import { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
 import { useMultiSelect } from "./hooks/useMultiSelect.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
+import type { DiagramState } from "./hooks/useDiagramState.js";
 
 function getGroupDepth(groupId: string, groups: import("diagram-dsl-core").DiagramGroup[]): number {
   const group = groups.find((g) => g.id === groupId);
@@ -25,33 +22,27 @@ function getGroupDepth(groupId: string, groups: import("diagram-dsl-core").Diagr
 }
 
 interface DiagramEditorProps {
-  initialCode?: string;
+  state: DiagramState;
   className?: string;
   style?: React.CSSProperties;
 }
 
-export function DiagramEditor({ initialCode, className, style }: DiagramEditorProps) {
+export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showSyntax, setShowSyntax] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showMyDiagrams, setShowMyDiagrams] = useState(false);
-  const [currentDiagramId, setCurrentDiagramId] = useState<string | null>(null);
   const [noteDragInfo, setNoteDragInfo] = useState<{
     noteId: string;
     startX: number;
     startY: number;
     isMulti: boolean;
   } | null>(null);
-  const [toastVisible, setToastVisible] = useState(false);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const { savedDiagrams, saveDiagram, deleteDiagram } = useLocalDiagrams();
 
   const {
-    code, setCode, parsed, nodeById, groupById, noteStates, nodeStates, groupStates,
+    code, setCode, parsed, nodeById, groupById, noteStates,
     setNodeLayout, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
-    addNode, exportSVG, formatCode, resetLayout, loadTemplate, loadSaved,
-  } = useDiagramState(initialCode);
+    addNode, exportSVG, formatCode, resetLayout,
+  } = state;
 
   const { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef);
@@ -73,27 +64,6 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
   const onMultiMove = useCallback((dx: number, dy: number) => {
     multiMoveLayout(selectedIdsRef.current, dx, dy);
   }, [multiMoveLayout]);
-
-  const showToast = useCallback(() => {
-    setToastVisible(true);
-    clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToastVisible(false), 2000);
-  }, []);
-
-  useEffect(() => {
-    return () => clearTimeout(toastTimerRef.current);
-  }, []);
-
-  const handleSave = useCallback(() => {
-    if (currentDiagramId) {
-      const name = savedDiagrams.find((d) => d.id === currentDiagramId)?.name ?? "無題";
-      const saved = saveDiagram(name, currentDiagramId, code, nodeStates, groupStates);
-      setCurrentDiagramId(saved.id);
-      showToast();
-    } else {
-      setShowSaveModal(true);
-    }
-  }, [currentDiagramId, code, nodeStates, groupStates, savedDiagrams, saveDiagram, showToast]);
 
   const handleNoteMouseDown = useCallback((e: React.MouseEvent, noteId: string) => {
     e.stopPropagation();
@@ -162,35 +132,11 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
   const canvasW = 1200;
   const canvasH = 800;
 
-  // showMyDiagrams 外クリックで閉じる
-  useEffect(() => {
-    if (!showMyDiagrams) return;
-    const handle = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest("[data-my-diagrams]")) setShowMyDiagrams(false);
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [showMyDiagrams]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [handleSave]);
-
   return (
     <div
       ref={containerRef}
       className={className}
       style={{
-        width: "100vw",
-        height: "100vh",
         display: "flex",
         flexDirection: "column",
         background: "#080a10",
@@ -201,244 +147,6 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
       }}
     >
       <style>{DIAGRAM_EDITOR_STYLES}</style>
-
-      {/* Header */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "0 20px",
-          height: 48,
-          background: "#0c0e14",
-          borderBottom: "1px solid #1e293b",
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 7,
-              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 14,
-              fontWeight: 700,
-            }}
-          >
-            ◈
-          </div>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>
-            DiagramCraft
-          </span>
-          <span
-            style={{
-              fontSize: 9,
-              background: "#312e81",
-              color: "#a5b4fc",
-              padding: "2px 6px",
-              borderRadius: 4,
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-            }}
-          >
-            Code → Diagram
-          </span>
-        </div>
-
-        <div style={{ display: "flex", gap: 4, marginLeft: 24, alignItems: "center" }}>
-          <span
-            style={{
-              fontSize: 10,
-              color: "#64748b",
-              marginRight: 4,
-              fontFamily: "'IBM Plex Mono', monospace",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-            }}
-          >
-            テンプレート
-          </span>
-          {Object.entries(TEMPLATES)
-            .filter(([k]) => k !== "empty")
-            .map(([key, val]) => (
-              <button
-                key={key}
-                className="tmpl-btn"
-                onClick={() => {
-                  loadTemplate(val);
-                  setCurrentDiagramId(null);
-                }}
-                style={{
-                  background: "#131720",
-                  border: "1px solid #2d3548",
-                  color: "#94a3b8",
-                  padding: "3px 10px",
-                  borderRadius: 5,
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontWeight: 500,
-                }}
-              >
-                {key === "flowchart" ? "フローチャート"
-                  : key === "sequence" ? "シーケンス"
-                  : key === "er" ? "ER図"
-                  : key === "architecture" ? "アーキテクチャ"
-                  : key === "mindmap" ? "マインドマップ"
-                  : key === "state" ? "状態遷移"
-                  : key}
-              </button>
-            ))}
-          <button
-            className="tmpl-btn"
-            onClick={() => {
-              loadTemplate(TEMPLATES.empty);
-              setCurrentDiagramId(null);
-            }}
-            style={{
-              background: "#131720",
-              border: "1px solid #2d3548",
-              color: "#64748b",
-              padding: "3px 10px",
-              borderRadius: 5,
-              cursor: "pointer",
-              fontSize: 11,
-            }}
-          >
-            + 新規
-          </button>
-        </div>
-
-        {/* マイ作品ドロップダウン */}
-        <div data-my-diagrams="" style={{ position: "relative", marginLeft: 12 }}>
-          <button
-            onClick={() => setShowMyDiagrams((v) => !v)}
-            style={{
-              background: showMyDiagrams ? "#1e2435" : "#131720",
-              border: `1px solid ${showMyDiagrams ? "#4338ca" : "#2d3548"}`,
-              color: showMyDiagrams ? "#a5b4fc" : "#94a3b8",
-              padding: "3px 10px",
-              borderRadius: 5,
-              cursor: "pointer",
-              fontSize: 11,
-              fontWeight: 500,
-            }}
-          >
-            マイ作品 {savedDiagrams.length > 0 ? `(${savedDiagrams.length})` : ""} ▾
-          </button>
-          {showMyDiagrams && (
-            <div
-              style={{
-                position: "absolute",
-                top: "calc(100% + 4px)",
-                left: 0,
-                background: "#0f1219",
-                border: "1px solid #2d3548",
-                borderRadius: 8,
-                minWidth: 220,
-                zIndex: 100,
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                overflow: "hidden",
-              }}
-            >
-              {savedDiagrams.length === 0 ? (
-                <div style={{ padding: "12px 16px", fontSize: 12, color: "#475569" }}>
-                  保存済みの作品はありません
-                </div>
-              ) : (
-                savedDiagrams.map((d) => (
-                  <div
-                    key={d.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "8px 12px",
-                      borderBottom: "1px solid #1e293b",
-                      gap: 8,
-                    }}
-                  >
-                    <div
-                      onClick={() => {
-                        loadSaved(d.code, d.nodeStates, d.groupStates);
-                        setCurrentDiagramId(d.id);
-                        setShowMyDiagrams(false);
-                      }}
-                      style={{ flex: 1, cursor: "pointer" }}
-                    >
-                      <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500 }}>
-                        {d.id === currentDiagramId && (
-                          <span style={{ color: "#6366f1", marginRight: 4 }}>✓</span>
-                        )}
-                        {d.name}
-                      </div>
-                      <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>
-                        {new Date(d.savedAt).toLocaleDateString("ja-JP")}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        deleteDiagram(d.id);
-                        if (d.id === currentDiagramId) setCurrentDiagramId(null);
-                      }}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "#475569",
-                        cursor: "pointer",
-                        fontSize: 14,
-                        padding: "2px 4px",
-                        borderRadius: 3,
-                      }}
-                      title="削除"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 保存ボタン */}
-        <button
-          onClick={handleSave}
-          style={{
-            background: "#312e81",
-            border: "1px solid #4338ca",
-            color: "#c7d2fe",
-            padding: "3px 12px",
-            borderRadius: 5,
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 600,
-            marginLeft: 8,
-          }}
-        >
-          {currentDiagramId ? "更新" : "保存"}
-        </button>
-
-        <div style={{ flex: 1 }} />
-
-        <button
-          onClick={() => setShowSyntax(!showSyntax)}
-          style={{
-            background: showSyntax ? "#312e81" : "#131720",
-            border: `1px solid ${showSyntax ? "#4338ca" : "#2d3548"}`,
-            color: showSyntax ? "#c7d2fe" : "#94a3b8",
-            padding: "4px 12px",
-            borderRadius: 5,
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 500,
-          }}
-        >
-          構文ヘルプ
-        </button>
-      </header>
 
       {/* Main content */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
@@ -478,6 +186,21 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
               <span style={{ fontSize: 11, color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>
                 {parsed.nodes.length}ノード · {parsed.edges.length}エッジ
               </span>
+              <button
+                onClick={() => setShowSyntax(!showSyntax)}
+                style={{
+                  background: showSyntax ? "#312e81" : "#131720",
+                  border: `1px solid ${showSyntax ? "#4338ca" : "#2d3548"}`,
+                  color: showSyntax ? "#c7d2fe" : "#94a3b8",
+                  padding: "3px 10px",
+                  borderRadius: 5,
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontWeight: 500,
+                }}
+              >
+                構文ヘルプ
+              </button>
             </div>
           </div>
 
@@ -681,40 +404,6 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
           </div>
         </div>
       </div>
-
-      {showSaveModal && (
-        <SaveModal
-          existingNames={savedDiagrams.map((d) => d.name)}
-          onSave={(name) => {
-            const saved = saveDiagram(name, null, code, nodeStates, groupStates);
-            setCurrentDiagramId(saved.id);
-          }}
-          onClose={() => setShowSaveModal(false)}
-        />
-      )}
-      {toastVisible && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            background: "#1e2435",
-            border: "1px solid #4338ca",
-            borderRadius: 8,
-            padding: "10px 18px",
-            fontSize: 12,
-            color: "#a5b4fc",
-            fontWeight: 600,
-            zIndex: 2000,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <span style={{ color: "#6366f1" }}>✓</span> 保存しました
-        </div>
-      )}
     </div>
   );
 }

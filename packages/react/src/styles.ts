@@ -9,8 +9,6 @@ export const DIAGRAM_EDITOR_STYLES = `
   @keyframes edgeDash { to { stroke-dashoffset: -20; } }
   .sel-outline { animation: selPulse 1.5s ease-in-out infinite; }
   @keyframes selPulse { 0%,100% { opacity:0.5 } 50% { opacity:1 } }
-  .tmpl-btn { transition: all 0.15s; }
-  .tmpl-btn:hover { background: #1e293b !important; border-color: #475569 !important; }
   textarea::selection { background: #312e81; }
   .syntax-card { animation: fadeIn 0.2s ease-out; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
