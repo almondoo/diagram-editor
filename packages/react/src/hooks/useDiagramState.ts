@@ -43,25 +43,35 @@ export function useDiagramState(initialCode?: string) {
   }, [parsedRaw.groups, groupStates]);
 
   // displayNodes: nodeStates に autoLayout を適用（displayGroups を渡す）
-  const displayNodes = useMemo(() => {
+  const layoutResult = useMemo(() => {
     const nodes = parsedRaw.nodes
       .filter((n) => nodeStates[n.id] !== undefined)
-      .map((n) => ({ ...nodeStates[n.id] }));
+      .map((n) => ({ ...nodeStates[n.id] as DiagramNode }));
     return autoLayout(nodes, parsedRaw.edges, displayGroups);
   }, [parsedRaw, nodeStates, displayGroups]);
+
+  const displayNodes = layoutResult.nodes;
 
   // autoLayout が割り当てた位置を nodeStates に保存（_needsPosition のノードのみ）
   const prevDisplayNodesRef = useRef<DiagramNode[]>([]);
   useEffect(() => {
-    const updates: Record<string, DiagramNode> = {};
+    // _needsPosition をクリア
+    const nodeUpdates: Record<string, DiagramNode> = {};
     for (const node of displayNodes) {
       if (nodeStates[node.id]?._needsPosition) {
-        updates[node.id] = { ...node, _needsPosition: false };
+        nodeUpdates[node.id] = { ...node, _needsPosition: false };
       }
     }
-    if (Object.keys(updates).length > 0) {
-      setNodeStates((prev) => ({ ...prev, ...updates }));
+    if (Object.keys(nodeUpdates).length > 0) {
+      setNodeStates((prev) => ({ ...prev, ...nodeUpdates }));
     }
+
+    // グループ自動フィットを反映
+    const { groupUpdates } = layoutResult;
+    if (Object.keys(groupUpdates).length > 0) {
+      setGroupStates((prev) => ({ ...prev, ...groupUpdates }));
+    }
+
     prevDisplayNodesRef.current = displayNodes;
   }, [displayNodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
