@@ -25,14 +25,14 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
   const containerRef = useRef<HTMLDivElement>(null);
   const [showSyntax, setShowSyntax] = useState(false);
 
-  const { code, setCode, parsed, nodeById, addNode, exportSVG, formatCode } =
+  const { code, setCode, parsed, nodeById, setNodeLayout, addNode, exportSVG, formatCode, loadTemplate } =
     useDiagramState(initialCode);
 
   const { zoom, pan, isPanning, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef);
 
   const { selectedNodeId, setSelectedNodeId, handleNodeMouseDown } =
-    useNodeDrag(nodeById, zoom, setCode);
+    useNodeDrag(nodeById, zoom, setNodeLayout);
 
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
 
@@ -123,7 +123,7 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
               <button
                 key={key}
                 className="tmpl-btn"
-                onClick={() => setCode(val)}
+                onClick={() => loadTemplate(val)}
                 style={{
                   background: "#131720",
                   border: "1px solid #2d3548",
@@ -146,7 +146,7 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
             ))}
           <button
             className="tmpl-btn"
-            onClick={() => setCode(TEMPLATES.empty)}
+            onClick={() => loadTemplate(TEMPLATES.empty)}
             style={{
               background: "#131720",
               border: "1px solid #2d3548",
