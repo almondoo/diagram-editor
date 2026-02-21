@@ -11,11 +11,23 @@ export function parseProps(str: string): Record<string, string> {
   return props;
 }
 
+interface ParseContext {
+  nodes: DiagramNode[];
+  edges: ParseResult["edges"];
+  groups: DiagramGroup[];
+  notes: ParseResult["notes"];
+  errors: ParseResult["errors"];
+  nodeMap: Record<string, DiagramNode>;
+}
+
 /**
  * コードをセグメントに分割する。
  * セグメントは単一行 or マルチラインブロック（{...} が複数行にまたがる場合）。
  */
-function extractSegments(code: string): Array<{ text: string; startLine: number }> {
+function extractSegments(
+  code: string,
+  errors?: ParseResult["errors"],
+): Array<{ text: string; startLine: number }> {
   const segments: Array<{ text: string; startLine: number }> = [];
   const lines = code.split("\n");
   let i = 0;
@@ -43,6 +55,9 @@ function extractSegments(code: string): Array<{ text: string; startLine: number 
         depth += bo - bc;
         blockLines.push(bLine);
         i++;
+      }
+      if (depth > 0 && errors) {
+        errors.push({ line: startLine, message: "構文エラー: ブロックが閉じられていません" });
       }
       segments.push({ text: blockLines.join("\n"), startLine });
     } else {
@@ -77,10 +92,12 @@ export function parseDSL(code: string): ParseResult {
   const errors: ParseResult["errors"] = [];
   const nodeMap: Record<string, DiagramNode> = {};
 
-  const segments = extractSegments(code);
+  const segments = extractSegments(code, errors);
+
+  const ctx: ParseContext = { nodes, edges, groups, notes, errors, nodeMap };
 
   for (const seg of segments) {
-    parseSegment(seg.text, seg.startLine, null, 0, 0, nodes, edges, groups, notes, errors, nodeMap);
+    parseSegment(seg.text, seg.startLine, null, 0, 0, ctx);
   }
 
   return { nodes, edges, groups, notes, errors };
@@ -92,12 +109,7 @@ function parseSegment(
   parentGroupId: string | null,
   offsetX: number,
   offsetY: number,
-  nodes: DiagramNode[],
-  edges: ParseResult["edges"],
-  groups: DiagramGroup[],
-  notes: ParseResult["notes"],
-  errors: ParseResult["errors"],
-  nodeMap: Record<string, DiagramNode>,
+  ctx: ParseContext,
 ): void {
   const firstLine = text.split("\n")[0].trim();
   if (!firstLine || firstLine.startsWith("//") || firstLine.startsWith("#")) return;
@@ -128,11 +140,11 @@ function parseSegment(
           h: parseFloat(props.h) || 200,
           parentGroup: parentGroupId ?? undefined,
         };
-        groups.push(group);
+        ctx.groups.push(group);
 
         // ブロックボディを再帰的に解析
         const body = extractMultilineBlockBody(text);
-        const bodySegments = extractSegments(body);
+        const bodySegments = extractSegments(body, ctx.errors);
         for (const bodySeg of bodySegments) {
           parseSegment(
             bodySeg.text,
@@ -140,12 +152,7 @@ function parseSegment(
             group.id,
             absX,
             absY,
-            nodes,
-            edges,
-            groups,
-            notes,
-            errors,
-            nodeMap,
+            ctx,
           );
         }
       } else {
@@ -161,7 +168,7 @@ function parseSegment(
           h: parseFloat(props.h) || 200,
           parentGroup: parentGroupId ?? undefined,
         };
-        groups.push(group);
+        ctx.groups.push(group);
       }
       return;
     }
@@ -170,7 +177,7 @@ function parseSegment(
     const noteMatch = firstLine.match(/^note\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
     if (noteMatch) {
       const props = parseProps(noteMatch[3] || "");
-      notes.push({
+      ctx.notes.push({
         id: noteMatch[1],
         text: noteMatch[2],
         x: offsetX + (parseFloat(props.x) || 50),
@@ -211,8 +218,8 @@ function parseSegment(
         _needsPosition: !hasX || !hasY,
         _explicitProps: new Set(["id", "label", ...Object.keys(props)]),
       };
-      nodes.push(node);
-      nodeMap[id] = node;
+      ctx.nodes.push(node);
+      ctx.nodeMap[id] = node;
       return;
     }
 
@@ -220,7 +227,7 @@ function parseSegment(
     const edgeMatch = firstLine.match(/^edge\s+(\S+)\s*->\s*(\S+)(?:\s*\{([^}]*)\})?/);
     if (edgeMatch) {
       const props = parseProps(edgeMatch[3] || "");
-      edges.push({
+      ctx.edges.push({
         from: edgeMatch[1],
         to: edgeMatch[2],
         label: props.label || "",
@@ -239,8 +246,8 @@ function parseSegment(
     if (styleMatch) {
       const id = styleMatch[1];
       const props = parseProps(styleMatch[2]);
-      if (nodeMap[id]) {
-        Object.assign(nodeMap[id], {
+      if (ctx.nodeMap[id]) {
+        Object.assign(ctx.nodeMap[id], {
           ...(props.color && { color: props.color }),
           ...(props.shape && { shape: props.shape }),
           ...(props.border && { borderColor: props.border }),
@@ -251,9 +258,9 @@ function parseSegment(
     }
 
     if (firstLine.length > 0) {
-      errors.push({ line: startLine, message: `構文エラー: "${firstLine}"` });
+      ctx.errors.push({ line: startLine, message: `構文エラー: "${firstLine}"` });
     }
   } catch (e) {
-    errors.push({ line: startLine, message: (e as Error).message });
+    ctx.errors.push({ line: startLine, message: (e as Error).message });
   }
 }
