@@ -1,5 +1,5 @@
 import type { ParseResult } from "./types.js";
-import { getEdgePoints, getShapePath } from "./geometry.js";
+import { getEdgePoints, getShapePath, buildEdgePath } from "./geometry.js";
 
 export function escapeXml(str: string | undefined): string {
   if (!str) return "";
@@ -74,17 +74,7 @@ export function generateExportSVG(parsed: ParseResult): string | null {
     if (!fromNode || !toNode) return;
 
     const { from, to } = getEdgePoints(fromNode, toNode);
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const perpX = -dy * 0.08;
-    const perpY = dx * 0.08;
-
-    const pathD =
-      edge.curve === "straight"
-        ? `M${from.x},${from.y} L${to.x},${to.y}`
-        : `M${from.x},${from.y} Q${midX + perpX},${midY + perpY} ${to.x},${to.y}`;
+    const { pathD, labelX, labelY } = buildEdgePath(from, to, edge.curve, edge._routePoints);
 
     const mid = `ah-export-${i}`;
     const dashArr = edge.style === "dashed" ? ' stroke-dasharray="8,4"' : "";
@@ -92,11 +82,9 @@ export function generateExportSVG(parsed: ParseResult): string | null {
     svgContent += `<path d="${pathD}" fill="none" stroke="${escapeXml(edge.color)}" stroke-width="${edge.thickness}"${dashArr}${markerEnd}/>\n`;
 
     if (edge.label) {
-      const lx = midX + perpX / 2;
-      const ly = midY + perpY / 2;
       const lw = edge.label.length * 8 + 8;
-      svgContent += `<rect x="${lx - lw / 2}" y="${ly - 10}" width="${lw}" height="20" rx="4" fill="#0f172a" fill-opacity="0.85"/>\n`;
-      svgContent += `<text x="${lx}" y="${ly + 1}" text-anchor="middle" dominant-baseline="middle" fill="#e2e8f0" font-size="11" font-family="monospace" font-weight="500">${escapeXml(edge.label)}</text>\n`;
+      svgContent += `<rect x="${labelX - lw / 2}" y="${labelY - 10}" width="${lw}" height="20" rx="4" fill="#0f172a" fill-opacity="0.85"/>\n`;
+      svgContent += `<text x="${labelX}" y="${labelY + 1}" text-anchor="middle" dominant-baseline="middle" fill="#e2e8f0" font-size="11" font-family="monospace" font-weight="500">${escapeXml(edge.label)}</text>\n`;
     }
   });
 

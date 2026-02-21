@@ -27,6 +27,7 @@ const tbLeave = (e: MouseEvent<HTMLButtonElement>) => {
 
 interface ToolbarProps {
   onAddNode: (shape: string) => void;
+  onAddNote: () => void;
   onExportSVG: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -34,7 +35,7 @@ interface ToolbarProps {
   onResetLayout: () => void;
 }
 
-export function Toolbar({ onAddNode, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout }: ToolbarProps) {
+export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout }: ToolbarProps) {
   const shapes = [
     { shape: "rect", icon: "▭", tip: "矩形" },
     { shape: "stadium", icon: "⊂⊃", tip: "角丸" },
@@ -99,6 +100,34 @@ export function Toolbar({ onAddNode, onExportSVG, onZoomIn, onZoomOut, onFitView
           {s.icon}
         </button>
       ))}
+      <button
+        onClick={onAddNote}
+        title="ノート追加"
+        style={{
+          width: 32,
+          height: 28,
+          background: "#1a1f2e",
+          border: "1px solid #2d3548",
+          borderRadius: 5,
+          color: "#94a3b8",
+          cursor: "pointer",
+          fontSize: 14,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "all 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "#2d3548";
+          e.currentTarget.style.color = "#e2e8f0";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "#1a1f2e";
+          e.currentTarget.style.color = "#94a3b8";
+        }}
+      >
+        ✎
+      </button>
       <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 6px" }} />
       <button onClick={onZoomIn} title="ズームイン" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>+</button>
       <button onClick={onZoomOut} title="ズームアウト" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>−</button>

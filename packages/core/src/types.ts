@@ -29,6 +29,8 @@ export interface DiagramEdge {
   thickness: number;
   arrow: string;
   curve: string;
+  /** ランタイム専用: エッジ迂回ウェイポイント（DSLには保存しない） */
+  _routePoints?: Array<{ x: number; y: number }>;
 }
 
 export interface DiagramGroup {
@@ -48,6 +50,7 @@ export interface DiagramNote {
   x: number;
   y: number;
   color: string;
+  _needsPosition?: boolean;
 }
 
 export interface ParseError {

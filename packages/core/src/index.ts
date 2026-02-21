@@ -14,5 +14,5 @@ export { parseProps, parseDSL } from "./parser.js";
 export { autoLayout } from "./layout.js";
 export { formatPropsString, formatDSLCode } from "./formatter.js";
 export { highlightLine } from "./syntax.js";
-export { getShapePath, getNodeCenter, getEdgePoints } from "./geometry.js";
+export { getShapePath, getNodeCenter, getEdgePoints, computeEdgeRoute, buildEdgePath } from "./geometry.js";
 export { escapeXml, generateExportSVG } from "./svg-export.js";
