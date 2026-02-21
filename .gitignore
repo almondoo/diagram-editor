@@ -11,3 +11,6 @@
 
 .claude/settings.local.json
 ./CLAUDE.md
+
+# Git worktrees
+.worktrees/
