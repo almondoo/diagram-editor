@@ -30,8 +30,8 @@ lint:
 test:
 	docker compose exec app pnpm --filter diagram-dsl-core test
 
-shell:
-	docker compose exec app sh
+app:
+	docker compose exec app bash
 
 clean:
 	docker compose down -v
