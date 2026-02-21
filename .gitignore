@@ -1,13 +1,18 @@
 .DS_Store
 .env
-/node_modules/
+node_modules/
 
 # React Router
 /.react-router/
 /build/
+apps/web/.react-router/
+apps/web/build/
 
 # pnpm
 /.pnpm-store/
+
+# Package build outputs
+packages/*/dist/
 
 .claude/settings.local.json
 ./CLAUDE.md
