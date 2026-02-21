@@ -25,6 +25,7 @@ export interface DiagramState {
   groupStates: Record<string, DiagramGroup>;
   noteStates: Record<string, DiagramNote>;
   setNodeLayout: (nodeId: string, x: number, y: number) => void;
+  setNodeSize: (nodeId: string, w: number, h: number) => void;
   setGroupLayout: (groupId: string, dx: number, dy: number) => void;
   setGroupSize: (groupId: string, newW: number, newH: number) => void;
   setNoteLayout: (noteId: string, x: number, y: number) => void;
@@ -251,6 +252,15 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     });
   }, []);
 
+  // ノードサイズ更新
+  const setNodeSize = useCallback((nodeId: string, w: number, h: number) => {
+    setNodeStates((prev) => {
+      const n = prev[nodeId];
+      if (!n) return prev;
+      return { ...prev, [nodeId]: { ...n, w: Math.max(60, w), h: Math.max(30, h) } };
+    });
+  }, []);
+
   // ノートの位置更新
   const setNoteLayout = useCallback((noteId: string, x: number, y: number) => {
     setNoteStates((prev) => {
@@ -401,6 +411,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     groupStates,
     noteStates,
     setNodeLayout,
+    setNodeSize,
     setGroupLayout,
     setGroupSize,
     setNoteLayout,

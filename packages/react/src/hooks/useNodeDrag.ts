@@ -5,6 +5,7 @@ interface DragInfo {
   nodeId: string;
   startX: number;
   startY: number;
+  type: "move" | "resize";
   isMulti: boolean;
 }
 
@@ -13,6 +14,7 @@ export function useNodeDrag(
   zoom: number,
   selectedIds: Set<string>,
   setNodeLayout: (nodeId: string, x: number, y: number) => void,
+  setNodeSize: (nodeId: string, w: number, h: number) => void,
   onMultiMove: (dx: number, dy: number) => void,
 ) {
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
@@ -21,7 +23,13 @@ export function useNodeDrag(
     e.stopPropagation();
     if (e.button === 1 || e.button === 2) return;
     const isMulti = selectedIds.size > 1 && selectedIds.has(nodeId);
-    setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY, isMulti });
+    setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY, type: "move", isMulti });
+  };
+
+  const handleNodeResizeMouseDown = (e: React.MouseEvent, nodeId: string) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY, type: "resize", isMulti: false });
   };
 
   useEffect(() => {
@@ -29,9 +37,13 @@ export function useNodeDrag(
     const handleMove = (e: MouseEvent) => {
       const dx = (e.clientX - dragInfo.startX) / zoom;
       const dy = (e.clientY - dragInfo.startY) / zoom;
-      if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
 
-      if (dragInfo.isMulti) {
+      if (dragInfo.type === "resize") {
+        const node = nodeById[dragInfo.nodeId];
+        if (!node) return;
+        setNodeSize(dragInfo.nodeId, node.w + dx, node.h + dy);
+      } else if (dragInfo.isMulti) {
         onMultiMove(dx, dy);
       } else {
         const node = nodeById[dragInfo.nodeId];
@@ -47,7 +59,7 @@ export function useNodeDrag(
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [dragInfo, nodeById, zoom, setNodeLayout, onMultiMove]);
+  }, [dragInfo, nodeById, zoom, setNodeLayout, setNodeSize, onMultiMove]);
 
-  return { handleNodeMouseDown };
+  return { handleNodeMouseDown, handleNodeResizeMouseDown };
 }

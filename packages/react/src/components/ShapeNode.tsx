@@ -38,10 +38,11 @@ interface ShapeNodeProps {
   node: DiagramNode;
   isSelected: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
+  onResizeMouseDown?: (e: React.MouseEvent) => void;
 }
 
 export const ShapeNode = memo(
-  function ShapeNode({ node, isSelected, onMouseDown }: ShapeNodeProps) {
+  function ShapeNode({ node, isSelected, onMouseDown, onResizeMouseDown }: ShapeNodeProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
 
@@ -85,6 +86,24 @@ export const ShapeNode = memo(
       </text>
     );
 
+    const resizeHandle = isSelected && onResizeMouseDown ? (
+      <rect
+        x={x + w - 5}
+        y={y + h - 5}
+        width={10}
+        height={10}
+        rx={2}
+        fill="#818cf8"
+        stroke="#1e1b4b"
+        strokeWidth={1}
+        style={{ cursor: "se-resize", pointerEvents: "all" }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onResizeMouseDown(e);
+        }}
+      />
+    ) : null;
+
     const selOutline = isSelected ? (
       <rect
         x={x - 4}
@@ -117,6 +136,7 @@ export const ShapeNode = memo(
             strokeDasharray={dashArr}
           />
           {textEl}
+          {resizeHandle}
         </g>
       );
     }
@@ -152,6 +172,7 @@ export const ShapeNode = memo(
             stroke="none"
           />
           {textEl}
+          {resizeHandle}
         </g>
       );
     }
@@ -168,6 +189,7 @@ export const ShapeNode = memo(
             strokeDasharray={dashArr}
           />
           {textEl}
+          {resizeHandle}
         </g>
       );
     }
@@ -187,9 +209,10 @@ export const ShapeNode = memo(
           strokeDasharray={dashArr}
         />
         {textEl}
+        {resizeHandle}
       </g>
     );
   },
-  // node と isSelected だけ比較。onMouseDown は ref で最新を参照するため除外
+  // node と isSelected だけ比較。onMouseDown/onResizeMouseDown は ref で最新を参照するため除外
   (prev, next) => prev.node === next.node && prev.isSelected === next.isSelected,
 );

@@ -43,7 +43,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   const {
     code, setCode, parsed, nodeById, groupById, noteStates,
-    setNodeLayout, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
+    setNodeLayout, setNodeSize, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
     addNode, exportSVG, formatCode, resetLayout,
   } = state;
 
@@ -124,8 +124,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     };
   }, [selectionRect, zoom, updateSelectionRect, endSelectionRect]);
 
-  const { handleNodeMouseDown } =
-    useNodeDrag(nodeById, zoom, selectedIds, setNodeLayout, onMultiMove);
+  const { handleNodeMouseDown, handleNodeResizeMouseDown } =
+    useNodeDrag(nodeById, zoom, selectedIds, setNodeLayout, setNodeSize, onMultiMove);
 
   const { handleGroupMoveMouseDown, handleGroupResizeMouseDown } =
     useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove);
@@ -361,6 +361,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                       if (!isSelected(node.id)) selectSingle(node.id);
                       handleNodeMouseDown(e, node.id);
                     }}
+                    onResizeMouseDown={(e) => handleNodeResizeMouseDown(e, node.id)}
                   />
                 ))}
               </g>
