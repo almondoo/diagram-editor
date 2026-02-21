@@ -67,19 +67,23 @@ docker compose exec app pnpm -r build                           # 両方変更�
 diagram-editor/
 ├── packages/
 │   ├── core/          # diagram-dsl-core (React非依存の純TypeScript)
-│   │   └── src/       # types, parser, layout, formatter, syntax, geometry, svg-export, templates
-│   └── react/         # diagram-dsl-react
+│   │   └── src/       # types, parser, layout, formatter, syntax, geometry, svg-export
+│   └── react/         # diagram-dsl-react (ライブラリ本体)
 │       └── src/
-│           ├── components/  # SVGコンポーネント群 + SaveModal
+│           ├── components/  # SVGコンポーネント群 (ShapeNode, EdgeLine, GroupBox, NoteBox,
+│           │                #   CodeEditor, Toolbar, Minimap, SyntaxPanel)
 │           ├── hooks/       # useDiagramState, useNodeDrag, useGroupDrag,
 │           │                #   useCanvasInteraction, useSplitPane,
-│           │                #   useLocalDiagrams, syncNodes, syncGroups
+│           │                #   syncNodes, syncGroups, syncNotes
 │           ├── DiagramEditor.tsx
 │           └── styles.ts
 ├── apps/
 │   └── web/           # diagram-editor-web (React Router v7 SPA)
 │       └── app/
-│           └── routes/home.tsx  # import { DiagramEditor } from "diagram-dsl-react"
+│           ├── components/  # AppHeader.tsx, SaveModal.tsx
+│           ├── data/        # templates.ts
+│           ├── hooks/       # useLocalDiagrams.ts
+│           └── routes/home.tsx  # アプリのエントリポイント
 ├── docker-compose.yml
 ├── Dockerfile
 ├── Makefile
@@ -120,16 +124,58 @@ line.replace(/x=\S+/, `x=${newX}`)
 
 ### localStorage 永続化
 
-`useLocalDiagrams` フック（`packages/react/src/hooks/useLocalDiagrams.ts`）が管理:
+`useLocalDiagrams` フック（`apps/web/app/hooks/useLocalDiagrams.ts`）が管理:
 
 - **ストレージキー**: `diagramcraft_saved_diagrams`
 - **保存データ**: `SavedDiagram { id, name, code, nodeStates, groupStates, savedAt }`
-- `DiagramEditor` が `currentDiagramId: string | null` を追跡し、Command+S で上書き保存 / 未保存なら名前入力モーダルを開く
+- `home.tsx` が `currentDiagramId: string | null` を追跡し、Command+S で上書き保存 / 未保存なら名前入力モーダルを開く
 
 ### geometry.ts の役割
 
 `packages/core/src/geometry.ts` が `getShapePath`, `getNodeCenter`, `getEdgePoints` を提供。
 `ShapeNode.tsx`、`EdgeLine.tsx`、`svg-export.ts` の3箇所が共通してこれをインポートする。
+
+## ライブラリとアプリの責務分離
+
+`packages/react`（ライブラリ）と `apps/web`（アプリ）の責務を明確に分離する。新機能を追加する際は、この基準に従って配置先を判断すること。
+
+### ライブラリ（packages/react・packages/core）に属するもの
+
+- **チャート描画**: ノード・エッジ・グループ・ノートの SVG レンダリング
+- **コードエディタ**: DSL 入力、シンタックスハイライト、エラー表示
+- **ダイアグラム操作**: ノード・グループ・ノートのドラッグ、ズーム・パン、選択矩形
+- **ツールバー**: ノード追加、SVG エクスポート、ズーム操作、レイアウトリセット
+- **ミニマップ**: キャンバス全体の俯瞰ビュー
+- **構文ヘルプパネル**: DSL 構文リファレンスの表示
+- **ステート管理フック**: `useDiagramState`（`DiagramState` 型を export し、アプリから `state` prop として受け取る）
+- **DSL パース・フォーマット・レイアウト計算**: `packages/core` に実装
+
+### アプリ（apps/web）に属するもの
+
+- **ブランディング・ヘッダー**: ロゴ、アプリ名、ナビゲーション（`AppHeader.tsx`）
+- **テンプレート**: テンプレートデータ定義とテンプレートボタン UI（`data/templates.ts`）
+- **保存・読込 UI**: 名前入力モーダル、マイ作品ドロップダウン（`SaveModal.tsx`）
+- **localStorage 永続化**: `useLocalDiagrams` フック、`SavedDiagram` 型
+- **Cmd+S キーバインド**: 保存トリガー
+- **トースト通知**: 保存完了フィードバック
+
+### API パターン（State object prop）
+
+```tsx
+// apps/web: ステートを生成してライブラリに渡す
+const state = useDiagramState(TEMPLATES.architecture);
+<DiagramEditor state={state} style={{ flex: 1 }} />
+```
+
+ライブラリ側の `DiagramEditor` は `state: DiagramState` を受け取るだけで、
+テンプレート・保存・永続化を一切知らない。
+
+### 判断基準
+
+「この機能は `diagram-dsl-react` を他のアプリで使い回したときも必要か？」
+
+- **Yes** → ライブラリ（packages）に置く
+- **No / アプリ固有** → アプリ（apps/web）に置く
 
 ## 主な制約
 
