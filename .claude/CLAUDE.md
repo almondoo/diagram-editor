@@ -7,22 +7,55 @@
 **すべてのコマンドは必ず `docker compose exec app` を使って実行すること。**
 
 ```bash
-docker compose exec app pnpm typecheck   # react-router typegen && tsc
-docker compose exec app pnpm build       # プロダクションビルド
-docker compose exec app pnpm install     # 依存関係インストール
-docker compose exec app sh               # コンテナ内シェル
+docker compose exec app pnpm -r typecheck           # 全パッケージの型チェック
+docker compose exec app pnpm -r build               # 全パッケージのビルド
+docker compose exec app pnpm --filter diagram-dsl-core test   # coreのテスト
+docker compose exec app pnpm install                # 依存関係インストール
+docker compose exec app sh                          # コンテナ内シェル
 ```
 
 コンテナの起動・停止には `make` コマンドを使用する:
 
 ```bash
-make up      # コンテナ起動 (http://localhost:5173)
-make down    # コンテナ停止
-make clean   # 停止 + ボリューム削除 (pnpm 再インストールを強制)
-make logs    # 開発サーバーのログを追跡
+make up        # コンテナ起動 (pnpm install && pnpm -r build && dev, http://localhost:5173)
+make down      # コンテナ停止
+make clean     # 停止 + ボリューム削除 (pnpm 再インストールを強制)
+make logs      # 開発サーバーのログを追跡
+make build     # 全パッケージをビルド
+make typecheck # 全パッケージの型チェック
+make test      # diagram-dsl-core のテスト
 ```
 
-`make up` を初回実行すると、compose コマンド経由で `pnpm install && pnpm dev --host` が自動的に実行される。
+`make up` を初回実行すると `pnpm install && pnpm -r build && pnpm --filter diagram-editor-web dev --host` が自動的に実行される。
+
+## モノレポ構造
+
+```
+diagram-editor/
+├── packages/
+│   ├── core/          # diagram-dsl-core (React非依存の純TypeScript)
+│   │   └── src/       # types, parser, layout, formatter, syntax, geometry, svg-export, templates
+│   └── react/         # diagram-dsl-react
+│       └── src/
+│           ├── components/  # SVGコンポーネント群
+│           ├── hooks/       # useDiagramState, useNodeDrag, useCanvasInteraction, useSplitPane
+│           ├── DiagramEditor.tsx
+│           └── styles.ts
+├── apps/
+│   └── web/           # diagram-editor-web (React Router v7 SPA)
+│       ├── app/
+│       │   ├── routes/home.tsx  # import { DiagramEditor } from "diagram-dsl-react"
+│       │   ├── root.tsx
+│       │   ├── routes.ts
+│       │   └── app.css
+│       ├── vite.config.ts
+│       └── react-router.config.ts
+├── docker-compose.yml
+├── Dockerfile
+├── Makefile
+├── pnpm-workspace.yaml
+└── tsconfig.base.json
+```
 
 ## アーキテクチャ
 
@@ -35,32 +68,27 @@ code (文字列ステート)
   → SVG コンポーネント → <DiagramEditor> でレンダリング
 ```
 
-`parsed` は `DiagramEditor.tsx` 内の単一の `useMemo` で、キー入力のたびに再実行される。位置やカラーの独立したステートは存在しない — すべては DSL 文字列の中に格納される。
+`parsed` は `useDiagramState` フック内の単一の `useMemo` で管理。
 
 ### ドラッグ→コード書き戻し
 
-ノードのドラッグは位置ステートを更新**しない**。代わりに、DSL コード文字列の `x=` と `y=` の値を正規表現で直接置換する:
+`useNodeDrag` フックで管理。DSL コード文字列の `x=` と `y=` の値を正規表現で直接置換する:
 
 ```ts
 line.replace(/x=\S+/, `x=${newX}`)
 ```
 
-これにより、単一の `code` ステートを通じてコードエディタとキャンバスが常に同期される。
+### geometry.ts の役割
 
-### 自動レイアウト
-
-`utils/layout.ts` の `autoLayout()` はカーンのトポロジカルソートを実行し、左から右へレイヤーを割り当てる。`_needsPosition: true` のノード（DSL に `x`/`y` がないもの）のみ位置を決定する。`color` の `__RANDOM__` センチネルもここで解決される。
-
-### svg-export のクロスモジュールインポート
-
-`utils/svg-export.ts` は `components/ShapeNode.tsx` から `getShapePath` を、`components/EdgeLine.tsx` から `getEdgePoints` をインポートする。これらのシェイプ/ジオメトリ関数は再利用のためコンポーネントファイルからエクスポートされている。
+`packages/core/src/geometry.ts` が `getShapePath`, `getNodeCenter`, `getEdgePoints` を提供。
+ShapeNode.tsx と EdgeLine.tsx はこれをimportし、svg-export.ts も同様にgeometry.tsからimportする。
 
 ## 主な制約
 
 - **SSR なし**: `react-router.config.ts` に `ssr: false` が設定されている。純粋なクライアントサイド SPA。
-- **インラインスタイルのみ**: `app.css` で Tailwind をインポートしているが、Tailwind クラスは使用しない。スタイルはすべて React のインライン `style={}` プロパティで記述する。
-- **pnpm ストア**: `.pnpm-store/` はプロジェクトディレクトリ内（Docker ボリューム）に配置される。.gitignore に追加済み。
-- **esbuild スクリプトのブロック**: pnpm セキュリティが esbuild のインストールスクリプトをブロックするが、Vite はプリビルドされたバイナリを使用するため開発・ビルドは正常に動作する。
+- **インラインスタイルのみ**: Tailwind クラスは使用しない。スタイルはすべて React のインライン `style={}` プロパティで記述する。
+- **pnpm ストア**: `.pnpm-store/` はプロジェクトディレクトリ内（Docker ボリューム）に配置される。
+- **esbuild スクリプトのブロック**: pnpm セキュリティが esbuild のインストールスクリプトをブロックするが、tsup/Vite はプリビルドされたバイナリを使用するため正常に動作する。
 
 ## DSL シンタックス
 

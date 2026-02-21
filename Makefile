@@ -1,4 +1,4 @@
-.PHONY: up down restart logs build typecheck install shell clean
+.PHONY: up down restart logs build typecheck test shell clean
 
 up:
 	docker compose up -d
@@ -16,16 +16,13 @@ ps:
 	docker compose ps
 
 build:
-	docker compose exec app pnpm build
+	docker compose exec app pnpm -r build
 
 typecheck:
-	docker compose exec app pnpm typecheck
+	docker compose exec app pnpm -r typecheck
 
-install:
-	docker compose exec app pnpm install
-
-dev:
-	docker compose exec app pnpm dev
+test:
+	docker compose exec app pnpm --filter diagram-dsl-core test
 
 shell:
 	docker compose exec app sh
