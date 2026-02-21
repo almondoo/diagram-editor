@@ -138,9 +138,8 @@ export default function Diagram() {
       }}
     >
       <AppHeader
-        onLoadTemplate={(code) => {
-          state.loadTemplate(code);
-          setCurrentDiagramId(null);
+        onCreateFromTemplate={(code) => {
+          navigate("/diagrams/new", { state: { templateCode: code } });
         }}
         onSave={handleSave}
         saveLabel={currentDiagramId ? "更新" : "保存"}

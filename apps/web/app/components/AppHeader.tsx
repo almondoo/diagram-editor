@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { TEMPLATES } from "~/data/templates";
 
 interface AppHeaderProps {
-  onLoadTemplate: (code: string) => void;
+  onCreateFromTemplate: (code: string) => void;
   onSave: () => void;
   saveLabel: string;
   currentDiagramName?: string;
@@ -20,7 +20,7 @@ const TEMPLATE_LABELS: Record<string, string> = {
 };
 
 export function AppHeader({
-  onLoadTemplate,
+  onCreateFromTemplate,
   onSave,
   saveLabel,
   currentDiagramName,
@@ -145,7 +145,7 @@ export function AppHeader({
                 <button
                   key={key}
                   onClick={() => {
-                    onLoadTemplate(val);
+                    onCreateFromTemplate(val);
                     setShowTemplates(false);
                   }}
                   style={{
