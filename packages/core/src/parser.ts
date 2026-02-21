@@ -184,12 +184,15 @@ function parseSegment(
       }
       ctx.noteIdSet.add(noteId);
       const props = parseProps(noteMatch[3] || "");
+      const hasX = props.x !== undefined;
+      const hasY = props.y !== undefined;
       ctx.notes.push({
         id: noteId,
         text: noteMatch[2],
-        x: offsetX + (parseFloat(props.x) || 50),
-        y: offsetY + (parseFloat(props.y) || 50),
+        x: hasX ? offsetX + parseFloat(props.x) : NaN,
+        y: hasY ? offsetY + parseFloat(props.y) : NaN,
         color: props.color || "#fbbf24",
+        _needsPosition: !hasX || !hasY,
       });
       return;
     }

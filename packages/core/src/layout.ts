@@ -7,9 +7,29 @@ const PADDING = 12;      // グループ内パディング
 const NODE_SEP = 40;     // dagre: 同一レイヤー内ノード間隔
 const RANK_SEP = 80;     // dagre: レイヤー間隔
 
+/** 障害物リストとの衝突を解消するまでノードを右にずらす */
+function resolveOverlap(
+  node: DiagramNode,
+  obstacles: DiagramNode[],
+  gap: number = 30,
+): void {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const collider = obstacles.find(
+      (o) =>
+        node.x < o.x + o.w + gap &&
+        node.x + node.w + gap > o.x &&
+        node.y < o.y + o.h + gap &&
+        node.y + node.h + gap > o.y,
+    );
+    if (!collider) return;
+    node.x = collider.x + collider.w + gap;
+  }
+}
+
 /** グループ内ノードを dagre でレイアウト（グループ左上を原点としたローカル座標） */
 function layoutGroupNodesDagre(
   toLayout: DiagramNode[],
+  allGroupNodes: DiagramNode[],
   g: DiagramGroup,
   edges: DiagramEdge[],
 ): void {
@@ -38,6 +58,14 @@ function layoutGroupNodesDagre(
     n.x = offsetX + pos.x - n.w / 2;
     n.y = offsetY + pos.y - n.h / 2;
   });
+
+  // 既配置のグループ内ノードとの衝突を解消
+  const placed = allGroupNodes.filter((n) => !toLayout.includes(n));
+  const obstacles: DiagramNode[] = [...placed];
+  for (const n of toLayout) {
+    resolveOverlap(n, obstacles);
+    obstacles.push(n);
+  }
 }
 
 /** グループを全メンバーノードを包含するサイズに計算する */
@@ -143,6 +171,14 @@ function layoutFreeNodesDagre(
     n.x = pos.x - n.w / 2;
     n.y = pos.y - n.h / 2 + offsetY;
   });
+
+  // 既配置のフリーノードとの衝突を解消
+  const placed = allFreeNodes.filter((n) => !toLayout.includes(n));
+  const obstacles: DiagramNode[] = [...placed];
+  for (const n of toLayout) {
+    resolveOverlap(n, obstacles);
+    obstacles.push(n);
+  }
 }
 
 export function autoLayout(
@@ -181,7 +217,7 @@ export function autoLayout(
     const g = groupById[groupId];
     if (!g) continue;
     const toLayout = gnodes.filter((n) => n._needsPosition);
-    if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, g, edges);
+    if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, gnodes, g, edges);
     // 全メンバー（既配置ノードを含む）でグループ枠を再計算
     groupUpdates[groupId] = computeGroupFit(gnodes, g);
   }

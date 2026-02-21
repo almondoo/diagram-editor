@@ -44,7 +44,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const {
     code, setCode, parsed, nodeById, groupById, noteStates,
     setNodeLayout, setNodeSize, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
-    addNode, exportSVG, formatCode, resetLayout,
+    addNode, addNote, exportSVG, formatCode, resetLayout,
   } = state;
 
   const { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
@@ -261,6 +261,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <Toolbar
             onAddNode={addNode}
+            onAddNote={addNote}
             onExportSVG={exportSVG}
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}

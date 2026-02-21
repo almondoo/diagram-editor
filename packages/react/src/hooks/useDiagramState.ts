@@ -5,6 +5,8 @@ import {
   formatDSLCode,
   generateExportSVG,
   randomColor,
+  getEdgePoints,
+  computeEdgeRoute,
 } from "diagram-dsl-core";
 import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
 import { syncNodes } from "./syncNodes.js";
@@ -31,6 +33,7 @@ export interface DiagramState {
   setNoteLayout: (noteId: string, x: number, y: number) => void;
   multiMoveLayout: (selectedIds: Set<string>, dx: number, dy: number) => void;
   addNode: (shape: string) => void;
+  addNote: () => void;
   exportSVG: () => void;
   formatCode: () => void;
   resetLayout: () => void;
@@ -108,10 +111,43 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     prevDisplayNodesRef.current = displayNodes;
   }, [displayNodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // _needsPosition なノートを自動配置（全コンテンツの下に並べる）
+  useEffect(() => {
+    const toPlace = displayNotes.filter((n) => n._needsPosition);
+    if (toPlace.length === 0) return;
+
+    const allGroups = Object.values(groupStatesRef.current);
+    let contentBottom = 40;
+    for (const n of displayNodes) contentBottom = Math.max(contentBottom, n.y + n.h);
+    for (const g of allGroups) contentBottom = Math.max(contentBottom, g.y + g.h);
+
+    const noteUpdates: Record<string, DiagramNote> = {};
+    toPlace.forEach((n, i) => {
+      noteUpdates[n.id] = { ...n, x: 60 + i * 190, y: contentBottom + 40, _needsPosition: false };
+    });
+    setNoteStates((prev) => ({ ...prev, ...noteUpdates }));
+  }, [displayNotes]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // エッジルーティング: 各エッジに迂回ウェイポイントを計算
+  const routedEdges = useMemo(() => {
+    const nodeMap: Record<string, DiagramNode> = {};
+    for (const n of displayNodes) nodeMap[n.id] = n;
+    return parsedRaw.edges.map((edge) => {
+      const fromNode = nodeMap[edge.from];
+      const toNode = nodeMap[edge.to];
+      if (!fromNode || !toNode) return edge;
+      const { from, to } = getEdgePoints(fromNode, toNode);
+      const obstacles = displayNodes.filter((n) => n.id !== edge.from && n.id !== edge.to);
+      const routePoints = computeEdgeRoute(from, to, obstacles);
+      if (!routePoints) return edge;
+      return { ...edge, _routePoints: routePoints };
+    });
+  }, [parsedRaw.edges, displayNodes]);
+
   // 最終的な parsed（consumers はこれを使う）
   const parsed: ParseResult = useMemo(
-    () => ({ ...parsedRaw, nodes: displayNodes, groups: displayGroups, notes: displayNotes }),
-    [parsedRaw, displayNodes, displayGroups, displayNotes],
+    () => ({ ...parsedRaw, nodes: displayNodes, groups: displayGroups, notes: displayNotes, edges: routedEdges }),
+    [parsedRaw, displayNodes, displayGroups, displayNotes, routedEdges],
   );
 
   const nodeById = useMemo(() => {
@@ -338,6 +374,12 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setCode((c) => c + newLine);
   };
 
+  // ノート追加（ノード追加と同様にコードに追記するだけ、位置は自動レイアウトで決定）
+  const addNote = () => {
+    const id = `note${Date.now().toString(36)}`;
+    setCode((c) => c + `\nnote ${id} "メモ" { color=#fbbf24 }`);
+  };
+
   const exportSVG = () => {
     const svgData = generateExportSVG(parsed);
     if (!svgData) return;
@@ -417,6 +459,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setNoteLayout,
     multiMoveLayout,
     addNode,
+    addNote,
     exportSVG,
     formatCode,
     resetLayout,

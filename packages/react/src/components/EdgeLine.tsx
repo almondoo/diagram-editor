@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { DiagramNode, DiagramEdge } from "diagram-dsl-core";
-import { getEdgePoints } from "diagram-dsl-core";
+import { getEdgePoints, buildEdgePath } from "diagram-dsl-core";
 
 interface EdgeLineProps {
   edge: DiagramEdge;
@@ -12,21 +12,11 @@ export const EdgeLine = memo(
   function EdgeLine({ edge, fromNode, toNode }: EdgeLineProps) {
     if (!fromNode || !toNode) return null;
     const { from, to } = getEdgePoints(fromNode, toNode);
-    const { label, color, style, animate, thickness, arrow, curve } = edge;
+    const { label, color, style, animate, thickness, arrow, curve, _routePoints } = edge;
     // ランダムIDを廃止 → 固定IDでSVG marker の不要な再作成を防止
     const id = `edge-${edge.from}-${edge.to}`;
 
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const perpX = -dy * 0.08;
-    const perpY = dx * 0.08;
-
-    const pathD =
-      curve === "straight"
-        ? `M${from.x},${from.y} L${to.x},${to.y}`
-        : `M${from.x},${from.y} Q${midX + perpX},${midY + perpY} ${to.x},${to.y}`;
+    const { pathD, labelX, labelY } = buildEdgePath(from, to, curve, _routePoints);
 
     return (
       <g>
@@ -69,8 +59,8 @@ export const EdgeLine = memo(
         {label && (
           <g>
             <rect
-              x={midX + perpX / 2 - label.length * 4 - 4}
-              y={midY + perpY / 2 - 10}
+              x={labelX - label.length * 4 - 4}
+              y={labelY - 10}
               width={label.length * 8 + 8}
               height={20}
               rx={4}
@@ -78,8 +68,8 @@ export const EdgeLine = memo(
               fillOpacity={0.85}
             />
             <text
-              x={midX + perpX / 2}
-              y={midY + perpY / 2 + 1}
+              x={labelX}
+              y={labelY + 1}
               textAnchor="middle"
               dominantBaseline="middle"
               fill="#e2e8f0"
