@@ -80,6 +80,7 @@ export function parseDSL(code: string): ParseResult {
           opacity: parseFloat(props.opacity) || 1,
           dashed: props.dashed === "true",
           _needsPosition: !hasX || !hasY,
+          _explicitProps: new Set(['id', 'label', ...Object.keys(props)]),
         };
         nodes.push(node);
         nodeMap[id] = node;

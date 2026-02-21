@@ -111,3 +111,30 @@ describe("parseDSL", () => {
     expect(node.dashed).toBe(false);
   });
 });
+
+describe("_explicitProps tracking", () => {
+  it("tracks explicitly set props in node", () => {
+    const result = parseDSL('node a "A" { shape=rect color=#ff0000 }');
+    const node = result.nodes[0];
+    expect(node._explicitProps).toBeDefined();
+    expect(node._explicitProps!.has("shape")).toBe(true);
+    expect(node._explicitProps!.has("color")).toBe(true);
+    expect(node._explicitProps!.has("label")).toBe(true);
+    expect(node._explicitProps!.has("x")).toBe(false);
+    expect(node._explicitProps!.has("y")).toBe(false);
+  });
+
+  it("tracks label as always explicit", () => {
+    const result = parseDSL('node b "B Label"');
+    const node = result.nodes[0];
+    expect(node._explicitProps!.has("label")).toBe(true);
+    expect(node._explicitProps!.has("shape")).toBe(false);
+  });
+
+  it("tracks x and y when explicitly set", () => {
+    const result = parseDSL('node c "C" { x=100 y=200 }');
+    const node = result.nodes[0];
+    expect(node._explicitProps!.has("x")).toBe(true);
+    expect(node._explicitProps!.has("y")).toBe(true);
+  });
+});
