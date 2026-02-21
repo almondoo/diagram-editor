@@ -2,6 +2,38 @@ import { useRef, useCallback, memo } from "react";
 import type { DiagramNode } from "diagram-dsl-core";
 import { getShapePath } from "diagram-dsl-core";
 
+/**
+ * ノード幅に合わせて label を複数行に折り返す。
+ * charWidth は "IBM Plex Sans" の近似値 (fontSize × 0.55)。
+ */
+function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
+  const charWidth = fontSize * 0.55;
+  const maxChars = Math.max(1, Math.floor((maxWidth - 16) / charWidth));
+  if (text.length <= maxChars) return [text];
+
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= maxChars) {
+      current = candidate;
+    } else {
+      if (current) lines.push(current);
+      // 単語自体が最大幅を超える場合は強制改行
+      let remaining = word;
+      while (remaining.length > maxChars) {
+        lines.push(remaining.slice(0, maxChars));
+        remaining = remaining.slice(maxChars);
+      }
+      current = remaining;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
 interface ShapeNodeProps {
   node: DiagramNode;
   isSelected: boolean;
@@ -22,10 +54,16 @@ export const ShapeNode = memo(
     const stroke = borderColor || color;
     const dashArr = dashed ? "6,3" : "none";
 
+    const lines = wrapText(label, w, fontSize);
+    const lineHeight = Math.ceil(fontSize * 1.35);
+    const textBlockH = lines.length * lineHeight;
+    const iconOffset = icon ? lineHeight : 0;
+    const startY = y + h / 2 - (textBlockH - lineHeight) / 2 + iconOffset / 2;
+
     const textEl = (
       <text
         x={x + w / 2}
-        y={y + h / 2 + (icon ? 4 : 1)}
+        y={startY}
         textAnchor="middle"
         dominantBaseline="middle"
         fill={textColor}
@@ -35,13 +73,15 @@ export const ShapeNode = memo(
         style={{ pointerEvents: "none", userSelect: "none" }}
       >
         {icon && (
-          <tspan x={x + w / 2} dy="-8" fontSize={fontSize + 4}>
+          <tspan x={x + w / 2} dy={-iconOffset} fontSize={fontSize + 4}>
             {icon}
           </tspan>
         )}
-        <tspan x={x + w / 2} dy={icon ? fontSize + 4 : 0}>
-          {label.length > 18 ? label.slice(0, 17) + "…" : label}
-        </tspan>
+        {lines.map((line, i) => (
+          <tspan key={i} x={x + w / 2} dy={i === 0 ? 0 : lineHeight}>
+            {line}
+          </tspan>
+        ))}
       </text>
     );
 
