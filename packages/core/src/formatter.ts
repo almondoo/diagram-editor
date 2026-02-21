@@ -5,7 +5,7 @@ export function formatPropsString(str: string): string {
   const regex = /(\w+)\s*=\s*(?:"([^"]*)"|(\S+))/g;
   const order = [
     "shape", "color", "text", "border", "borderWidth",
-    "icon", "group", "fontSize", "opacity", "dashed",
+    "icon", "fontSize", "opacity", "dashed",
     "label", "style", "animate", "thickness", "arrow", "curve",
   ];
   let m: RegExpExecArray | null;

@@ -174,16 +174,6 @@ describe("nested group block syntax", () => {
     expect(result.nodes[0]).toMatchObject({ id: "n1", group: "lv2", x: 40, y: 50 });
   });
 
-  it("既存のフラット構文が引き続き動作する", () => {
-    const code = `group g1 "グループ" { color=#6366f1 x=0 y=0 w=300 h=200 }
-node n1 "ノード" { shape=rect group=g1 x=50 y=60 }`;
-    const result = parseDSL(code);
-    expect(result.errors).toHaveLength(0);
-    expect(result.groups).toHaveLength(1);
-    expect(result.groups[0]).toMatchObject({ id: "g1", x: 0, y: 0 });
-    expect(result.nodes[0]).toMatchObject({ id: "n1", group: "g1", x: 50, y: 60 });
-  });
-
   it("ブロック内の edge は通常通り解析される", () => {
     const code = `group g1 "G1" {
   node a "A" { x=20 y=20 }

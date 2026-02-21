@@ -206,8 +206,8 @@ function parseSegment(
       const hasX = props.x !== undefined;
       const hasY = props.y !== undefined;
 
-      // group=xxx が明示されていればそちらを優先、なければ親グループ
-      const groupId = props.group || parentGroupId || "";
+      // 親グループ（ブロック構文）からグループを決定
+      const groupId = parentGroupId || "";
 
       const node: DiagramNode = {
         id,

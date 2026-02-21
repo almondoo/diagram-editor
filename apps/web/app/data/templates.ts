@@ -55,16 +55,18 @@ edge posts -> post_tags { label="M" }
 edge tags -> post_tags { label="N" }`,
 
   architecture: `// 🏗️ システムアーキテクチャ
-group frontend "Frontend" { x=30 y=20 w=250 h=160 }
-group backend "Backend" { x=330 y=20 w=250 h=160 }
-group data "Data Layer" { x=180 y=250 w=250 h=160 }
-
-node react "React App" { shape=rect group=frontend icon=⚛️ }
-node nginx "Nginx" { shape=hexagon group=frontend }
-node api "FastAPI" { shape=rect group=backend icon=⚡ }
-node worker "Celery Worker" { shape=rect group=backend icon=🔄 }
-node pg "PostgreSQL" { shape=cylinder group=data }
-node redis "Redis" { shape=hexagon group=data icon=🗄️ }
+group frontend "Frontend" {
+  node react "React App" { shape=rect icon=⚛️ }
+  node nginx "Nginx" { shape=hexagon }
+}
+group backend "Backend" {
+  node api "FastAPI" { shape=rect icon=⚡ }
+  node worker "Celery Worker" { shape=rect icon=🔄 }
+}
+group data "Data Layer" {
+  node pg "PostgreSQL" { shape=cylinder }
+  node redis "Redis" { shape=hexagon icon=🗄️ }
+}
 
 edge react -> nginx { label="Proxy" }
 edge nginx -> api { label="REST" animate=true }
@@ -123,7 +125,9 @@ edge success -> idle { label="reset()" style=dashed }`,
 // 構文ガイド:
 //   node <id> "ラベル" { shape=rect color=#hex x=0 y=0 }
 //   edge <from> -> <to> { label="text" color=#hex style=dashed }
-//   group <id> "ラベル" { color=#hex x=0 y=0 w=300 h=200 }
+//   group <id> "ラベル" {
+//     node <id> "ラベル" { ... }
+//   }
 //   note <id> "テキスト" { x=0 y=0 color=#hex }
 //
 // Shapes: rect, stadium, diamond, ellipse, cylinder,

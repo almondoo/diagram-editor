@@ -48,8 +48,9 @@ export function syncNodes(
       explicit.forEach((key: string) => {
         (updates as Record<string, unknown>)[key] = (parsed as unknown as Record<string, unknown>)[key];
       });
-      // group が変更された場合は再配置が必要
-      if ("group" in updates && updates.group !== prev.group) {
+      // group は明示的・暗黙的（ブロック構文）どちらの変更も常に反映する
+      if (parsed.group !== prev.group) {
+        updates.group = parsed.group;
         updates._needsPosition = true;
       }
       const { _explicitProps: _, ...prevClean } = prev;
