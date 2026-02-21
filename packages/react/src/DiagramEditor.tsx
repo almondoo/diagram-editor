@@ -62,7 +62,8 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
   const handleSave = useCallback(() => {
     if (currentDiagramId) {
       const name = savedDiagrams.find((d) => d.id === currentDiagramId)?.name ?? "無題";
-      saveDiagram(name, currentDiagramId, code, nodeStates, groupStates);
+      const saved = saveDiagram(name, currentDiagramId, code, nodeStates, groupStates);
+      setCurrentDiagramId(saved.id);
       showToast();
     } else {
       setShowSaveModal(true);
@@ -297,7 +298,10 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
                       </div>
                     </div>
                     <button
-                      onClick={() => deleteDiagram(d.id)}
+                      onClick={() => {
+                        deleteDiagram(d.id);
+                        if (d.id === currentDiagramId) setCurrentDiagramId(null);
+                      }}
                       style={{
                         background: "transparent",
                         border: "none",
