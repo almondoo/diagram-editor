@@ -12,7 +12,9 @@ export function syncGroups(
 ): Record<string, DiagramGroup> {
   const next: Record<string, DiagramGroup> = {};
   for (const g of parsedGroups) {
-    next[g.id] = prevStates[g.id] ?? { ...g };
+    next[g.id] = prevStates[g.id]
+      ? { ...prevStates[g.id], parentGroup: g.parentGroup }
+      : { ...g };
   }
   return next;
 }
