@@ -1,15 +1,18 @@
 export function formatPropsString(str: string): string {
   if (!str.trim()) return "";
   const props: Record<string, string> = {};
+  const LAYOUT_PROPS = new Set(["x", "y", "w", "h"]);
   const regex = /(\w+)\s*=\s*(?:"([^"]*)"|(\S+))/g;
   const order = [
     "shape", "color", "text", "border", "borderWidth",
-    "x", "y", "w", "h", "icon", "group", "fontSize", "opacity", "dashed",
+    "icon", "group", "fontSize", "opacity", "dashed",
     "label", "style", "animate", "thickness", "arrow", "curve",
   ];
   let m: RegExpExecArray | null;
   while ((m = regex.exec(str)) !== null) {
-    props[m[1]] = m[2] !== undefined ? `"${m[2]}"` : m[3];
+    if (!LAYOUT_PROPS.has(m[1])) {
+      props[m[1]] = m[2] !== undefined ? `"${m[2]}"` : m[3];
+    }
   }
   const keys = Object.keys(props);
   keys.sort((a, b) => {
