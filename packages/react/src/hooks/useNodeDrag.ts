@@ -10,7 +10,7 @@ interface DragInfo {
 export function useNodeDrag(
   nodeById: Record<string, DiagramNode>,
   zoom: number,
-  setCode: React.Dispatch<React.SetStateAction<string>>
+  setNodeLayout: (nodeId: string, x: number, y: number) => void
 ) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
@@ -33,23 +33,7 @@ export function useNodeDrag(
       const newX = Math.round(node.x + dx);
       const newY = Math.round(node.y + dy);
 
-      setCode((prev) => {
-        const lines = prev.split("\n");
-        const updated = lines.map((line) => {
-          const m = line.match(
-            new RegExp(`^(node\\s+${dragInfo.nodeId}\\s+"[^"]*"\\s*\\{)(.*)\\}`)
-          );
-          if (!m) return line;
-          let props = m[2];
-          if (/x=/.test(props)) props = props.replace(/x=\S+/, `x=${newX}`);
-          else props += ` x=${newX}`;
-          if (/y=/.test(props)) props = props.replace(/y=\S+/, `y=${newY}`);
-          else props += ` y=${newY}`;
-          return `${m[1]}${props}}`;
-        });
-        return updated.join("\n");
-      });
-
+      setNodeLayout(dragInfo.nodeId, newX, newY);
       setDragInfo((d) => (d ? { ...d, startX: e.clientX, startY: e.clientY } : null));
     };
     const handleUp = () => setDragInfo(null);
@@ -59,7 +43,7 @@ export function useNodeDrag(
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [dragInfo, nodeById, zoom]);
+  }, [dragInfo, nodeById, zoom, setNodeLayout]);
 
   return { selectedNodeId, setSelectedNodeId, handleNodeMouseDown };
 }
