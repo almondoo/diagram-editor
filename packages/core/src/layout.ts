@@ -1,93 +1,100 @@
+import dagre from "@dagrejs/dagre";
 import type { DiagramNode, DiagramEdge, DiagramGroup } from "./types.js";
 import { randomColor } from "./colors.js";
 
-const LABEL_HEIGHT = 26;
-const PADDING = 12;
-const H_GAP = 14;
-const V_GAP = 10;
+const LABEL_HEIGHT = 26; // グループラベルの高さ
+const PADDING = 12;      // グループ内パディング
+const NODE_SEP = 40;     // dagre: 同一レイヤー内ノード間隔
+const RANK_SEP = 80;     // dagre: レイヤー間隔
 
-/** グループ内ノードをグリッド配置（グループのバウンディングボックス内に収める） */
-function layoutGroupNodes(toLayout: DiagramNode[], g: DiagramGroup): void {
-  const maxNodeW = Math.max(...toLayout.map((n) => n.w));
-  const maxNodeH = Math.max(...toLayout.map((n) => n.h));
-  const usableW = g.w - PADDING * 2;
+/** グループ内ノードを dagre でレイアウト（グループ左上を原点としたローカル座標） */
+function layoutGroupNodesDagre(
+  toLayout: DiagramNode[],
+  g: DiagramGroup,
+  edges: DiagramEdge[],
+): void {
+  if (toLayout.length === 0) return;
 
-  // グループ幅に収まる列数を決定
-  const cols = Math.max(1, Math.floor((usableW + H_GAP) / (maxNodeW + H_GAP)));
-  const rows = Math.ceil(toLayout.length / cols);
+  const nodeIds = new Set(toLayout.map((n) => n.id));
+  const graph = new dagre.graphlib.Graph();
+  graph.setGraph({ rankdir: "LR", nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 0, marginy: 0 });
+  graph.setDefaultEdgeLabel(() => ({}));
 
-  const totalW = cols * maxNodeW + (cols - 1) * H_GAP;
-  const totalH = rows * maxNodeH + (rows - 1) * V_GAP;
+  toLayout.forEach((n) => graph.setNode(n.id, { width: n.w, height: n.h }));
+  edges.forEach((e) => {
+    if (nodeIds.has(e.from) && nodeIds.has(e.to)) {
+      graph.setEdge(e.from, e.to);
+    }
+  });
 
-  // グループ内でグリッドを中央揃え
-  const innerTop = g.y + LABEL_HEIGHT + PADDING;
-  const innerH = g.h - LABEL_HEIGHT - PADDING;
-  const startX = g.x + (g.w - totalW) / 2;
-  const startY = innerTop + Math.max(0, (innerH - totalH) / 2);
+  dagre.layout(graph);
 
-  toLayout.forEach((node, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    node.x = startX + col * (maxNodeW + H_GAP);
-    node.y = startY + row * (maxNodeH + V_GAP);
+  // dagre の中心座標をグループ左上 + padding に変換
+  const offsetX = g.x + PADDING;
+  const offsetY = g.y + LABEL_HEIGHT + PADDING;
+
+  toLayout.forEach((n) => {
+    const pos = graph.node(n.id);
+    n.x = offsetX + pos.x - n.w / 2;
+    n.y = offsetY + pos.y - n.h / 2;
   });
 }
 
-/** Kahn's algorithm によるトポロジカルソートでレイヤー分け */
-function topoLayers(nodes: DiagramNode[], edges: DiagramEdge[]): string[][] {
-  const ids = new Set(nodes.map((n) => n.id));
-  const adj: Record<string, string[]> = {};
-  const inDeg: Record<string, number> = {};
+/** グループを全メンバーノードを包含するサイズに計算する */
+function computeGroupFit(allMembers: DiagramNode[], g: DiagramGroup): DiagramGroup {
+  if (allMembers.length === 0) return g;
+  const minX = Math.min(...allMembers.map((n) => n.x)) - PADDING;
+  const minY = Math.min(...allMembers.map((n) => n.y)) - LABEL_HEIGHT - PADDING;
+  const maxX = Math.max(...allMembers.map((n) => n.x + n.w)) + PADDING;
+  const maxY = Math.max(...allMembers.map((n) => n.y + n.h)) + PADDING;
+  return { ...g, x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
 
-  nodes.forEach((n) => {
-    adj[n.id] = [];
-    inDeg[n.id] = 0;
-  });
+/** フリーノードを dagre でレイアウト（startY の下から開始） */
+function layoutFreeNodesDagre(
+  toLayout: DiagramNode[],
+  allFreeNodes: DiagramNode[],
+  edges: DiagramEdge[],
+  startY: number,
+): void {
+  if (toLayout.length === 0) return;
+
+  const nodeIds = new Set(toLayout.map((n) => n.id));
+  const graph = new dagre.graphlib.Graph();
+  graph.setGraph({ rankdir: "LR", nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 40, marginy: 40 });
+  graph.setDefaultEdgeLabel(() => ({}));
+
+  toLayout.forEach((n) => graph.setNode(n.id, { width: n.w, height: n.h }));
+
+  // nodeIds 内の両端点を持つエッジのみ追加
   edges.forEach((e) => {
-    if (ids.has(e.from) && ids.has(e.to)) {
-      adj[e.from].push(e.to);
-      if (inDeg[e.to] !== undefined) inDeg[e.to]++;
+    if (nodeIds.has(e.from) && nodeIds.has(e.to)) {
+      graph.setEdge(e.from, e.to);
     }
   });
 
-  const layers: string[][] = [];
-  const visited = new Set<string>();
-  let queue = Object.keys(inDeg).filter((k) => inDeg[k] === 0);
-  if (queue.length === 0 && nodes.length > 0) queue = [nodes[0].id];
+  dagre.layout(graph);
 
-  while (queue.length > 0) {
-    layers.push([...queue]);
-    queue.forEach((id) => visited.add(id));
-    const next: string[] = [];
-    queue.forEach((id) => {
-      (adj[id] || []).forEach((child) => {
-        if (inDeg[child] !== undefined) inDeg[child]--;
-        if (inDeg[child] <= 0 && !visited.has(child)) {
-          next.push(child);
-          visited.add(child);
-        }
-      });
-    });
-    queue = next;
-  }
+  // dagre 結果の最小 Y を求めて startY に合わせるオフセットを計算
+  const dagreMinY = Math.min(...toLayout.map((n) => {
+    const pos = graph.node(n.id);
+    return pos.y - n.h / 2;
+  }));
+  const offsetY = startY - dagreMinY;
 
-  // サイクルなどで未訪問のノードを末尾に追加
-  nodes.forEach((n) => {
-    if (!visited.has(n.id)) {
-      layers.push([n.id]);
-      visited.add(n.id);
-    }
+  toLayout.forEach((n) => {
+    const pos = graph.node(n.id);
+    n.x = pos.x - n.w / 2;
+    n.y = pos.y - n.h / 2 + offsetY;
   });
-
-  return layers;
 }
 
 export function autoLayout(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
   groups: DiagramGroup[] = [],
-): DiagramNode[] {
-  if (nodes.length === 0) return nodes;
+): { nodes: DiagramNode[]; groupUpdates: Record<string, DiagramGroup> } {
+  if (nodes.length === 0) return { nodes, groupUpdates: {} };
 
   // __RANDOM__ カラーを解決
   nodes.forEach((n) => {
@@ -95,10 +102,7 @@ export function autoLayout(
   });
 
   const needsLayout = nodes.some((n) => n._needsPosition);
-  if (!needsLayout) return nodes;
-
-  const nodeById: Record<string, DiagramNode> = {};
-  nodes.forEach((n) => (nodeById[n.id] = n));
+  if (!needsLayout) return { nodes, groupUpdates: {} };
 
   const groupById: Record<string, DiagramGroup> = {};
   groups.forEach((g) => (groupById[g.id] = g));
@@ -115,45 +119,27 @@ export function autoLayout(
     }
   });
 
-  // グループ内ノードをグループのバウンディングボックス内に配置
+  // グループ内ノードを dagre でレイアウト → グループ自動フィット
+  const groupUpdates: Record<string, DiagramGroup> = {};
   for (const [groupId, gnodes] of Object.entries(groupedNodesMap)) {
     const g = groupById[groupId];
     if (!g) continue;
     const toLayout = gnodes.filter((n) => n._needsPosition);
-    if (toLayout.length > 0) layoutGroupNodes(toLayout, g);
+    if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, g, edges);
+    // 全メンバー（既配置ノードを含む）でグループ枠を再計算
+    groupUpdates[groupId] = computeGroupFit(gnodes, g);
   }
 
-  // フリーノードをトポロジカルソートでレイヤー配置
-  // グループ全体のバウンディングボックスを避けた位置から開始
-  if (freeNodes.some((n) => n._needsPosition)) {
-    const layers = topoLayers(freeNodes, edges);
-
-    let startX = 80;
-    let startY = 80;
-
-    if (groups.length > 0) {
-      // 全グループの下端に余白を加えた位置から開始
-      const groupsBottom = Math.max(...groups.map((g) => g.y + g.h));
-      startY = groupsBottom + 80;
-    }
-
-    const gapX = 240;
-    const gapY = 100;
-    const maxLayerSize = Math.max(...layers.map((l) => l.length), 1);
-
-    layers.forEach((layer, li) => {
-      const totalHeight = layer.length * gapY;
-      const offsetY = startY + (maxLayerSize * gapY - totalHeight) / 2;
-      layer.forEach((id, ni) => {
-        const node = nodeById[id];
-        if (node && node._needsPosition) {
-          node.x = startX + li * gapX;
-          node.y = offsetY + ni * gapY;
-        }
-      });
-    });
+  // フリーノードを dagre でレイアウト（全グループの下から開始）
+  const freeToLayout = freeNodes.filter((n) => n._needsPosition);
+  if (freeToLayout.length > 0) {
+    const updatedGroups = groups.map((g) => groupUpdates[g.id] ?? g);
+    const groupsBottom =
+      updatedGroups.length > 0 ? Math.max(...updatedGroups.map((g) => g.y + g.h)) : 0;
+    const startY = groupsBottom > 0 ? groupsBottom + 80 : 40;
+    layoutFreeNodesDagre(freeToLayout, freeNodes, edges, startY);
   }
 
   nodes.forEach((n) => delete n._needsPosition);
-  return nodes;
+  return { nodes, groupUpdates };
 }
