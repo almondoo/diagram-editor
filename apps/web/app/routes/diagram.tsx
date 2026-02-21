@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
 import { DiagramEditor, useDiagramState } from "diagram-dsl-react";
 import { TEMPLATES } from "~/data/templates";
 import { useLocalDiagrams } from "~/hooks/useLocalDiagrams";
@@ -16,10 +16,14 @@ export function meta() {
 export default function Diagram() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { savedDiagrams, saveDiagram } = useLocalDiagrams();
+  const location = useLocation();
+  const { savedDiagrams, saveDiagram, renameDiagram } = useLocalDiagrams();
 
+  const templateCode = (location.state as { templateCode?: string } | null)?.templateCode;
   const initialDiagram = id ? savedDiagrams.find((d) => d.id === id) : null;
-  const state = useDiagramState(initialDiagram?.code ?? TEMPLATES.architecture);
+  const state = useDiagramState(
+    initialDiagram?.code ?? templateCode ?? TEMPLATES.architecture
+  );
 
   const [currentDiagramId, setCurrentDiagramId] = useState<string | null>(
     id ?? null
@@ -81,6 +85,18 @@ export default function Diagram() {
     showToast,
   ]);
 
+  const currentDiagramName = currentDiagramId
+    ? savedDiagrams.find((d) => d.id === currentDiagramId)?.name
+    : undefined;
+
+  const handleRenameDiagram = useCallback(
+    (name: string) => {
+      if (!currentDiagramId) return;
+      renameDiagram(currentDiagramId, name);
+    },
+    [currentDiagramId, renameDiagram]
+  );
+
   const handleModalSave = useCallback(
     (name: string) => {
       const saved = saveDiagram(
@@ -128,6 +144,8 @@ export default function Diagram() {
         }}
         onSave={handleSave}
         saveLabel={currentDiagramId ? "更新" : "保存"}
+        currentDiagramName={currentDiagramName}
+        onRenameDiagram={handleRenameDiagram}
       />
       <DiagramEditor state={state} style={{ flex: 1 }} />
       {showSaveModal && (

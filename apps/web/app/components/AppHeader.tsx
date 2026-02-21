@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { TEMPLATES } from "~/data/templates";
 
@@ -6,6 +6,8 @@ interface AppHeaderProps {
   onLoadTemplate: (code: string) => void;
   onSave: () => void;
   saveLabel: string;
+  currentDiagramName?: string;
+  onRenameDiagram?: (name: string) => void;
 }
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -21,8 +23,13 @@ export function AppHeader({
   onLoadTemplate,
   onSave,
   saveLabel,
+  currentDiagramName,
+  onRenameDiagram,
 }: AppHeaderProps) {
   const [showTemplates, setShowTemplates] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!showTemplates) return;
@@ -187,6 +194,78 @@ export function AppHeader({
       >
         {saveLabel}
       </button>
+
+      {/* ダイアグラム名 */}
+      {currentDiagramName !== undefined && (
+        <div style={{ marginLeft: 16, display: "flex", alignItems: "center" }}>
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              value={editNameValue}
+              onChange={(e) => setEditNameValue(e.target.value)}
+              onBlur={() => {
+                const trimmed = editNameValue.trim();
+                if (trimmed && trimmed !== currentDiagramName) {
+                  onRenameDiagram?.(trimmed);
+                }
+                setEditingName(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const trimmed = editNameValue.trim();
+                  if (trimmed && trimmed !== currentDiagramName) {
+                    onRenameDiagram?.(trimmed);
+                  }
+                  setEditingName(false);
+                }
+                if (e.key === "Escape") setEditingName(false);
+              }}
+              autoFocus
+              style={{
+                background: "#131720",
+                border: "1px solid #4338ca",
+                borderRadius: 4,
+                padding: "2px 8px",
+                color: "#e2e8f0",
+                fontSize: 12,
+                outline: "none",
+                minWidth: 120,
+                maxWidth: 240,
+              }}
+            />
+          ) : (
+            <span
+              onClick={() => {
+                setEditNameValue(currentDiagramName);
+                setEditingName(true);
+              }}
+              title="クリックで名前変更"
+              style={{
+                fontSize: 12,
+                color: "#94a3b8",
+                cursor: "pointer",
+                padding: "2px 6px",
+                borderRadius: 4,
+                maxWidth: 240,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                display: "inline-block",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLSpanElement).style.color = "#e2e8f0";
+                (e.currentTarget as HTMLSpanElement).style.background = "#1e293b";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLSpanElement).style.color = "#94a3b8";
+                (e.currentTarget as HTMLSpanElement).style.background = "transparent";
+              }}
+            >
+              {currentDiagramName}
+            </span>
+          )}
+        </div>
+      )}
 
       <div style={{ flex: 1 }} />
     </header>
