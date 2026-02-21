@@ -1,3 +1,4 @@
+import { useRef, useCallback, memo } from "react";
 import type { DiagramGroup } from "diagram-dsl-core";
 import type { MouseEvent } from "react";
 import type { ResizeHandle } from "../hooks/useGroupDrag.js";
@@ -9,92 +10,99 @@ interface GroupBoxProps {
   onResizeMouseDown: (e: MouseEvent, handle: ResizeHandle) => void;
 }
 
-const HANDLE = 8; // リサイズハンドルのサイズ
+const HANDLE = 8;
 
-export function GroupBox({ group, isSelected, onMoveMouseDown, onResizeMouseDown }: GroupBoxProps) {
-  const { x, y, w, h, color, label } = group;
+export const GroupBox = memo(
+  function GroupBox({ group, isSelected, onMoveMouseDown, onResizeMouseDown }: GroupBoxProps) {
+    const onMoveRef = useRef(onMoveMouseDown);
+    onMoveRef.current = onMoveMouseDown;
+    const onResizeRef = useRef(onResizeMouseDown);
+    onResizeRef.current = onResizeMouseDown;
 
-  return (
-    <g>
-      {/* グループ枠 */}
-      <rect
-        x={x}
-        y={y}
-        width={w}
-        height={h}
-        rx={12}
-        fill={color}
-        fillOpacity={isSelected ? 0.15 : 0.08}
-        stroke={color}
-        strokeWidth={isSelected ? 2.5 : 1.5}
-        strokeDasharray="8,4"
-        style={{ pointerEvents: "none" }}
-      />
+    const handleMove = useCallback((e: MouseEvent) => { onMoveRef.current(e); }, []);
+    const handleResizeE = useCallback((e: MouseEvent) => { onResizeRef.current(e, "e"); }, []);
+    const handleResizeS = useCallback((e: MouseEvent) => { onResizeRef.current(e, "s"); }, []);
+    const handleResizeSE = useCallback((e: MouseEvent) => { onResizeRef.current(e, "se"); }, []);
 
-      {/* ドラッグエリア（ヘッダー部分） */}
-      <rect
-        x={x}
-        y={y}
-        width={w}
-        height={30}
-        rx={12}
-        fill="transparent"
-        style={{ cursor: "grab" }}
-        onMouseDown={onMoveMouseDown}
-      />
+    const { x, y, w, h, color, label } = group;
 
-      {/* グループラベル */}
-      <text
-        x={x + 14}
-        y={y + 20}
-        fill={color}
-        fontSize={12}
-        fontFamily="'IBM Plex Mono', monospace"
-        fontWeight="600"
-        opacity={0.8}
-        style={{ pointerEvents: "none", userSelect: "none" }}
-      >
-        {label}
-      </text>
+    return (
+      <g>
+        <rect
+          x={x}
+          y={y}
+          width={w}
+          height={h}
+          rx={12}
+          fill={color}
+          fillOpacity={isSelected ? 0.15 : 0.08}
+          stroke={color}
+          strokeWidth={isSelected ? 2.5 : 1.5}
+          strokeDasharray="8,4"
+          style={{ pointerEvents: "none" }}
+        />
 
-      {/* リサイズハンドル: 右辺中央 (E) */}
-      <rect
-        x={x + w - HANDLE / 2}
-        y={y + h / 2 - HANDLE / 2}
-        width={HANDLE}
-        height={HANDLE}
-        rx={2}
-        fill={color}
-        fillOpacity={0.5}
-        style={{ cursor: "e-resize" }}
-        onMouseDown={(e) => onResizeMouseDown(e, "e")}
-      />
+        <rect
+          x={x}
+          y={y}
+          width={w}
+          height={30}
+          rx={12}
+          fill="transparent"
+          style={{ cursor: "grab" }}
+          onMouseDown={handleMove}
+        />
 
-      {/* リサイズハンドル: 下辺中央 (S) */}
-      <rect
-        x={x + w / 2 - HANDLE / 2}
-        y={y + h - HANDLE / 2}
-        width={HANDLE}
-        height={HANDLE}
-        rx={2}
-        fill={color}
-        fillOpacity={0.5}
-        style={{ cursor: "s-resize" }}
-        onMouseDown={(e) => onResizeMouseDown(e, "s")}
-      />
+        <text
+          x={x + 14}
+          y={y + 20}
+          fill={color}
+          fontSize={12}
+          fontFamily="'IBM Plex Mono', monospace"
+          fontWeight="600"
+          opacity={0.8}
+          style={{ pointerEvents: "none", userSelect: "none" }}
+        >
+          {label}
+        </text>
 
-      {/* リサイズハンドル: 右下角 (SE) */}
-      <rect
-        x={x + w - HANDLE}
-        y={y + h - HANDLE}
-        width={HANDLE}
-        height={HANDLE}
-        rx={2}
-        fill={color}
-        fillOpacity={0.8}
-        style={{ cursor: "se-resize" }}
-        onMouseDown={(e) => onResizeMouseDown(e, "se")}
-      />
-    </g>
-  );
-}
+        <rect
+          x={x + w - HANDLE / 2}
+          y={y + h / 2 - HANDLE / 2}
+          width={HANDLE}
+          height={HANDLE}
+          rx={2}
+          fill={color}
+          fillOpacity={0.5}
+          style={{ cursor: "e-resize" }}
+          onMouseDown={handleResizeE}
+        />
+
+        <rect
+          x={x + w / 2 - HANDLE / 2}
+          y={y + h - HANDLE / 2}
+          width={HANDLE}
+          height={HANDLE}
+          rx={2}
+          fill={color}
+          fillOpacity={0.5}
+          style={{ cursor: "s-resize" }}
+          onMouseDown={handleResizeS}
+        />
+
+        <rect
+          x={x + w - HANDLE}
+          y={y + h - HANDLE}
+          width={HANDLE}
+          height={HANDLE}
+          rx={2}
+          fill={color}
+          fillOpacity={0.8}
+          style={{ cursor: "se-resize" }}
+          onMouseDown={handleResizeSE}
+        />
+      </g>
+    );
+  },
+  (prev, next) => prev.group === next.group && prev.isSelected === next.isSelected,
+);

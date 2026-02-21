@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, memo } from "react";
 import type { ParseError } from "diagram-dsl-core";
 import { highlightLine } from "diagram-dsl-core";
 
@@ -9,12 +9,81 @@ interface CodeEditorProps {
   onFormat: () => void;
 }
 
-export function CodeEditor({ code, onChange, errors, onFormat }: CodeEditorProps) {
+export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onFormat }: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const lineCountRef = useRef<HTMLDivElement>(null);
   const lines = code.split("\n");
-  const errorLines = new Set(errors.map((e) => e.line));
+  const errorLines = useMemo(() => new Set(errors.map((e) => e.line)), [errors]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const newCode = code.slice(0, start) + "  " + code.slice(end);
+      onChange(newCode);
+      requestAnimationFrame(() => {
+        textarea.selectionStart = start + 2;
+        textarea.selectionEnd = start + 2;
+      });
+      return;
+    }
+
+    if (e.key === "{") {
+      e.preventDefault();
+      const newCode = code.slice(0, start) + "{}" + code.slice(end);
+      onChange(newCode);
+      requestAnimationFrame(() => {
+        textarea.selectionStart = start + 1;
+        textarea.selectionEnd = start + 1;
+      });
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const before = code.slice(0, start);
+      const lineStart = before.lastIndexOf("\n") + 1;
+      const currentLineContent = before.slice(lineStart);
+      const indent = currentLineContent.match(/^(\s*)/)?.[1] ?? "";
+      const charBefore = code[start - 1];
+      const charAfter = code[end];
+
+      if (charBefore === "{" && charAfter === "}") {
+        // { } の間で改行 → インデント付きで展開し、} も下へ
+        const newCode =
+          code.slice(0, start) + "\n" + indent + "  " + "\n" + indent + code.slice(end);
+        onChange(newCode);
+        requestAnimationFrame(() => {
+          const newPos = start + 1 + indent.length + 2;
+          textarea.selectionStart = newPos;
+          textarea.selectionEnd = newPos;
+        });
+      } else if (currentLineContent.trimEnd().endsWith("{")) {
+        // 行末が { → 次行はインデント + 2スペース
+        const newCode = code.slice(0, start) + "\n" + indent + "  " + code.slice(end);
+        onChange(newCode);
+        requestAnimationFrame(() => {
+          const newPos = start + 1 + indent.length + 2;
+          textarea.selectionStart = newPos;
+          textarea.selectionEnd = newPos;
+        });
+      } else {
+        // 通常の改行 → 現在行のインデントを引き継ぐ
+        const newCode = code.slice(0, start) + "\n" + indent + code.slice(end);
+        onChange(newCode);
+        requestAnimationFrame(() => {
+          const newPos = start + 1 + indent.length;
+          textarea.selectionStart = newPos;
+          textarea.selectionEnd = newPos;
+        });
+      }
+      return;
+    }
+  };
 
   const handleScroll = () => {
     if (textareaRef.current) {
@@ -97,6 +166,7 @@ export function CodeEditor({ code, onChange, errors, onFormat }: CodeEditorProps
           ref={textareaRef}
           value={code}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
           onScroll={handleScroll}
           spellCheck={false}
           style={{
@@ -153,4 +223,4 @@ export function CodeEditor({ code, onChange, errors, onFormat }: CodeEditorProps
       </button>
     </div>
   );
-}
+});

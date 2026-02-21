@@ -18,6 +18,7 @@ interface ParseContext {
   notes: ParseResult["notes"];
   errors: ParseResult["errors"];
   nodeMap: Record<string, DiagramNode>;
+  noteIdSet: Set<string>;
 }
 
 /**
@@ -94,7 +95,7 @@ export function parseDSL(code: string): ParseResult {
 
   const segments = extractSegments(code, errors);
 
-  const ctx: ParseContext = { nodes, edges, groups, notes, errors, nodeMap };
+  const ctx: ParseContext = { nodes, edges, groups, notes, errors, nodeMap, noteIdSet: new Set() };
 
   for (const seg of segments) {
     parseSegment(seg.text, seg.startLine, null, 0, 0, ctx);
@@ -176,9 +177,15 @@ function parseSegment(
     // Note: note n1 "text" { x=100 y=100 }
     const noteMatch = firstLine.match(/^note\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
     if (noteMatch) {
+      const noteId = noteMatch[1];
+      if (ctx.noteIdSet.has(noteId)) {
+        ctx.errors.push({ line: startLine, message: `重複IDエラー: ノート "${noteId}" が既に存在します` });
+        return;
+      }
+      ctx.noteIdSet.add(noteId);
       const props = parseProps(noteMatch[3] || "");
       ctx.notes.push({
-        id: noteMatch[1],
+        id: noteId,
         text: noteMatch[2],
         x: offsetX + (parseFloat(props.x) || 50),
         y: offsetY + (parseFloat(props.y) || 50),
@@ -192,6 +199,10 @@ function parseSegment(
     if (nodeMatch) {
       const props = parseProps(nodeMatch[3] || "");
       const id = nodeMatch[1];
+      if (ctx.nodeMap[id]) {
+        ctx.errors.push({ line: startLine, message: `重複IDエラー: ノード "${id}" が既に存在します` });
+        return;
+      }
       const hasX = props.x !== undefined;
       const hasY = props.y !== undefined;
 

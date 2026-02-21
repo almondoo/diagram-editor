@@ -8,6 +8,14 @@ export function highlightLine(line: string): SyntaxToken[] {
     return [{ text: line, color: "#6b7280" }];
   }
 
+  if (trimmed === "}") {
+    const indentLen = line.length - line.trimStart().length;
+    const tokens: SyntaxToken[] = [];
+    if (indentLen > 0) tokens.push({ text: line.slice(0, indentLen), color: "#e2e8f0" });
+    tokens.push({ text: "}", color: "#fbbf24" });
+    return tokens;
+  }
+
   const tokens: SyntaxToken[] = [];
   let remaining = line;
 

@@ -57,18 +57,10 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   // コードをパース
   const parsedRaw = useMemo(() => parseDSL(code), [code]);
 
-  // コード変更時に nodeStates を同期
+  // コード変更時に各ステートを一括同期（1回の useEffect で3つを更新 → React 18 自動バッチで 1 レンダリング）
   useEffect(() => {
     setNodeStates((prev) => syncNodes(parsedRaw.nodes, prev));
-  }, [parsedRaw]);
-
-  // コード変更時に groupStates を同期
-  useEffect(() => {
     setGroupStates((prev) => syncGroups(parsedRaw.groups, prev));
-  }, [parsedRaw]);
-
-  // コード変更時に noteStates を同期
-  useEffect(() => {
     setNoteStates((prev) => syncNotes(parsedRaw.notes, prev));
   }, [parsedRaw]);
 

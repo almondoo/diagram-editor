@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { TEMPLATES } from "~/data/templates";
 
@@ -8,12 +8,31 @@ interface AppHeaderProps {
   saveLabel: string;
 }
 
+const TEMPLATE_LABELS: Record<string, string> = {
+  flowchart: "フローチャート",
+  sequence: "シーケンス",
+  er: "ER図",
+  architecture: "アーキテクチャ",
+  mindmap: "マインドマップ",
+  state: "状態遷移",
+};
+
 export function AppHeader({
   onLoadTemplate,
   onSave,
   saveLabel,
 }: AppHeaderProps) {
-  const [templateHovered, setTemplateHovered] = useState<string | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  useEffect(() => {
+    if (!showTemplates) return;
+    const handle = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-template-dropdown]")) setShowTemplates(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [showTemplates]);
 
   return (
     <header
@@ -74,72 +93,81 @@ export function AppHeader({
         </span>
       </Link>
 
-      {/* テンプレートボタン */}
-      <div style={{ display: "flex", gap: 4, marginLeft: 24, alignItems: "center" }}>
-        <span
-          style={{
-            fontSize: 10,
-            color: "#64748b",
-            marginRight: 4,
-            fontFamily: "'IBM Plex Mono', monospace",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-          }}
-        >
-          テンプレート
-        </span>
-        {Object.entries(TEMPLATES)
-          .filter(([k]) => k !== "empty")
-          .map(([key, val]) => (
-            <button
-              key={key}
-              onClick={() => onLoadTemplate(val)}
-              onMouseEnter={() => setTemplateHovered(key)}
-              onMouseLeave={() => setTemplateHovered(null)}
-              style={{
-                background: templateHovered === key ? "#1e293b" : "#131720",
-                border: `1px solid ${templateHovered === key ? "#475569" : "#2d3548"}`,
-                color: "#94a3b8",
-                padding: "3px 10px",
-                borderRadius: 5,
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 500,
-                transition: "all 0.15s",
-              }}
-            >
-              {key === "flowchart"
-                ? "フローチャート"
-                : key === "sequence"
-                  ? "シーケンス"
-                  : key === "er"
-                    ? "ER図"
-                    : key === "architecture"
-                      ? "アーキテクチャ"
-                      : key === "mindmap"
-                        ? "マインドマップ"
-                        : key === "state"
-                          ? "状態遷移"
-                          : key}
-            </button>
-          ))}
+      {/* テンプレートドロップダウン */}
+      <div
+        data-template-dropdown=""
+        style={{ position: "relative", marginLeft: 24 }}
+      >
         <button
-          onClick={() => onLoadTemplate(TEMPLATES.empty)}
-          onMouseEnter={() => setTemplateHovered("empty")}
-          onMouseLeave={() => setTemplateHovered(null)}
+          onClick={() => setShowTemplates((v) => !v)}
           style={{
-            background: templateHovered === "empty" ? "#1e293b" : "#131720",
-            border: `1px solid ${templateHovered === "empty" ? "#475569" : "#2d3548"}`,
-            color: "#64748b",
+            background: showTemplates ? "#1e2435" : "#131720",
+            border: `1px solid ${showTemplates ? "#4338ca" : "#2d3548"}`,
+            color: showTemplates ? "#a5b4fc" : "#94a3b8",
             padding: "3px 10px",
             borderRadius: 5,
             cursor: "pointer",
             fontSize: 11,
-            transition: "all 0.15s",
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
           }}
         >
-          + 新規
+          テンプレート
+          <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
         </button>
+        {showTemplates && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              left: 0,
+              background: "#0f1219",
+              border: "1px solid #2d3548",
+              borderRadius: 8,
+              minWidth: 160,
+              zIndex: 100,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              overflow: "hidden",
+            }}
+          >
+            {Object.entries(TEMPLATES)
+              .filter(([k]) => k !== "empty")
+              .map(([key, val]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    onLoadTemplate(val);
+                    setShowTemplates(false);
+                  }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    background: "transparent",
+                    border: "none",
+                    borderBottom: "1px solid #1e293b",
+                    color: "#94a3b8",
+                    padding: "8px 14px",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontFamily: "'IBM Plex Sans', 'Noto Sans JP', system-ui",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "#1e293b";
+                    (e.currentTarget as HTMLButtonElement).style.color = "#e2e8f0";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    (e.currentTarget as HTMLButtonElement).style.color = "#94a3b8";
+                  }}
+                >
+                  {TEMPLATE_LABELS[key] ?? key}
+                </button>
+              ))}
+          </div>
+        )}
       </div>
 
       {/* 保存ボタン */}

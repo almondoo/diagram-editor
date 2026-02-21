@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { DiagramNode, DiagramGroup } from "diagram-dsl-core";
 
 export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | null>) {
@@ -7,6 +7,9 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null);
   const [isSpaceHeld, setIsSpaceHeld] = useState(false);
+
+  const panRef = useRef(pan);
+  panRef.current = pan;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -22,6 +25,59 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
       window.removeEventListener("keyup", onKeyUp);
     };
   }, []);
+
+  // wheel・タッチイベントをキャンバスコンテナに passive:false で直接登録
+  // スワイプナビゲーションを防止し、スクロール→パン、Ctrl+スクロール→ズームに対応
+  useEffect(() => {
+    const el = svgRef.current?.parentElement;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        // ピンチズーム（トラックパッド）またはCtrl+ホイール
+        setZoom((z) => Math.max(0.2, Math.min(3, z - e.deltaY * 0.005)));
+      } else {
+        // 2本指スクロール → パン
+        setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+      }
+    };
+
+    // タッチパン（1本指スワイプ）
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartPanX = 0;
+    let touchStartPanY = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartPanX = panRef.current.x;
+        touchStartPanY = panRef.current.y;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        setPan({ x: touchStartPanX + dx, y: touchStartPanY + dy });
+      }
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [svgRef]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent, onDeselect: () => void) => {
     const target = e.target as SVGElement;
@@ -44,11 +100,6 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
     return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
   }, [isPanning, panStart]);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoom((z) => Math.max(0.2, Math.min(3, z - e.deltaY * 0.001)));
-  }, []);
-
   const zoomIn = () => setZoom((z) => Math.min(3, z + 0.15));
   const zoomOut = () => setZoom((z) => Math.max(0.2, z - 0.15));
 
@@ -57,7 +108,6 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
       const svgEl = svgRef.current;
       if (!svgEl) return;
 
-      // コンテンツのバウンディングボックスを計算
       const rects = [
         ...nodes.map((n) => ({ x: n.x, y: n.y, r: n.x + n.w, b: n.y + n.h })),
         ...groups.map((g) => ({ x: g.x, y: g.y, r: g.x + g.w, b: g.y + g.h })),
@@ -89,7 +139,6 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
         (svgH - pad * 2) / contentH,
       )));
 
-      // コンテンツを中央に配置するパン
       setPan({
         x: pad - minX * newZoom + (svgW - pad * 2 - contentW * newZoom) / 2,
         y: pad - minY * newZoom + (svgH - pad * 2 - contentH * newZoom) / 2,
@@ -99,5 +148,5 @@ export function useCanvasInteraction(svgRef: React.RefObject<SVGSVGElement | nul
     [svgRef],
   );
 
-  return { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView };
+  return { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView };
 }

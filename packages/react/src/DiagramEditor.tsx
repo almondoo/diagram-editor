@@ -44,7 +44,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     addNode, exportSVG, formatCode, resetLayout,
   } = state;
 
-  const { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView } =
+  const { zoom, pan, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef);
 
   const {
@@ -266,8 +266,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
           />
 
           <div
-            style={{ flex: 1, position: "relative", overflow: "hidden", background: "#0a0c12" }}
-            onWheel={handleWheel}
+            style={{ flex: 1, position: "relative", overflow: "hidden", background: "#0a0c12", touchAction: "none" }}
             onMouseDown={(e) => {
               const target = e.target as SVGElement;
               if (target === svgRef.current || target.getAttribute("data-bg")) {

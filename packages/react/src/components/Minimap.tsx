@@ -1,3 +1,4 @@
+import { useMemo, memo } from "react";
 import type { DiagramNode, ViewBox } from "diagram-dsl-core";
 
 interface MinimapProps {
@@ -7,20 +8,24 @@ interface MinimapProps {
   canvasH: number;
 }
 
-export function Minimap({ nodes, viewBox, canvasW, canvasH }: MinimapProps) {
+export const Minimap = memo(function Minimap({ nodes, viewBox, canvasW, canvasH }: MinimapProps) {
   const mapW = 160;
   const mapH = 100;
-  const allX = nodes.map((n) => n.x).concat([0]);
-  const allY = nodes.map((n) => n.y).concat([0]);
-  const allX2 = nodes.map((n) => n.x + n.w).concat([canvasW]);
-  const allY2 = nodes.map((n) => n.y + n.h).concat([canvasH]);
-  const minX = Math.min(...allX) - 20;
-  const minY = Math.min(...allY) - 20;
-  const maxX = Math.max(...allX2) + 20;
-  const maxY = Math.max(...allY2) + 20;
-  const rangeW = maxX - minX || 1;
-  const rangeH = maxY - minY || 1;
-  const scale = Math.min(mapW / rangeW, mapH / rangeH);
+
+  const { minX, minY, scale } = useMemo(() => {
+    const allX = nodes.map((n) => n.x).concat([0]);
+    const allY = nodes.map((n) => n.y).concat([0]);
+    const allX2 = nodes.map((n) => n.x + n.w).concat([canvasW]);
+    const allY2 = nodes.map((n) => n.y + n.h).concat([canvasH]);
+    const minX = Math.min(...allX) - 20;
+    const minY = Math.min(...allY) - 20;
+    const maxX = Math.max(...allX2) + 20;
+    const maxY = Math.max(...allY2) + 20;
+    const rangeW = maxX - minX || 1;
+    const rangeH = maxY - minY || 1;
+    const scale = Math.min(mapW / rangeW, mapH / rangeH);
+    return { minX, minY, scale };
+  }, [nodes, canvasW, canvasH]);
 
   return (
     <div
@@ -62,4 +67,4 @@ export function Minimap({ nodes, viewBox, canvasW, canvasH }: MinimapProps) {
       </svg>
     </div>
   );
-}
+});
