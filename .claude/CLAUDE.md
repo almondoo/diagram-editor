@@ -2,6 +2,10 @@
 
 このファイルはリポジトリで作業する際のClaude Code (claude.ai/code) へのガイダンスを提供します。
 
+## 開発サーバー
+
+アプリは **http://localhost:5173** で動作する。動作確認はこのURLをブラウザで参照すること。
+
 ## コマンド実行の原則
 
 **pnpm・node など、すべてのコマンドは必ず `docker compose exec app <コマンド>` を使ってDockerコンテナ内で実行すること。ローカルの pnpm / node を直接使ってはならない。**

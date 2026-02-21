@@ -31,9 +31,10 @@ interface ToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
+  onResetLayout: () => void;
 }
 
-export function Toolbar({ onAddNode, onExportSVG, onZoomIn, onZoomOut, onFitView }: ToolbarProps) {
+export function Toolbar({ onAddNode, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout }: ToolbarProps) {
   const shapes = [
     { shape: "rect", icon: "▭", tip: "矩形" },
     { shape: "stadium", icon: "⊂⊃", tip: "角丸" },
@@ -102,6 +103,16 @@ export function Toolbar({ onAddNode, onExportSVG, onZoomIn, onZoomOut, onFitView
       <button onClick={onZoomIn} title="ズームイン" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>+</button>
       <button onClick={onZoomOut} title="ズームアウト" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>−</button>
       <button onClick={onFitView} title="全体表示" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>⊞</button>
+      <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 6px" }} />
+      <button
+        onClick={onResetLayout}
+        title="ノードを自動配置"
+        style={{ ...tbBtnStyle, width: "auto", padding: "0 10px", fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}
+        onMouseEnter={tbHover}
+        onMouseLeave={tbLeave}
+      >
+        ⊞ 自動配置
+      </button>
       <div style={{ flex: 1 }} />
       <button
         onClick={onExportSVG}

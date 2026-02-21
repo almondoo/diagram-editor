@@ -12,6 +12,7 @@ import { Minimap } from "./components/Minimap.js";
 import { SyntaxPanel } from "./components/SyntaxPanel.js";
 import { useDiagramState } from "./hooks/useDiagramState.js";
 import { useNodeDrag } from "./hooks/useNodeDrag.js";
+import { useGroupDrag } from "./hooks/useGroupDrag.js";
 import { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
@@ -30,14 +31,20 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
   const [showMyDiagrams, setShowMyDiagrams] = useState(false);
   const { savedDiagrams, saveDiagram, deleteDiagram } = useLocalDiagrams();
 
-  const { code, setCode, parsed, nodeById, nodeStates, setNodeLayout, addNode, exportSVG, formatCode, loadTemplate, loadSaved } =
-    useDiagramState(initialCode);
+  const {
+    code, setCode, parsed, nodeById, groupById, nodeStates,
+    setNodeLayout, setGroupLayout, setGroupSize,
+    addNode, exportSVG, formatCode, resetLayout, loadTemplate, loadSaved,
+  } = useDiagramState(initialCode);
 
   const { zoom, pan, isPanning, handleCanvasMouseDown, handleWheel, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef);
 
   const { selectedNodeId, setSelectedNodeId, handleNodeMouseDown } =
     useNodeDrag(nodeById, zoom, setNodeLayout);
+
+  const { handleGroupMoveMouseDown, handleGroupResizeMouseDown } =
+    useGroupDrag(groupById, zoom, setGroupLayout, setGroupSize);
 
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
 
@@ -395,6 +402,7 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}
             onFitView={fitView}
+            onResetLayout={resetLayout}
           />
 
           <div
@@ -434,7 +442,12 @@ export function DiagramEditor({ initialCode, className, style }: DiagramEditorPr
 
               <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
                 {parsed.groups.map((g) => (
-                  <GroupBox key={g.id} group={g} />
+                  <GroupBox
+                    key={g.id}
+                    group={g}
+                    onMoveMouseDown={(e) => handleGroupMoveMouseDown(e, g.id)}
+                    onResizeMouseDown={(e, handle) => handleGroupResizeMouseDown(e, g.id, handle)}
+                  />
                 ))}
                 {parsed.notes.map((n) => (
                   <NoteBox key={n.id} note={n} />
