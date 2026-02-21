@@ -50,6 +50,62 @@ function computeGroupFit(allMembers: DiagramNode[], g: DiagramGroup): DiagramGro
   return { ...g, x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
+const GROUP_GAP = 60; // グループ間の余白
+
+/** グループ自体を dagre でレイアウトして重なりを解消する */
+function layoutGroupsDagre(
+  groups: DiagramGroup[],
+  groupUpdates: Record<string, DiagramGroup>,
+  edges: DiagramEdge[],
+  allNodes: DiagramNode[],
+): Record<string, DiagramGroup> {
+  if (groups.length <= 1) return groupUpdates;
+
+  const effectiveGroups = groups.map((g) => groupUpdates[g.id] ?? g);
+
+  const graph = new dagre.graphlib.Graph();
+  graph.setGraph({
+    rankdir: "LR",
+    nodesep: GROUP_GAP,
+    ranksep: GROUP_GAP * 1.5,
+    marginx: 40,
+    marginy: 40,
+  });
+  graph.setDefaultEdgeLabel(() => ({}));
+
+  // グループを dagre ノードとして追加
+  effectiveGroups.forEach((g) => {
+    graph.setNode(g.id, { width: g.w, height: g.h });
+  });
+
+  // ノードレベルのエッジからグループ間エッジを推定
+  const nodeToGroup: Record<string, string> = {};
+  allNodes.forEach((n) => {
+    if (n.group) nodeToGroup[n.id] = n.group;
+  });
+  const addedEdges = new Set<string>();
+  edges.forEach((e) => {
+    const fromGroup = nodeToGroup[e.from];
+    const toGroup = nodeToGroup[e.to];
+    if (fromGroup && toGroup && fromGroup !== toGroup) {
+      const key = `${fromGroup}->${toGroup}`;
+      if (!addedEdges.has(key)) {
+        graph.setEdge(fromGroup, toGroup);
+        addedEdges.add(key);
+      }
+    }
+  });
+
+  dagre.layout(graph);
+
+  const result: Record<string, DiagramGroup> = { ...groupUpdates };
+  effectiveGroups.forEach((g) => {
+    const pos = graph.node(g.id);
+    result[g.id] = { ...g, x: pos.x - g.w / 2, y: pos.y - g.h / 2 };
+  });
+  return result;
+}
+
 /** フリーノードを dagre でレイアウト（startY の下から開始） */
 function layoutFreeNodesDagre(
   toLayout: DiagramNode[],
@@ -128,6 +184,25 @@ export function autoLayout(
     if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, g, edges);
     // 全メンバー（既配置ノードを含む）でグループ枠を再計算
     groupUpdates[groupId] = computeGroupFit(gnodes, g);
+  }
+
+  // グループ自体を dagre でレイアウト（重なり解消）
+  const repositionedGroups = layoutGroupsDagre(groups, groupUpdates, edges, nodes);
+  // グループ位置の変化をノードに適用
+  for (const [groupId, newG] of Object.entries(repositionedGroups)) {
+    const oldG = groupUpdates[groupId] ?? groupById[groupId];
+    if (!oldG) continue;
+    const dx = newG.x - oldG.x;
+    const dy = newG.y - oldG.y;
+    if (dx !== 0 || dy !== 0) {
+      nodes.forEach((n) => {
+        if (n.group === groupId) {
+          n.x += dx;
+          n.y += dy;
+        }
+      });
+    }
+    groupUpdates[groupId] = newG;
   }
 
   // フリーノードを dagre でレイアウト（全グループの下から開始）

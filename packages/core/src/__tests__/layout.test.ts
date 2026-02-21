@@ -108,4 +108,41 @@ describe("autoLayout", () => {
       expect(n.y + n.h).toBeLessThanOrEqual(g.y + g.h + 1);
     }
   });
+
+  it("複数グループが重ならないようにauto-layoutする", () => {
+    // 同じ位置 (0,0) に2つのグループ → auto-layout後は重ならない
+    const g1 = makeGroup("g1", 0, 0, 300, 200);
+    const g2 = makeGroup("g2", 0, 0, 300, 200);
+    const nodes = [
+      makeNode("a", true, "g1"),
+      makeNode("b", true, "g2"),
+    ];
+    const { groupUpdates } = autoLayout(nodes, [], [g1, g2]);
+    const rg1 = groupUpdates["g1"] ?? g1;
+    const rg2 = groupUpdates["g2"] ?? g2;
+    // 水平方向または垂直方向に重なっていないことを確認 (20px の余白)
+    const overlapX = rg1.x + rg1.w + 20 > rg2.x && rg2.x + rg2.w + 20 > rg1.x;
+    const overlapY = rg1.y + rg1.h + 20 > rg2.y && rg2.y + rg2.h + 20 > rg1.y;
+    expect(overlapX && overlapY).toBe(false);
+  });
+
+  it("グループ間エッジを考慮してdagreがグループを配置する", () => {
+    const g1 = makeGroup("g1", 0, 0, 200, 150);
+    const g2 = makeGroup("g2", 0, 0, 200, 150);
+    const g3 = makeGroup("g3", 0, 0, 200, 150);
+    const nodes = [
+      makeNode("a", true, "g1"),
+      makeNode("b", true, "g2"),
+      makeNode("c", true, "g3"),
+    ];
+    // a->b, b->c のエッジ → dagre は g1→g2→g3 の順に配置 (LR)
+    const edges = [EDGE("a", "b"), EDGE("b", "c")];
+    const { groupUpdates } = autoLayout(nodes, edges, [g1, g2, g3]);
+    const rg1 = groupUpdates["g1"] ?? g1;
+    const rg2 = groupUpdates["g2"] ?? g2;
+    const rg3 = groupUpdates["g3"] ?? g3;
+    // g1 → g2 → g3 の順に x が増える (LR layout)
+    expect(rg1.x).toBeLessThan(rg2.x);
+    expect(rg2.x).toBeLessThan(rg3.x);
+  });
 });
