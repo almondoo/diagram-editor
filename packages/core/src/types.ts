@@ -16,6 +16,7 @@ export interface DiagramNode {
   opacity: number;
   dashed: boolean;
   _needsPosition?: boolean;
+  _explicitProps?: Set<string>;
 }
 
 export interface DiagramEdge {
