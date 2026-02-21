@@ -3,6 +3,8 @@ export { useDiagramState } from "./hooks/useDiagramState.js";
 export { useNodeDrag } from "./hooks/useNodeDrag.js";
 export { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
 export { useSplitPane } from "./hooks/useSplitPane.js";
+export type { SavedDiagram } from "./hooks/useLocalDiagrams.js";
+export { useLocalDiagrams } from "./hooks/useLocalDiagrams.js";
 export { ShapeNode } from "./components/ShapeNode.js";
 export { EdgeLine } from "./components/EdgeLine.js";
 export { GroupBox } from "./components/GroupBox.js";
