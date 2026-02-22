@@ -50,6 +50,17 @@ export function useGroupDrag(
     setDragInfo({ groupId, type: "resize", handle, startClientX: e.clientX, startClientY: e.clientY, isMulti: false });
   };
 
+  const handleGroupResizeTouchStart = useCallback((
+    e: React.TouchEvent,
+    groupId: string,
+    handle: ResizeHandle,
+  ) => {
+    if (e.touches.length !== 1) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+    setDragInfo({ groupId, type: "resize", handle, startClientX: touch.clientX, startClientY: touch.clientY, isMulti: false });
+  }, []);
+
   useEffect(() => {
     if (!dragInfo) return;
 
@@ -106,5 +117,5 @@ export function useGroupDrag(
     };
   }, [dragInfo, zoom, setGroupLayout, setGroupSize, onMultiMove]);
 
-  return { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown };
+  return { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown, handleGroupResizeTouchStart };
 }

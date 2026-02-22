@@ -161,7 +161,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const { handleNodeMouseDown, handleNodeResizeMouseDown, handleNodeTouchStart } =
     useNodeDrag(nodeById, zoom, selectedIds, setNodeLayout, setNodeSize, onMultiMove);
 
-  const { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown } =
+  const { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown, handleGroupResizeTouchStart } =
     useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove);
 
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
@@ -307,6 +307,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   handleGroupMoveTouchStart(e, g.id);
                 }}
                 onResizeMouseDown={(e, handle) => handleGroupResizeMouseDown(e, g.id, handle)}
+                onResizeTouchStart={(e, handle) => handleGroupResizeTouchStart(e, g.id, handle)}
               />
             ))}
           {parsed.notes.map((n) => (
