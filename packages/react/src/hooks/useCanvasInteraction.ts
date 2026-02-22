@@ -49,8 +49,18 @@ export function useCanvasInteraction(
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
-        // ピンチズーム（トラックパッド）またはCtrl+ホイール
-        setZoom((z) => Math.max(0.2, Math.min(3, z - e.deltaY * 0.005)));
+        // ピンチズーム（トラックパッド）またはCtrl+ホイール — 画面中央基準
+        const oldZoom = zoomRef.current;
+        const newZoom = Math.max(0.2, Math.min(3, oldZoom - e.deltaY * 0.005));
+        const rect = el.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const ratio = newZoom / oldZoom;
+        applyPanDirect(
+          cx - (cx - panRef.current.x) * ratio,
+          cy - (cy - panRef.current.y) * ratio,
+        );
+        setZoom(newZoom);
       } else {
         // 2本指スクロール → パン（React 再レンダリングをバイパスして DOM 直接操作）
         applyPanDirect(
