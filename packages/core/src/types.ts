@@ -27,6 +27,8 @@ export interface DiagramEdge {
   /** "end" | "start" | "both" | "none" */
   arrow: string;
   curve: string;
+  bendX: number;
+  bendY: number;
 }
 
 export interface DiagramGroup {

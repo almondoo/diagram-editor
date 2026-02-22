@@ -47,6 +47,7 @@ export interface DiagramState {
   deleteEdge: (fromId: string, toId: string) => void;
   deleteNode: (nodeId: string) => void;
   reconnectEdge: (originalFrom: string, originalTo: string, newFrom: string, newTo: string) => void;
+  updateEdgeBend: (fromId: string, toId: string, bendX: number, bendY: number) => void;
   exportSVG: () => void;
   formatCode: () => void;
   resetLayout: () => void;
@@ -490,6 +491,41 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     });
   }, []);
 
+  // エッジのベンド値を更新（DSLコード内の bendX=/bendY= を書き換え）
+  const updateEdgeBend = useCallback((fromId: string, toId: string, bendX: number, bendY: number) => {
+    setCode((c) => {
+      const lines = c.split("\n");
+      const edgePattern = new RegExp(`^(\\s*edge\\s+${fromId}\\s*(?:<-->|<->|<--|-->|<-|->|--)\\s*${toId})(\\s|$)(.*)`);
+      const updated = lines.map((line) => {
+        const match = line.match(edgePattern);
+        if (!match) return line;
+        const header = match[1]!;
+        const rest = (match[3] ?? "").trimEnd();
+
+        const bx = Math.round(bendX);
+        const by = Math.round(bendY);
+
+        if (!rest.includes("{")) {
+          return `${header} { bendX=${bx} bendY=${by} }`;
+        }
+
+        let updated = rest;
+        if (/bendX\s*=\s*\S+/.test(updated)) {
+          updated = updated.replace(/bendX\s*=\s*\S+/, `bendX=${bx}`);
+        } else {
+          updated = updated.replace("{", `{ bendX=${bx}`);
+        }
+        if (/bendY\s*=\s*\S+/.test(updated)) {
+          updated = updated.replace(/bendY\s*=\s*\S+/, `bendY=${by}`);
+        } else {
+          updated = updated.replace("{", `{ bendY=${by}`);
+        }
+        return `${header} ${updated}`;
+      });
+      return updated.join("\n");
+    });
+  }, []);
+
   const exportSVG = () => {
     const svgData = generateExportSVG(parsed);
     if (!svgData) return;
@@ -578,6 +614,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     deleteEdge,
     deleteNode,
     reconnectEdge,
+    updateEdgeBend,
     exportSVG,
     formatCode,
     resetLayout,

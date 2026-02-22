@@ -8,17 +8,18 @@ interface EdgeLineProps {
   toNode: DiagramNode | undefined;
   onMoveMouseDown?: (e: React.MouseEvent, fromId: string, toId: string) => void;
   onEndpointMouseDown?: (e: React.MouseEvent, fromId: string, toId: string, end: "from" | "to") => void;
+  onDoubleClick?: () => void;
 }
 
 export const EdgeLine = memo(
-  function EdgeLine({ edge, fromNode, toNode, onMoveMouseDown, onEndpointMouseDown }: EdgeLineProps) {
+  function EdgeLine({ edge, fromNode, toNode, onMoveMouseDown, onEndpointMouseDown, onDoubleClick }: EdgeLineProps) {
+    const [hovered, setHovered] = useState(false);
     if (!fromNode || !toNode) return null;
     const { from, to } = getEdgePoints(fromNode, toNode);
-    const { label, color, style, animate, thickness, arrow, curve } = edge;
+    const { label, color, style, animate, thickness, arrow, curve, bendX, bendY } = edge;
     const id = `edge-${edge.from}-${edge.to}`;
-    const [hovered, setHovered] = useState(false);
 
-    const { pathD, labelX, labelY } = buildEdgePath(from, to, curve);
+    const { pathD, labelX, labelY } = buildEdgePath(from, to, curve, bendX, bendY);
 
     const hasEndMarker = arrow === "end" || arrow === "both";
     const hasStartMarker = arrow === "start" || arrow === "both";
@@ -63,6 +64,7 @@ export const EdgeLine = memo(
           strokeWidth={14}
           style={{ cursor: "move" }}
           onMouseDown={(e) => onMoveMouseDown?.(e, edge.from, edge.to)}
+          onDoubleClick={onDoubleClick}
         />
 
         {/* 実際のエッジ線 */}
@@ -138,5 +140,6 @@ export const EdgeLine = memo(
     prev.fromNode === next.fromNode &&
     prev.toNode === next.toNode &&
     prev.onMoveMouseDown === next.onMoveMouseDown &&
-    prev.onEndpointMouseDown === next.onEndpointMouseDown,
+    prev.onEndpointMouseDown === next.onEndpointMouseDown &&
+    prev.onDoubleClick === next.onDoubleClick,
 );

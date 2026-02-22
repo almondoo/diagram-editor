@@ -28,6 +28,7 @@ function makeGroup(id: string, x = 0, y = 0, w = 300, h = 200, parentGroup?: str
 const EDGE = (from: string, to: string): DiagramEdge => ({
   from, to, label: "", color: "#fff", style: "solid",
   animate: false, thickness: 1.5, arrow: "end", curve: "smooth",
+  bendX: 0, bendY: 0,
 });
 
 describe("autoLayout", () => {

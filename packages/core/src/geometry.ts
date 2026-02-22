@@ -4,6 +4,8 @@ export function buildEdgePath(
   from: { x: number; y: number },
   to: { x: number; y: number },
   curve: string,
+  bendX: number = 0,
+  bendY: number = 0,
 ): { pathD: string; labelX: number; labelY: number } {
   const midX = (from.x + to.x) / 2;
   const midY = (from.y + to.y) / 2;
@@ -12,7 +14,9 @@ export function buildEdgePath(
   const perpX = -dy * 0.08;
   const perpY = dx * 0.08;
 
-  if (curve === "straight") {
+  const hasBend = bendX !== 0 || bendY !== 0;
+
+  if (curve === "straight" && !hasBend) {
     return {
       pathD: `M${from.x},${from.y} L${to.x},${to.y}`,
       labelX: midX,
@@ -20,10 +24,13 @@ export function buildEdgePath(
     };
   }
 
+  const cpX = midX + (hasBend ? bendX : perpX);
+  const cpY = midY + (hasBend ? bendY : perpY);
+
   return {
-    pathD: `M${from.x},${from.y} Q${midX + perpX},${midY + perpY} ${to.x},${to.y}`,
-    labelX: midX + perpX / 2,
-    labelY: midY + perpY / 2,
+    pathD: `M${from.x},${from.y} Q${cpX},${cpY} ${to.x},${to.y}`,
+    labelX: (midX + cpX) / 2,
+    labelY: (midY + cpY) / 2,
   };
 }
 

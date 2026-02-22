@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { DiagramNode } from "diagram-dsl-core";
+import type { DiagramNode, DiagramEdge } from "diagram-dsl-core";
 
-interface EdgeDragInfo {
-  type: "move";
+interface BendDragInfo {
+  type: "bend";
   fromId: string;
   toId: string;
+  /** ドラッグ開始時の bendX/bendY */
+  initialBendX: number;
+  initialBendY: number;
   startX: number;
   startY: number;
 }
@@ -25,12 +28,13 @@ interface ReconnectDragInfo {
   startY: number;
 }
 
-type DragInfo = EdgeDragInfo | ReconnectDragInfo;
+type DragInfo = BendDragInfo | ReconnectDragInfo;
 
 export function useEdgeDrag(
   nodeById: Record<string, DiagramNode>,
+  edges: DiagramEdge[],
   zoom: number,
-  setNodeLayout: (nodeId: string, x: number, y: number) => void,
+  updateEdgeBend: (fromId: string, toId: string, bendX: number, bendY: number) => void,
   reconnectEdge: (originalFrom: string, originalTo: string, newFrom: string, newTo: string) => void,
   svgRef: React.RefObject<SVGSVGElement | null>,
   panRef: React.RefObject<{ x: number; y: number }>,
@@ -38,12 +42,23 @@ export function useEdgeDrag(
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
   const nodeByIdRef = useRef(nodeById);
   nodeByIdRef.current = nodeById;
+  const edgesRef = useRef(edges);
+  edgesRef.current = edges;
 
-  // エッジの線をドラッグ開始(全体移動)
+  // エッジの線をドラッグ開始(ベンド変更)
   const handleEdgeMoveMouseDown = useCallback((e: React.MouseEvent, fromId: string, toId: string) => {
     e.stopPropagation();
     if (e.button !== 0) return;
-    setDragInfo({ type: "move", fromId, toId, startX: e.clientX, startY: e.clientY });
+    const edge = edgesRef.current.find((ed) => ed.from === fromId && ed.to === toId);
+    setDragInfo({
+      type: "bend",
+      fromId,
+      toId,
+      initialBendX: edge?.bendX ?? 0,
+      initialBendY: edge?.bendY ?? 0,
+      startX: e.clientX,
+      startY: e.clientY,
+    });
   }, []);
 
   // 端点のドラッグ開始(接続先付け替え)
@@ -72,16 +87,15 @@ export function useEdgeDrag(
     if (!dragInfo) return;
 
     const handleMove = (e: MouseEvent) => {
-      if (dragInfo.type === "move") {
+      if (dragInfo.type === "bend") {
         const dx = (e.clientX - dragInfo.startX) / zoom;
         const dy = (e.clientY - dragInfo.startY) / zoom;
-        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-
-        const fromNode = nodeByIdRef.current[dragInfo.fromId];
-        const toNode = nodeByIdRef.current[dragInfo.toId];
-        if (fromNode) setNodeLayout(dragInfo.fromId, Math.round(fromNode.x + dx), Math.round(fromNode.y + dy));
-        if (toNode) setNodeLayout(dragInfo.toId, Math.round(toNode.x + dx), Math.round(toNode.y + dy));
-        setDragInfo((d) => d ? { ...d, startX: e.clientX, startY: e.clientY } : null);
+        updateEdgeBend(
+          dragInfo.fromId,
+          dragInfo.toId,
+          Math.round(dragInfo.initialBendX + dx),
+          Math.round(dragInfo.initialBendY + dy),
+        );
       } else if (dragInfo.type === "reconnect") {
         const svgEl = svgRef.current;
         if (!svgEl) return;
@@ -128,7 +142,7 @@ export function useEdgeDrag(
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [dragInfo, zoom, setNodeLayout, reconnectEdge, svgRef, panRef]);
+  }, [dragInfo, zoom, updateEdgeBend, reconnectEdge, svgRef, panRef]);
 
   return {
     edgeDragInfo: dragInfo,

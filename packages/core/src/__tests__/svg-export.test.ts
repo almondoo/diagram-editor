@@ -22,6 +22,7 @@ function makeEdge(overrides: Partial<DiagramEdge> = {}): DiagramEdge {
     label: "", color: "#94a3b8",
     style: "solid", animate: false,
     thickness: 1.5, arrow: "end", curve: "smooth",
+    bendX: 0, bendY: 0,
     ...overrides,
   };
 }

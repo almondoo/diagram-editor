@@ -45,6 +45,15 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     isMulti: boolean;
   } | null>(null);
 
+  // ダブルクリック → コードエディタフォーカス
+  const [focusLine, setFocusLine] = useState<number | null>(null);
+  // focusLine を消費後にクリアして、同じ行への再フォーカスを可能にする
+  useEffect(() => {
+    if (focusLine !== null) {
+      requestAnimationFrame(() => setFocusLine(null));
+    }
+  }, [focusLine]);
+
   // レスポンシブ
   const { isMobile } = useViewport();
   // ボトムシート
@@ -56,8 +65,28 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const {
     code, setCode, parsed, nodeById, groupById, noteStates,
     setNodeLayout, setNodeSize, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
-    addNode, addNote, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, reconnectEdge, exportSVG, formatCode, resetLayout,
+    addNode, addNote, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, reconnectEdge, updateEdgeBend, exportSVG, formatCode, resetLayout,
   } = state;
+
+  const findCodeLine = useCallback((type: "node" | "edge" | "note", id: string, fromId?: string) => {
+    const codeLines = code.split("\n");
+    for (let i = 0; i < codeLines.length; i++) {
+      const trimmed = codeLines[i]!.trim();
+      if (type === "node" && trimmed.match(new RegExp(`^node\\s+${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s`))) {
+        return i + 1;
+      }
+      if (type === "edge" && fromId) {
+        const escaped = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        if (trimmed.match(new RegExp(`^edge\\s+${escaped(fromId)}\\s+\\S+\\s+${escaped(id)}`))) {
+          return i + 1;
+        }
+      }
+      if (type === "note" && trimmed.match(new RegExp(`^note\\s+${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s`))) {
+        return i + 1;
+      }
+    }
+    return null;
+  }, [code]);
 
   const { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef, svgGroupRef, gridRef, gridLargeRef);
@@ -167,7 +196,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove);
 
   const { edgeDragInfo, handleEdgeMoveMouseDown, handleEdgeEndpointMouseDown } =
-    useEdgeDrag(nodeById, zoom, setNodeLayout, reconnectEdge, svgRef, panRef);
+    useEdgeDrag(nodeById, parsed.edges, zoom, updateEdgeBend, reconnectEdge, svgRef, panRef);
 
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
 
@@ -328,6 +357,10 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 if (!isSelected(n.id)) selectSingle(n.id);
                 handleNoteTouchStart(e, n.id);
               }}
+              onDoubleClick={() => {
+                const line = findCodeLine("note", n.id);
+                if (line) setFocusLine(line);
+              }}
             />
           ))}
           {parsed.edges.map((edge, i) => (
@@ -338,6 +371,10 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               toNode={nodeById[edge.to]}
               onMoveMouseDown={handleEdgeMoveMouseDown}
               onEndpointMouseDown={handleEdgeEndpointMouseDown}
+              onDoubleClick={() => {
+                const line = findCodeLine("edge", edge.to, edge.from);
+                if (line) setFocusLine(line);
+              }}
             />
           ))}
           {/* 接続付け替え中の仮エッジ線 */}
@@ -374,6 +411,10 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               }}
               onTap={() => handleNodeTap(node.id)}
               onResizeMouseDown={(e) => handleNodeResizeMouseDown(e, node.id)}
+              onDoubleClick={() => {
+                const line = findCodeLine("node", node.id);
+                if (line) setFocusLine(line);
+              }}
             />
           ))}
         </g>
@@ -478,7 +519,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       </div>
 
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} />
+        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} focusLine={focusLine} />
       </div>
 
       {parsed.errors.length > 0 && (
