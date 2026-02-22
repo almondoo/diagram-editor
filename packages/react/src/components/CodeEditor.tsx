@@ -1,25 +1,149 @@
-import { useRef, useMemo, memo } from "react";
-import type { ParseError } from "diagram-dsl-core";
-import { highlightLine } from "diagram-dsl-core";
+import { useRef, useMemo, useState, useCallback, memo } from "react";
+import type { ParseError, CompletionItem } from "diagram-dsl-core";
+import { highlightLine, getCompletionContext, getCompletionItems } from "diagram-dsl-core";
+import { AutocompleteDropdown } from "./AutocompleteDropdown.js";
 
 interface CodeEditorProps {
   code: string;
   onChange: (value: string) => void;
   errors: ParseError[];
   onFormat: () => void;
+  existingIds?: string[];
 }
 
-export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onFormat }: CodeEditorProps) {
+export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onFormat, existingIds = [] }: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const lineCountRef = useRef<HTMLDivElement>(null);
+  const mirrorRef = useRef<HTMLDivElement>(null);
   const lines = code.split("\n");
   const errorLines = useMemo(() => new Set(errors.map((e) => e.line)), [errors]);
+
+  // 補完state
+  const [completionItems, setCompletionItems] = useState<CompletionItem[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [completionPos, setCompletionPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const showCompletion = completionItems.length > 0;
+
+  const measureCursorPosition = useCallback(() => {
+    const textarea = textareaRef.current;
+    const mirror = mirrorRef.current;
+    if (!textarea || !mirror) return { top: 0, left: 0 };
+
+    const textBeforeCursor = code.slice(0, textarea.selectionStart);
+    const lines = textBeforeCursor.split("\n");
+    const currentLineIndex = lines.length - 1;
+    const currentCol = lines[currentLineIndex].length;
+
+    // 行の高さとパディングから計算
+    const lineHeight = 21;
+    const paddingTop = 12;
+    const paddingLeft = 16;
+
+    // ミラー要素を使ってテキスト幅を計測
+    mirror.textContent = lines[currentLineIndex].slice(0, currentCol);
+    const textWidth = mirror.scrollWidth;
+
+    const top = paddingTop + (currentLineIndex + 1) * lineHeight - textarea.scrollTop;
+    const left = paddingLeft + textWidth - textarea.scrollLeft;
+
+    return { top, left };
+  }, [code]);
+
+  const updateCompletion = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const pos = textarea.selectionStart;
+    const textBeforeCursor = code.slice(0, pos);
+    const allLines = code.split("\n");
+    const linesBeforeCursor = textBeforeCursor.split("\n");
+    const currentLine = linesBeforeCursor[linesBeforeCursor.length - 1];
+    const col = currentLine.length;
+    const currentLineIndex = linesBeforeCursor.length - 1;
+
+    // ブロックヘッダー行を検出（現在の行がブロック内かどうか）
+    let blockHeaderLine = "";
+    let depth = 0;
+    for (let i = currentLineIndex - 1; i >= 0; i--) {
+      const l = allLines[i];
+      const opens = (l.match(/\{/g) ?? []).length;
+      const closes = (l.match(/\}/g) ?? []).length;
+      depth += closes - opens;
+      if (depth < 0) {
+        blockHeaderLine = l;
+        break;
+      }
+    }
+
+    const context = getCompletionContext(currentLine, col, blockHeaderLine, allLines);
+    if (!context) {
+      setCompletionItems([]);
+      return;
+    }
+
+    const items = getCompletionItems(context, existingIds);
+    setCompletionItems(items);
+    setSelectedIndex(0);
+    if (items.length > 0) {
+      setCompletionPos(measureCursorPosition());
+    }
+  }, [code, existingIds, measureCursorPosition]);
+
+  const applyCompletion = useCallback((item: CompletionItem) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const pos = textarea.selectionStart;
+    const textBeforeCursor = code.slice(0, pos);
+    const linesBeforeCursor = textBeforeCursor.split("\n");
+    const currentLine = linesBeforeCursor[linesBeforeCursor.length - 1];
+
+    // プレフィックスの長さを計算
+    const prefixMatch = currentLine.match(/[\w#<>-]*$/);
+    const prefixLen = prefixMatch ? prefixMatch[0].length : 0;
+
+    const insertText = item.text + (item.suffix ?? "");
+    const newCode = code.slice(0, pos - prefixLen) + insertText + code.slice(pos);
+    onChange(newCode);
+
+    const newPos = pos - prefixLen + insertText.length;
+    requestAnimationFrame(() => {
+      textarea.selectionStart = newPos;
+      textarea.selectionEnd = newPos;
+    });
+
+    setCompletionItems([]);
+  }, [code, onChange]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
+
+    // 補完表示中のキーインターセプト
+    if (showCompletion) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % completionItems.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + completionItems.length) % completionItems.length);
+        return;
+      }
+      if (e.key === "Tab" || e.key === "Enter") {
+        e.preventDefault();
+        applyCompletion(completionItems[selectedIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setCompletionItems([]);
+        return;
+      }
+    }
 
     if (e.key === "Tab") {
       e.preventDefault();
@@ -162,10 +286,27 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
             </div>
           ))}
         </div>
+        <div
+          ref={mirrorRef}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: -9999,
+            left: -9999,
+            visibility: "hidden",
+            whiteSpace: "pre",
+            fontSize: 13,
+            fontFamily: "'IBM Plex Mono', monospace",
+            letterSpacing: "0.02em",
+          }}
+        />
         <textarea
           ref={textareaRef}
           value={code}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            requestAnimationFrame(() => updateCompletion());
+          }}
           onKeyDown={handleKeyDown}
           onScroll={handleScroll}
           spellCheck={false}
@@ -188,6 +329,14 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
             zIndex: 1,
           }}
         />
+        {showCompletion && (
+          <AutocompleteDropdown
+            items={completionItems}
+            selectedIndex={selectedIndex}
+            position={completionPos}
+            onSelect={applyCompletion}
+          />
+        )}
       </div>
       <button
         onClick={onFormat}
