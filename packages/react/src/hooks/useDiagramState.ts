@@ -34,6 +34,9 @@ export interface DiagramState {
   multiMoveLayout: (selectedIds: Set<string>, dx: number, dy: number) => void;
   addNode: (shape: string) => void;
   addNote: () => void;
+  addEdge: (fromId: string, toId: string) => void;
+  updateNodeProp: (nodeId: string, key: string, value: string) => void;
+  deleteNode: (nodeId: string) => void;
   exportSVG: () => void;
   formatCode: () => void;
   resetLayout: () => void;
@@ -380,6 +383,76 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setCode((c) => c + `\nnote ${id} "メモ" { color=#fbbf24 }`);
   };
 
+  // エッジ追加
+  const addEdge = useCallback((fromId: string, toId: string) => {
+    setCode((c) => c + `\nedge ${fromId} -> ${toId}`);
+  }, []);
+
+  // ノードのプロパティをDSLコード内で更新
+  const updateNodeProp = useCallback((nodeId: string, key: string, value: string) => {
+    setCode((c) => {
+      const lines = c.split("\n");
+      const updated = lines.map((line) => {
+        const trimmed = line.trimStart();
+        // node <id> にマッチ
+        if (!trimmed.startsWith(`node ${nodeId} `) && !trimmed.startsWith(`node ${nodeId}"`)) return line;
+        const indent = line.slice(0, line.length - trimmed.length);
+
+        if (key === "label") {
+          // ラベル更新: node id "old" → node id "new"
+          return indent + trimmed.replace(/^(node\s+\S+\s+)"[^"]*"/, `$1"${value}"`);
+        }
+
+        // プロパティ更新 (color, shape, etc.)
+        const braceIdx = trimmed.indexOf("{");
+        if (braceIdx === -1) {
+          // プロパティブロックがないので追加
+          return `${indent}${trimmed} { ${key}=${value} }`;
+        }
+
+        const header = trimmed.slice(0, braceIdx);
+        const propsBlock = trimmed.slice(braceIdx);
+        const propRegex = new RegExp(`(${key})\\s*=\\s*(?:"[^"]*"|\\S+)`);
+
+        if (propRegex.test(propsBlock)) {
+          // 既存プロパティを置換
+          const newBlock = propsBlock.replace(propRegex, `${key}=${value}`);
+          return indent + header + newBlock;
+        } else {
+          // プロパティを追加（{ の直後に挿入）
+          const newBlock = propsBlock.replace("{", `{ ${key}=${value}`);
+          return indent + header + newBlock;
+        }
+      });
+      return updated.join("\n");
+    });
+  }, []);
+
+  // ノードをDSLコードから削除（関連エッジとスタイルも削除）
+  const deleteNode = useCallback((nodeId: string) => {
+    setCode((c) => {
+      const lines = c.split("\n");
+      const filtered = lines.filter((line) => {
+        const trimmed = line.trim();
+        // ノード行を除外
+        if (trimmed.startsWith(`node ${nodeId} `) || trimmed.startsWith(`node ${nodeId}"`)) return false;
+        // 関連エッジを除外
+        if (trimmed.match(new RegExp(`^edge\\s+${nodeId}\\s*->`))) return false;
+        if (trimmed.match(new RegExp(`^edge\\s+\\S+\\s*->\\s*${nodeId}(\\s|$)`))) return false;
+        // 関連スタイルを除外
+        if (trimmed.startsWith(`style ${nodeId} `) || trimmed.startsWith(`style ${nodeId}{`)) return false;
+        return true;
+      });
+      return filtered.join("\n");
+    });
+    // ノードステートからも削除
+    setNodeStates((prev) => {
+      const next = { ...prev };
+      delete next[nodeId];
+      return next;
+    });
+  }, []);
+
   const exportSVG = () => {
     const svgData = generateExportSVG(parsed);
     if (!svgData) return;
@@ -460,6 +533,9 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     multiMoveLayout,
     addNode,
     addNote,
+    addEdge,
+    updateNodeProp,
+    deleteNode,
     exportSVG,
     formatCode,
     resetLayout,

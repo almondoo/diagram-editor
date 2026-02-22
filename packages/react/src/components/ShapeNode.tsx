@@ -39,16 +39,49 @@ interface ShapeNodeProps {
   isSelected: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
   onResizeMouseDown?: (e: React.MouseEvent) => void;
+  onTouchStart?: (e: React.TouchEvent) => void;
+  onTap?: () => void;
 }
 
 export const ShapeNode = memo(
-  function ShapeNode({ node, isSelected, onMouseDown, onResizeMouseDown }: ShapeNodeProps) {
+  function ShapeNode({ node, isSelected, onMouseDown, onResizeMouseDown, onTouchStart, onTap }: ShapeNodeProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
+    const onTouchStartRef = useRef(onTouchStart);
+    onTouchStartRef.current = onTouchStart;
+    const onTapRef = useRef(onTap);
+    onTapRef.current = onTap;
+
+    // タッチでタップ検出用
+    const touchStartPos = useRef<{ x: number; y: number; time: number } | null>(null);
 
     // 安定した参照を持つハンドラ（props が変わっても再生成しない）
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
       onMouseDownRef.current(e);
+    }, []);
+
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartPos.current = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+          time: Date.now(),
+        };
+      }
+      onTouchStartRef.current?.(e);
+    }, []);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+      if (!touchStartPos.current) return;
+      const elapsed = Date.now() - touchStartPos.current.time;
+      if (elapsed < 300 && e.changedTouches.length === 1) {
+        const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.current.x);
+        const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.current.y);
+        if (dx < 10 && dy < 10) {
+          onTapRef.current?.();
+        }
+      }
+      touchStartPos.current = null;
     }, []);
 
     const { x, y, w, h, shape, color, label, textColor, icon, fontSize, borderColor, borderWidth, opacity, dashed } = node;
@@ -145,10 +178,17 @@ export const ShapeNode = memo(
       />
     ) : null;
 
+    const gProps = {
+      onMouseDown: handleMouseDown,
+      onTouchStart: handleTouchStart,
+      onTouchEnd: handleTouchEnd,
+      style: { cursor: "grab" as const, opacity },
+    };
+
     // アイコンあり: シェイプを描画せずアイコン+ラベルのみ
     if (icon) {
       return (
-        <g onMouseDown={handleMouseDown} style={{ cursor: "grab", opacity }}>
+        <g {...gProps}>
           {selOutline}
           <rect x={x} y={y} width={w} height={h} fill="transparent" stroke="none" />
           {textEl}
@@ -161,7 +201,7 @@ export const ShapeNode = memo(
 
     if (shape === "ellipse" || shape === "circle") {
       return (
-        <g onMouseDown={handleMouseDown} style={{ cursor: "grab", opacity }}>
+        <g {...gProps}>
           {selOutline}
           <ellipse
             cx={x + w / 2}
@@ -182,7 +222,7 @@ export const ShapeNode = memo(
     if (shape === "cylinder") {
       const ry = 10;
       return (
-        <g onMouseDown={handleMouseDown} style={{ cursor: "grab", opacity }}>
+        <g {...gProps}>
           {selOutline}
           <path
             d={`M${x},${y + ry} L${x},${y + h - ry} A${w / 2},${ry} 0 0,0 ${x + w},${y + h - ry} L${x + w},${y + ry}`}
@@ -217,7 +257,7 @@ export const ShapeNode = memo(
 
     if (path) {
       return (
-        <g onMouseDown={handleMouseDown} style={{ cursor: "grab", opacity }}>
+        <g {...gProps}>
           {selOutline}
           <path
             d={path}
@@ -233,7 +273,7 @@ export const ShapeNode = memo(
     }
 
     return (
-      <g onMouseDown={handleMouseDown} style={{ cursor: "grab", opacity }}>
+      <g {...gProps}>
         {selOutline}
         <rect
           x={x}
@@ -251,6 +291,6 @@ export const ShapeNode = memo(
       </g>
     );
   },
-  // node と isSelected だけ比較。onMouseDown/onResizeMouseDown は ref で最新を参照するため除外
+  // node と isSelected だけ比較。ハンドラは ref で最新を参照するため除外
   (prev, next) => prev.node === next.node && prev.isSelected === next.isSelected,
 );

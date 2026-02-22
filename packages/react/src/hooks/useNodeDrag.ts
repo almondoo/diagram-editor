@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { DiagramNode } from "diagram-dsl-core";
 
 interface DragInfo {
@@ -32,6 +32,14 @@ export function useNodeDrag(
     setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY, type: "resize", isMulti: false });
   };
 
+  const handleNodeTouchStart = useCallback((e: React.TouchEvent, nodeId: string) => {
+    if (e.touches.length !== 1) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+    const isMulti = selectedIds.size > 1 && selectedIds.has(nodeId);
+    setDragInfo({ nodeId, startX: touch.clientX, startY: touch.clientY, type: "move", isMulti });
+  }, [selectedIds]);
+
   useEffect(() => {
     if (!dragInfo) return;
     const handleMove = (e: MouseEvent) => {
@@ -52,14 +60,44 @@ export function useNodeDrag(
       }
       setDragInfo((d) => (d ? { ...d, startX: e.clientX, startY: e.clientY } : null));
     };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dx = (touch.clientX - dragInfo.startX) / zoom;
+      const dy = (touch.clientY - dragInfo.startY) / zoom;
+      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+
+      if (dragInfo.type === "resize") {
+        const node = nodeById[dragInfo.nodeId];
+        if (!node) return;
+        setNodeSize(dragInfo.nodeId, node.w + dx, node.h + dy);
+      } else if (dragInfo.isMulti) {
+        onMultiMove(dx, dy);
+      } else {
+        const node = nodeById[dragInfo.nodeId];
+        if (!node) return;
+        setNodeLayout(dragInfo.nodeId, Math.round(node.x + dx), Math.round(node.y + dy));
+      }
+      setDragInfo((d) => (d ? { ...d, startX: touch.clientX, startY: touch.clientY } : null));
+    };
+
     const handleUp = () => setDragInfo(null);
+
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleUp);
+    window.addEventListener("touchcancel", handleUp);
     return () => {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleUp);
+      window.removeEventListener("touchcancel", handleUp);
     };
   }, [dragInfo, nodeById, zoom, setNodeLayout, setNodeSize, onMultiMove]);
 
-  return { handleNodeMouseDown, handleNodeResizeMouseDown };
+  return { handleNodeMouseDown, handleNodeResizeMouseDown, handleNodeTouchStart };
 }

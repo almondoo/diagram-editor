@@ -1,12 +1,28 @@
+import { useViewport } from "../hooks/useViewport.js";
+
 interface SyntaxPanelProps {
   onClose: () => void;
 }
 
 export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
+  const { isMobile } = useViewport();
+
   return (
     <div
       className="syntax-card"
-      style={{
+      style={isMobile ? {
+        position: "fixed",
+        inset: 0,
+        overflow: "auto",
+        background: "#131720",
+        padding: 18,
+        zIndex: 200,
+        fontSize: 11,
+        lineHeight: 1.7,
+        fontFamily: "'IBM Plex Mono', monospace",
+        color: "#94a3b8",
+        WebkitOverflowScrolling: "touch",
+      } : {
         position: "absolute",
         top: 42,
         right: 12,

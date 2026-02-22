@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Link } from "react-router";
 import { useLocalDiagrams } from "~/hooks/useLocalDiagrams";
+import { useViewport } from "diagram-dsl-react";
 
 export function meta() {
   return [
@@ -13,6 +14,7 @@ export function meta() {
 export default function Home() {
   const navigate = useNavigate();
   const { savedDiagrams, deleteDiagram, renameDiagram } = useLocalDiagrams();
+  const { isMobile } = useViewport();
 
   return (
     <div
@@ -70,14 +72,16 @@ export default function Home() {
       </header>
 
       {/* メインコンテンツ */}
-      <main style={{ padding: "40px 48px", maxWidth: 1200, margin: "0 auto" }}>
+      <main style={{ padding: isMobile ? "20px 16px" : "40px 48px", maxWidth: 1200, margin: "0 auto" }}>
         {/* タイトルと新規作成ボタン */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" as const : "row" as const,
+            alignItems: isMobile ? "flex-start" : "center",
             justifyContent: "space-between",
-            marginBottom: 32,
+            gap: isMobile ? 12 : 0,
+            marginBottom: isMobile ? 20 : 32,
           }}
         >
           <h1

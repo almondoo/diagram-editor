@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { DiagramGroup } from "diagram-dsl-core";
 
 export type ResizeHandle = "se" | "s" | "e";
@@ -32,6 +32,14 @@ export function useGroupDrag(
     setDragInfo({ groupId, type: "move", startClientX: e.clientX, startClientY: e.clientY, isMulti });
   };
 
+  const handleGroupMoveTouchStart = useCallback((e: React.TouchEvent, groupId: string) => {
+    if (e.touches.length !== 1) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+    const isMulti = selectedIds.size > 1 && selectedIds.has(groupId);
+    setDragInfo({ groupId, type: "move", startClientX: touch.clientX, startClientY: touch.clientY, isMulti });
+  }, [selectedIds]);
+
   const handleGroupResizeMouseDown = (
     e: React.MouseEvent,
     groupId: string,
@@ -45,10 +53,10 @@ export function useGroupDrag(
   useEffect(() => {
     if (!dragInfo) return;
 
-    const handleMove = (e: MouseEvent) => {
-      const dx = (e.clientX - dragInfo.startClientX) / zoom;
-      const dy = (e.clientY - dragInfo.startClientY) / zoom;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    const applyDrag = (clientX: number, clientY: number) => {
+      const dx = (clientX - dragInfo.startClientX) / zoom;
+      const dy = (clientY - dragInfo.startClientY) / zoom;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return false;
 
       if (dragInfo.type === "move") {
         if (dragInfo.isMulti) {
@@ -58,24 +66,45 @@ export function useGroupDrag(
         }
       } else {
         const g = groupByIdRef.current[dragInfo.groupId];
-        if (!g) return;
+        if (!g) return false;
         const handle = dragInfo.handle ?? "se";
         const newW = handle === "s" ? g.w : Math.max(120, g.w + dx);
         const newH = handle === "e" ? g.h : Math.max(80, g.h + dy);
         setGroupSize(dragInfo.groupId, newW, newH);
       }
+      return true;
+    };
 
-      setDragInfo((d) => d ? { ...d, startClientX: e.clientX, startClientY: e.clientY } : null);
+    const handleMove = (e: MouseEvent) => {
+      if (applyDrag(e.clientX, e.clientY)) {
+        setDragInfo((d) => d ? { ...d, startClientX: e.clientX, startClientY: e.clientY } : null);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (applyDrag(touch.clientX, touch.clientY)) {
+        setDragInfo((d) => d ? { ...d, startClientX: touch.clientX, startClientY: touch.clientY } : null);
+      }
     };
 
     const handleUp = () => setDragInfo(null);
+
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleUp);
+    window.addEventListener("touchcancel", handleUp);
     return () => {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleUp);
+      window.removeEventListener("touchcancel", handleUp);
     };
   }, [dragInfo, zoom, setGroupLayout, setGroupSize, onMultiMove]);
 
-  return { handleGroupMoveMouseDown, handleGroupResizeMouseDown };
+  return { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown };
 }

@@ -1,20 +1,5 @@
 import type { CSSProperties, MouseEvent } from "react";
 
-const tbBtnStyle: CSSProperties = {
-  width: 32,
-  height: 28,
-  background: "#1a1f2e",
-  border: "1px solid #2d3548",
-  borderRadius: 5,
-  color: "#94a3b8",
-  cursor: "pointer",
-  fontSize: 15,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontWeight: 600,
-};
-
 const tbHover = (e: MouseEvent<HTMLButtonElement>) => {
   e.currentTarget.style.background = "#2d3548";
   e.currentTarget.style.color = "#e2e8f0";
@@ -33,9 +18,10 @@ interface ToolbarProps {
   onZoomOut: () => void;
   onFitView: () => void;
   onResetLayout: () => void;
+  isMobile?: boolean;
 }
 
-export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout }: ToolbarProps) {
+export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout, isMobile }: ToolbarProps) {
   const shapes = [
     { shape: "rect", icon: "▭", tip: "矩形" },
     { shape: "stadium", icon: "⊂⊃", tip: "角丸" },
@@ -45,57 +31,65 @@ export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut
     { shape: "hexagon", icon: "⬡", tip: "六角形" },
   ];
 
+  const btnW = isMobile ? 40 : 32;
+  const btnH = isMobile ? 36 : 28;
+  const iconFS = isMobile ? 16 : 14;
+
+  const btnStyle: CSSProperties = {
+    width: btnW,
+    height: btnH,
+    background: "#1a1f2e",
+    border: "1px solid #2d3548",
+    borderRadius: 5,
+    color: "#94a3b8",
+    cursor: "pointer",
+    fontSize: iconFS,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.15s",
+  };
+
+  const tbBtnStyle: CSSProperties = {
+    ...btnStyle,
+    fontSize: isMobile ? 17 : 15,
+    fontWeight: 600,
+  };
+
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 3,
-        padding: "6px 10px",
+        gap: isMobile ? 4 : 3,
+        padding: isMobile ? "6px 8px" : "6px 10px",
         background: "#0f1219",
         borderBottom: "1px solid #1e293b",
         flexWrap: "wrap",
       }}
     >
-      <span
-        style={{
-          fontSize: 10,
-          color: "#64748b",
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
-          marginRight: 4,
-          fontFamily: "'IBM Plex Mono', monospace",
-        }}
-      >
-        追加
-      </span>
+      {!isMobile && (
+        <span
+          style={{
+            fontSize: 10,
+            color: "#64748b",
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            marginRight: 4,
+            fontFamily: "'IBM Plex Mono', monospace",
+          }}
+        >
+          追加
+        </span>
+      )}
       {shapes.map((s) => (
         <button
           key={s.shape}
           onClick={() => onAddNode(s.shape)}
           title={s.tip}
-          style={{
-            width: 32,
-            height: 28,
-            background: "#1a1f2e",
-            border: "1px solid #2d3548",
-            borderRadius: 5,
-            color: "#94a3b8",
-            cursor: "pointer",
-            fontSize: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#2d3548";
-            e.currentTarget.style.color = "#e2e8f0";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#1a1f2e";
-            e.currentTarget.style.color = "#94a3b8";
-          }}
+          style={btnStyle}
+          onMouseEnter={tbHover}
+          onMouseLeave={tbLeave}
         >
           {s.icon}
         </button>
@@ -103,36 +97,17 @@ export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut
       <button
         onClick={onAddNote}
         title="ノート追加"
-        style={{
-          width: 32,
-          height: 28,
-          background: "#1a1f2e",
-          border: "1px solid #2d3548",
-          borderRadius: 5,
-          color: "#94a3b8",
-          cursor: "pointer",
-          fontSize: 14,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          transition: "all 0.15s",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "#2d3548";
-          e.currentTarget.style.color = "#e2e8f0";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "#1a1f2e";
-          e.currentTarget.style.color = "#94a3b8";
-        }}
+        style={btnStyle}
+        onMouseEnter={tbHover}
+        onMouseLeave={tbLeave}
       >
         ✎
       </button>
-      <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 6px" }} />
+      <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 4px" }} />
       <button onClick={onZoomIn} title="ズームイン" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>+</button>
       <button onClick={onZoomOut} title="ズームアウト" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>−</button>
       <button onClick={onFitView} title="全体表示" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>⊞</button>
-      <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 6px" }} />
+      <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 4px" }} />
       <button
         onClick={onResetLayout}
         title="ノードを自動配置"
@@ -140,7 +115,7 @@ export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut
         onMouseEnter={tbHover}
         onMouseLeave={tbLeave}
       >
-        ⊞ 自動配置
+        {isMobile ? "⊞" : "⊞ 自動配置"}
       </button>
       <div style={{ flex: 1 }} />
       <button
@@ -158,7 +133,7 @@ export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut
         onMouseEnter={(e) => { e.currentTarget.style.background = "#3730a3"; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "#312e81"; }}
       >
-        SVG出力
+        {isMobile ? "SVG" : "SVG出力"}
       </button>
     </div>
   );

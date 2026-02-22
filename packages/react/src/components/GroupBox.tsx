@@ -1,25 +1,29 @@
 import { useRef, useCallback, memo } from "react";
 import type { DiagramGroup } from "diagram-dsl-core";
-import type { MouseEvent } from "react";
+import type { MouseEvent, TouchEvent as RTouchEvent } from "react";
 import type { ResizeHandle } from "../hooks/useGroupDrag.js";
 
 interface GroupBoxProps {
   group: DiagramGroup;
   isSelected?: boolean;
   onMoveMouseDown: (e: MouseEvent) => void;
+  onMoveTouchStart?: (e: RTouchEvent) => void;
   onResizeMouseDown: (e: MouseEvent, handle: ResizeHandle) => void;
 }
 
 const HANDLE = 8;
 
 export const GroupBox = memo(
-  function GroupBox({ group, isSelected, onMoveMouseDown, onResizeMouseDown }: GroupBoxProps) {
+  function GroupBox({ group, isSelected, onMoveMouseDown, onMoveTouchStart, onResizeMouseDown }: GroupBoxProps) {
     const onMoveRef = useRef(onMoveMouseDown);
     onMoveRef.current = onMoveMouseDown;
+    const onMoveTouchRef = useRef(onMoveTouchStart);
+    onMoveTouchRef.current = onMoveTouchStart;
     const onResizeRef = useRef(onResizeMouseDown);
     onResizeRef.current = onResizeMouseDown;
 
     const handleMove = useCallback((e: MouseEvent) => { onMoveRef.current(e); }, []);
+    const handleMoveTouch = useCallback((e: RTouchEvent) => { onMoveTouchRef.current?.(e); }, []);
     const handleResizeE = useCallback((e: MouseEvent) => { onResizeRef.current(e, "e"); }, []);
     const handleResizeS = useCallback((e: MouseEvent) => { onResizeRef.current(e, "s"); }, []);
     const handleResizeSE = useCallback((e: MouseEvent) => { onResizeRef.current(e, "se"); }, []);
@@ -51,6 +55,7 @@ export const GroupBox = memo(
           fill="transparent"
           style={{ cursor: "grab" }}
           onMouseDown={handleMove}
+          onTouchStart={handleMoveTouch}
         />
 
         <text

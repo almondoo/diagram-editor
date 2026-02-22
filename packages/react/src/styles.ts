@@ -13,4 +13,8 @@ export const DIAGRAM_EDITOR_STYLES = `
   textarea::selection { background: rgba(99, 102, 241, 0.3); }
   .syntax-card { animation: fadeIn 0.2s ease-out; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes bottomSheetSlideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+  @media (hover: none) {
+    .tb-btn:active { background: #2d3548 !important; color: #e2e8f0 !important; }
+  }
 `;

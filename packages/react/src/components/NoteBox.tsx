@@ -1,25 +1,36 @@
 import { useRef, useCallback, memo } from "react";
 import type { DiagramNote } from "diagram-dsl-core";
-import type { MouseEvent } from "react";
+import type { MouseEvent, TouchEvent as RTouchEvent } from "react";
 
 interface NoteBoxProps {
   note: DiagramNote;
   isSelected?: boolean;
   onMouseDown?: (e: MouseEvent) => void;
+  onTouchStart?: (e: RTouchEvent) => void;
 }
 
 export const NoteBox = memo(
-  function NoteBox({ note, isSelected, onMouseDown }: NoteBoxProps) {
+  function NoteBox({ note, isSelected, onMouseDown, onTouchStart }: NoteBoxProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
+    const onTouchStartRef = useRef(onTouchStart);
+    onTouchStartRef.current = onTouchStart;
 
     const handleMouseDown = useCallback((e: MouseEvent) => {
       onMouseDownRef.current?.(e);
     }, []);
 
+    const handleTouchStart = useCallback((e: RTouchEvent) => {
+      onTouchStartRef.current?.(e);
+    }, []);
+
     const w = Math.max(note.text.length * 7 + 16, 80);
     return (
-      <g style={{ cursor: onMouseDown ? "grab" : "default" }} onMouseDown={handleMouseDown}>
+      <g
+        style={{ cursor: onMouseDown ? "grab" : "default" }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+      >
         <rect
           x={note.x}
           y={note.y}

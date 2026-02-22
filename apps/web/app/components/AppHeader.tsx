@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { TEMPLATES } from "~/data/templates";
+import { useViewport } from "diagram-dsl-react";
 
 interface AppHeaderProps {
   onCreateFromTemplate: (code: string) => void;
@@ -26,6 +27,7 @@ export function AppHeader({
   currentDiagramName,
   onRenameDiagram,
 }: AppHeaderProps) {
+  const { isMobile } = useViewport();
   const [showTemplates, setShowTemplates] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
@@ -46,7 +48,7 @@ export function AppHeader({
       style={{
         display: "flex",
         alignItems: "center",
-        padding: "0 20px",
+        padding: isMobile ? "0 12px" : "0 20px",
         height: 48,
         background: "#0c0e14",
         borderBottom: "1px solid #1e293b",
@@ -81,29 +83,33 @@ export function AppHeader({
         >
           ◈
         </div>
-        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>
-          DiagramCraft
-        </span>
-        <span
-          style={{
-            fontSize: 9,
-            background: "#312e81",
-            color: "#a5b4fc",
-            padding: "2px 6px",
-            borderRadius: 4,
-            fontWeight: 600,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-          }}
-        >
-          Code → Diagram
-        </span>
+        {!isMobile && (
+          <>
+            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>
+              DiagramCraft
+            </span>
+            <span
+              style={{
+                fontSize: 9,
+                background: "#312e81",
+                color: "#a5b4fc",
+                padding: "2px 6px",
+                borderRadius: 4,
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+              }}
+            >
+              Code → Diagram
+            </span>
+          </>
+        )}
       </Link>
 
       {/* テンプレートドロップダウン */}
       <div
         data-template-dropdown=""
-        style={{ position: "relative", marginLeft: 24 }}
+        style={{ position: "relative", marginLeft: isMobile ? 10 : 24 }}
       >
         <button
           onClick={() => setShowTemplates((v) => !v)}
@@ -197,7 +203,7 @@ export function AppHeader({
 
       {/* ダイアグラム名 */}
       {currentDiagramName !== undefined && (
-        <div style={{ marginLeft: 16, display: "flex", alignItems: "center" }}>
+        <div style={{ marginLeft: isMobile ? 8 : 16, display: "flex", alignItems: "center", minWidth: 0, flex: isMobile ? 1 : undefined }}>
           {editingName ? (
             <input
               ref={nameInputRef}

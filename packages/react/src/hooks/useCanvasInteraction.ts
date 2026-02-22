@@ -60,14 +60,27 @@ export function useCanvasInteraction(
       }
     };
 
-    // タッチパン（1本指スワイプ）
+    // タッチパン（1本指スワイプ）& ピンチズーム（2本指）
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartPanX = 0;
     let touchStartPanY = 0;
+    let initialPinchDist = 0;
+    let initialPinchZoom = 1;
+    let isPinching = false;
+
+    const getDist = (t1: Touch, t2: Touch) =>
+      Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
 
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        isPinching = true;
+        initialPinchDist = getDist(e.touches[0], e.touches[1]);
+        initialPinchZoom = zoomRef.current;
+        touchStartPanX = panRef.current.x;
+        touchStartPanY = panRef.current.y;
+      } else if (e.touches.length === 1 && !isPinching) {
         e.preventDefault();
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
@@ -77,7 +90,13 @@ export function useCanvasInteraction(
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = getDist(e.touches[0], e.touches[1]);
+        const scale = dist / initialPinchDist;
+        const newZoom = Math.max(0.2, Math.min(3, initialPinchZoom * scale));
+        setZoom(newZoom);
+      } else if (e.touches.length === 1 && !isPinching) {
         e.preventDefault();
         const dx = e.touches[0].clientX - touchStartX;
         const dy = e.touches[0].clientY - touchStartY;
@@ -85,14 +104,22 @@ export function useCanvasInteraction(
       }
     };
 
+    const onTouchEnd = () => {
+      if (isPinching) isPinching = false;
+    };
+
     el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("touchstart", onTouchStart, { passive: false });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
 
     return () => {
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [svgRef, applyPanDirect]);
 

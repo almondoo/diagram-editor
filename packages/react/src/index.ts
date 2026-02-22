@@ -4,6 +4,8 @@ export type { DiagramState } from "./hooks/useDiagramState.js";
 export { useNodeDrag } from "./hooks/useNodeDrag.js";
 export { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
 export { useSplitPane } from "./hooks/useSplitPane.js";
+export { useViewport } from "./hooks/useViewport.js";
+export type { ViewportInfo } from "./hooks/useViewport.js";
 export { ShapeNode } from "./components/ShapeNode.js";
 export { EdgeLine } from "./components/EdgeLine.js";
 export { GroupBox } from "./components/GroupBox.js";
