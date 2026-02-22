@@ -116,6 +116,20 @@ const state = useDiagramState(TEMPLATES.architecture);
 // DiagramEditor は state: DiagramState を受け取るだけ。テンプレート・保存を知らない。
 ```
 
+## 実装原則: YAGNI / KISS
+
+- **YAGNI (You Aren't Gonna Need It)**: 今必要な機能だけを実装する。「将来使うかも」で作らない。
+- **KISS (Keep It Simple, Stupid)**: 最もシンプルな実装を選ぶ。複雑さは必要になってから導入する。
+
+具体的なルール:
+
+- 依頼された変更だけを行う。周辺コードの「ついでリファクタ」はしない
+- 1回しか使わない処理をヘルパー関数や抽象化に切り出さない
+- 将来の拡張性のためのフィーチャーフラグ・設定項目・抽象レイヤーを作らない
+- 変更していないコードに docstring・コメント・型注釈を追加しない
+- 内部コードやフレームワーク保証を信頼し、起こり得ないケースのエラーハンドリングを書かない。バリデーションはシステム境界（ユーザー入力・外部API）のみ
+- 後方互換のための未使用変数リネーム・再エクスポート・`// removed` コメントは不要。不要なものは完全に削除する
+
 ## 主な制約
 
 - **SSR 有効**: `react-router.config.ts` に `ssr: true` + `vercelPreset()`。Vercel デプロイ。

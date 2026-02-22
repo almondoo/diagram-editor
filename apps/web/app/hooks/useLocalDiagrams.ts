@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import type { DiagramNode, DiagramGroup } from "diagram-dsl-core";
+import type { DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
 
 const STORAGE_KEY = "diagramcraft_saved_diagrams";
 
@@ -9,6 +9,7 @@ export interface SavedDiagram {
   code: string;
   nodeStates: Record<string, DiagramNode>;
   groupStates: Record<string, DiagramGroup>;
+  noteStates: Record<string, DiagramNote>;
   savedAt: number;
 }
 
@@ -19,7 +20,7 @@ function loadFromStorage(): SavedDiagram[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     const diagrams = Array.isArray(parsed) ? (parsed as SavedDiagram[]) : [];
-    return diagrams.map((d) => ({ ...d, groupStates: d.groupStates ?? {} }));
+    return diagrams.map((d) => ({ ...d, groupStates: d.groupStates ?? {}, noteStates: d.noteStates ?? {} }));
   } catch {
     return [];
   }
@@ -44,7 +45,8 @@ export function useLocalDiagrams() {
       id: string | null,
       code: string,
       nodeStates: Record<string, DiagramNode>,
-      groupStates: Record<string, DiagramGroup>
+      groupStates: Record<string, DiagramGroup>,
+      noteStates: Record<string, DiagramNote>
     ): SavedDiagram => {
       const prev = savedDiagramsRef.current;
       const existingIdx = id ? prev.findIndex((d) => d.id === id) : -1;
@@ -54,6 +56,7 @@ export function useLocalDiagrams() {
         code,
         nodeStates,
         groupStates,
+        noteStates,
         savedAt: Date.now(),
       };
       const next =

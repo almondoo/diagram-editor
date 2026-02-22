@@ -34,7 +34,7 @@ app:
 	docker compose exec app bash
 
 preview:
-	docker compose exec app sh -c "pnpm -r build && pnpm --filter diagram-editor-web preview --host"
+	docker compose exec app sh -c "pnpm -r build && pnpm --filter diagram-editor-web preview"
 
 clean:
 	docker compose down -v

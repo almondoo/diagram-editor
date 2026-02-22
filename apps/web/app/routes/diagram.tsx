@@ -39,7 +39,7 @@ export default function Diagram() {
     if (id) {
       const diagram = savedDiagrams.find((d) => d.id === id);
       if (diagram) {
-        state.loadSaved(diagram.code, diagram.nodeStates, diagram.groupStates);
+        state.loadSaved(diagram.code, diagram.nodeStates, diagram.groupStates, diagram.noteStates);
         setCurrentDiagramId(id);
       }
     } else {
@@ -81,7 +81,8 @@ export default function Diagram() {
         currentDiagramId,
         state.code,
         state.nodeStates,
-        state.groupStates
+        state.groupStates,
+        state.noteStates
       );
       setCurrentDiagramId(saved.id);
       showToast();
@@ -93,6 +94,7 @@ export default function Diagram() {
     state.code,
     state.nodeStates,
     state.groupStates,
+    state.noteStates,
     savedDiagrams,
     saveDiagram,
     showToast,
@@ -117,7 +119,8 @@ export default function Diagram() {
         null,
         state.code,
         state.nodeStates,
-        state.groupStates
+        state.groupStates,
+        state.noteStates
       );
       setCurrentDiagramId(saved.id);
       setShowSaveModal(false);
@@ -125,7 +128,7 @@ export default function Diagram() {
       // /diagrams/new の場合は保存後に /diagrams/:id にリダイレクト
       navigate(`/diagrams/${saved.id}`, { replace: true });
     },
-    [state.code, state.nodeStates, state.groupStates, saveDiagram, navigate, showToast]
+    [state.code, state.nodeStates, state.groupStates, state.noteStates, saveDiagram, navigate, showToast]
   );
 
   useEffect(() => {

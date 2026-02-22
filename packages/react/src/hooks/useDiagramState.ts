@@ -52,7 +52,7 @@ export interface DiagramState {
   formatCode: () => void;
   resetLayout: () => void;
   loadTemplate: (templateCode: string) => void;
-  loadSaved: (code: string, nodeStates: Record<string, DiagramNode>, groupStates: Record<string, DiagramGroup>) => void;
+  loadSaved: (code: string, nodeStates: Record<string, DiagramNode>, groupStates: Record<string, DiagramGroup>, noteStates?: Record<string, DiagramNote>) => void;
 }
 
 export function useDiagramState(initialCode: string = ""): DiagramState {
@@ -547,10 +547,12 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   const loadSaved = (
     savedCode: string,
     savedNodeStates: Record<string, DiagramNode>,
-    savedGroupStates: Record<string, DiagramGroup>
+    savedGroupStates: Record<string, DiagramGroup>,
+    savedNoteStates?: Record<string, DiagramNote>
   ) => {
     setNodeStates(savedNodeStates);
     setGroupStates(savedGroupStates);
+    setNoteStates(savedNoteStates ?? {});
     setCode(savedCode);
   };
 

@@ -3,5 +3,5 @@ import type { Config } from "@react-router/dev/config";
 
 export default {
   ssr: true,
-  presets: [vercelPreset()],
+  presets: process.env.VERCEL ? [vercelPreset()] : [],
 } satisfies Config;

@@ -11,6 +11,8 @@ interface CodeEditorProps {
   existingIds?: string[];
 }
 
+const UNDO_MERGE_INTERVAL = 300;
+
 export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onFormat, existingIds = [] }: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
@@ -18,6 +20,36 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
   const mirrorRef = useRef<HTMLDivElement>(null);
   const lines = code.split("\n");
   const errorLines = useMemo(() => new Set(errors.map((e) => e.line)), [errors]);
+
+  const composingRef = useRef(false);
+
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const lastPushTimeRef = useRef(0);
+
+  const pushUndo = useCallback((prevCode: string) => {
+    const now = Date.now();
+    const shouldMerge = now - lastPushTimeRef.current < UNDO_MERGE_INTERVAL && undoStackRef.current.length > 0;
+    if (!shouldMerge) {
+      undoStackRef.current.push(prevCode);
+    }
+    lastPushTimeRef.current = now;
+    redoStackRef.current = [];
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return;
+    const prev = undoStackRef.current.pop()!;
+    redoStackRef.current.push(code);
+    onChange(prev);
+  }, [code, onChange]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current.pop()!;
+    undoStackRef.current.push(code);
+    onChange(next);
+  }, [code, onChange]);
 
   // 補完state
   const [completionItems, setCompletionItems] = useState<CompletionItem[]>([]);
@@ -30,7 +62,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     const mirror = mirrorRef.current;
     if (!textarea || !mirror) return { top: 0, left: 0 };
 
-    const textBeforeCursor = code.slice(0, textarea.selectionStart);
+    const textBeforeCursor = textarea.value.slice(0, textarea.selectionStart);
     const lines = textBeforeCursor.split("\n");
     const currentLineIndex = lines.length - 1;
     const currentCol = lines[currentLineIndex].length;
@@ -48,15 +80,19 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     const left = paddingLeft + textWidth - textarea.scrollLeft;
 
     return { top, left };
-  }, [code]);
+  }, []);
+
+  const existingIdsRef = useRef(existingIds);
+  existingIdsRef.current = existingIds;
 
   const updateCompletion = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
+    const currentCode = textarea.value;
     const pos = textarea.selectionStart;
-    const textBeforeCursor = code.slice(0, pos);
-    const allLines = code.split("\n");
+    const textBeforeCursor = currentCode.slice(0, pos);
+    const allLines = currentCode.split("\n");
     const linesBeforeCursor = textBeforeCursor.split("\n");
     const currentLine = linesBeforeCursor[linesBeforeCursor.length - 1];
     const col = currentLine.length;
@@ -82,13 +118,13 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
       return;
     }
 
-    const items = getCompletionItems(context, existingIds);
+    const items = getCompletionItems(context, existingIdsRef.current);
     setCompletionItems(items);
     setSelectedIndex(0);
     if (items.length > 0) {
       setCompletionPos(measureCursorPosition());
     }
-  }, [code, existingIds, measureCursorPosition]);
+  }, [measureCursorPosition]);
 
   const applyCompletion = useCallback((item: CompletionItem) => {
     const textarea = textareaRef.current;
@@ -103,6 +139,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     const prefixMatch = currentLine.match(/[\w#<>-]*$/);
     const prefixLen = prefixMatch ? prefixMatch[0].length : 0;
 
+    pushUndo(code);
     const insertText = item.text + (item.suffix ?? "");
     const newCode = code.slice(0, pos - prefixLen) + insertText + code.slice(pos);
     onChange(newCode);
@@ -114,12 +151,26 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     });
 
     setCompletionItems([]);
-  }, [code, onChange]);
+  }, [code, onChange, pushUndo]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // IME変換中は全てのキー処理をスキップ
+    if (composingRef.current) return;
+
     const textarea = e.currentTarget;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
+
+    // Cmd+Z / Cmd+Shift+Z (undo/redo)
+    if ((e.metaKey || e.ctrlKey) && e.key === "z") {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handleRedo();
+      } else {
+        handleUndo();
+      }
+      return;
+    }
 
     // 補完表示中のキーインターセプト
     if (showCompletion) {
@@ -147,6 +198,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
 
     if (e.key === "Tab") {
       e.preventDefault();
+      pushUndo(code);
       const newCode = code.slice(0, start) + "  " + code.slice(end);
       onChange(newCode);
       requestAnimationFrame(() => {
@@ -158,7 +210,20 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
 
     if (e.key === "{") {
       e.preventDefault();
+      pushUndo(code);
       const newCode = code.slice(0, start) + "{}" + code.slice(end);
+      onChange(newCode);
+      requestAnimationFrame(() => {
+        textarea.selectionStart = start + 1;
+        textarea.selectionEnd = start + 1;
+      });
+      return;
+    }
+
+    if (e.key === '"') {
+      e.preventDefault();
+      pushUndo(code);
+      const newCode = code.slice(0, start) + '""' + code.slice(end);
       onChange(newCode);
       requestAnimationFrame(() => {
         textarea.selectionStart = start + 1;
@@ -169,6 +234,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
 
     if (e.key === "Enter") {
       e.preventDefault();
+      pushUndo(code);
       const before = code.slice(0, start);
       const lineStart = before.lastIndexOf("\n") + 1;
       const currentLineContent = before.slice(lineStart);
@@ -304,10 +370,13 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
           ref={textareaRef}
           value={code}
           onChange={(e) => {
+            pushUndo(code);
             onChange(e.target.value);
             requestAnimationFrame(() => updateCompletion());
           }}
           onKeyDown={handleKeyDown}
+          onCompositionStart={() => (composingRef.current = true)}
+          onCompositionEnd={() => (composingRef.current = false)}
           onScroll={handleScroll}
           spellCheck={false}
           style={{
