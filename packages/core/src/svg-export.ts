@@ -110,9 +110,9 @@ export function generateExportSVG(parsed: ParseResult): string | null {
     const ty = y + h / 2;
     if (icon) {
       svgContent += `<text x="${x + w / 2}" y="${ty - 4}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="${fontSize + 4}" font-family="system-ui, sans-serif">${escapeXml(icon)}</text>\n`;
-      svgContent += `<text x="${x + w / 2}" y="${ty + fontSize}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="${fontSize}" font-family="system-ui, sans-serif" font-weight="500">${escapeXml(label.length > 18 ? label.slice(0, 17) + "…" : label)}</text>\n`;
+      svgContent += `<text x="${x + w / 2}" y="${ty + fontSize}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="${fontSize}" font-family="system-ui, sans-serif" font-weight="500">${escapeXml(label.length > 18 ? `${label.slice(0, 17)  }…` : label)}</text>\n`;
     } else {
-      svgContent += `<text x="${x + w / 2}" y="${ty + 1}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="${fontSize}" font-family="system-ui, sans-serif" font-weight="500">${escapeXml(label.length > 18 ? label.slice(0, 17) + "…" : label)}</text>\n`;
+      svgContent += `<text x="${x + w / 2}" y="${ty + 1}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="${fontSize}" font-family="system-ui, sans-serif" font-weight="500">${escapeXml(label.length > 18 ? `${label.slice(0, 17)  }…` : label)}</text>\n`;
     }
   });
 

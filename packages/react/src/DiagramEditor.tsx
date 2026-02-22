@@ -16,8 +16,9 @@ import { useSplitPane } from "./hooks/useSplitPane.js";
 import { useViewport } from "./hooks/useViewport.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
 import type { DiagramState } from "./hooks/useDiagramState.js";
+import type { DiagramGroup } from "diagram-dsl-core";
 
-function getGroupDepth(groupId: string, groups: import("diagram-dsl-core").DiagramGroup[]): number {
+function getGroupDepth(groupId: string, groups: DiagramGroup[]): number {
   const group = groups.find((g) => g.id === groupId);
   if (!group?.parentGroup) return 0;
   return 1 + getGroupDepth(group.parentGroup, groups);

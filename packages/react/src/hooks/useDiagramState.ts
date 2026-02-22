@@ -364,12 +364,12 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   // ノート追加（ノード追加と同様にコードに追記するだけ、位置は自動レイアウトで決定）
   const addNote = () => {
     const id = `note${Date.now().toString(36)}`;
-    setCode((c) => c + `\nnote ${id} "メモ" { color=#fbbf24 }`);
+    setCode((c) => `${c  }\nnote ${id} "メモ" { color=#fbbf24 }`);
   };
 
   // エッジ追加
   const addEdge = useCallback((fromId: string, toId: string) => {
-    setCode((c) => c + `\nedge ${fromId} -> ${toId}`);
+    setCode((c) => `${c  }\nedge ${fromId} -> ${toId}`);
   }, []);
 
   // ノードのプロパティをDSLコード内で更新

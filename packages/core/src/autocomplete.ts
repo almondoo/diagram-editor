@@ -59,7 +59,7 @@ export function getCompletionContext(
   line: string,
   col: number,
   blockHeaderLine: string,
-  allLines: string[],
+  _allLines: string[],
 ): CompletionContext | null {
   const beforeCursor = line.slice(0, col);
   const trimmedBefore = beforeCursor.trimStart();

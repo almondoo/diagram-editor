@@ -183,8 +183,10 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
       <div style={{ color: "#64748b", marginBottom: 12 }}>既存ノードのプロパティを後から上書きします</div>
 
       <div style={{ color: "#6b7280", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>コメント</div>
-      <div style={{ color: "#cbd5e1", marginBottom: 2 }}>{'// コメント行'}</div>
-      <div style={{ color: "#cbd5e1", marginBottom: 12 }}>{'# コメント行'}</div>
+      {/* eslint-disable-next-line react/jsx-curly-brace-presence */}
+      <div style={{ color: "#cbd5e1", marginBottom: 2 }}>{"// コメント行"}</div>
+      {/* eslint-disable-next-line react/jsx-curly-brace-presence */}
+      <div style={{ color: "#cbd5e1", marginBottom: 12 }}>{"# コメント行"}</div>
 
       <button
         onClick={onClose}
