@@ -105,6 +105,15 @@ export function useCanvasInteraction(
         const dist = getDist(e.touches[0], e.touches[1]);
         const scale = dist / initialPinchDist;
         const newZoom = Math.max(0.2, Math.min(3, initialPinchZoom * scale));
+        // 画面中央を基準にズーム
+        const rect = el.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const zoomRatio = newZoom / initialPinchZoom;
+        applyPanDirect(
+          cx - (cx - touchStartPanX) * zoomRatio,
+          cy - (cy - touchStartPanY) * zoomRatio,
+        );
         setZoom(newZoom);
       } else if (e.touches.length === 1 && isSingleFingerPan) {
         e.preventDefault();
@@ -167,8 +176,26 @@ export function useCanvasInteraction(
     };
   }, [isPanning, applyPanDirect]);
 
-  const zoomIn = () => setZoom((z) => Math.min(3, z + 0.15));
-  const zoomOut = () => setZoom((z) => Math.max(0.2, z - 0.15));
+  const zoomAroundCenter = useCallback((newZoom: number) => {
+    const svgEl = svgRef.current;
+    if (!svgEl) {
+      setZoom(newZoom);
+      return;
+    }
+    const rect = svgEl.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const oldZoom = zoomRef.current;
+    const ratio = newZoom / oldZoom;
+    applyPanDirect(
+      cx - (cx - panRef.current.x) * ratio,
+      cy - (cy - panRef.current.y) * ratio,
+    );
+    setZoom(newZoom);
+  }, [svgRef, applyPanDirect]);
+
+  const zoomIn = () => zoomAroundCenter(Math.min(3, zoomRef.current + 0.15));
+  const zoomOut = () => zoomAroundCenter(Math.max(0.2, zoomRef.current - 0.15));
 
   const fitView = useCallback(
     (nodes: DiagramNode[], groups: DiagramGroup[]) => {
