@@ -397,6 +397,14 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     </div>
   );
 
+  const existingIds = useMemo(() => {
+    return [
+      ...parsed.nodes.map((n) => n.id),
+      ...parsed.groups.map((g) => g.id),
+      ...parsed.notes.map((n) => n.id),
+    ];
+  }, [parsed.nodes, parsed.groups, parsed.notes]);
+
   // コードパネル描画
   const renderCodePanel = () => (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
@@ -444,7 +452,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       </div>
 
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} />
+        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} />
       </div>
 
       {parsed.errors.length > 0 && (
