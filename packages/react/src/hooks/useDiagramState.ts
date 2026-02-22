@@ -46,6 +46,7 @@ export interface DiagramState {
   updateEdgeProp: (fromId: string, toId: string, key: string, value: string) => void;
   deleteEdge: (fromId: string, toId: string) => void;
   deleteNode: (nodeId: string) => void;
+  reconnectEdge: (originalFrom: string, originalTo: string, newFrom: string, newTo: string) => void;
   exportSVG: () => void;
   formatCode: () => void;
   resetLayout: () => void;
@@ -473,6 +474,22 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     });
   }, []);
 
+  // エッジの接続先を付け替え（DSLコード内の edge 行を書き換え）
+  const reconnectEdge = useCallback((originalFrom: string, originalTo: string, newFrom: string, newTo: string) => {
+    setCode((c) => {
+      const lines = c.split("\n");
+      const edgePattern = new RegExp(
+        `^(\\s*edge\\s+)${originalFrom}(\\s*(?:<-->|<->|<--|-->|<-|->|--)\\s*)${originalTo}(\\s|$)(.*)`
+      );
+      const updated = lines.map((line) => {
+        const match = line.match(edgePattern);
+        if (!match) return line;
+        return `${match[1]}${newFrom}${match[2]}${newTo}${match[3]}${match[4] ?? ""}`;
+      });
+      return updated.join("\n");
+    });
+  }, []);
+
   const exportSVG = () => {
     const svgData = generateExportSVG(parsed);
     if (!svgData) return;
@@ -560,6 +577,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     updateEdgeProp,
     deleteEdge,
     deleteNode,
+    reconnectEdge,
     exportSVG,
     formatCode,
     resetLayout,
