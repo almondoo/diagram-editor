@@ -65,23 +65,19 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const {
     code, setCode, parsed, nodeById, groupById, noteStates,
     setNodeLayout, setNodeSize, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
-    addNode, addNote, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, reconnectEdge, updateEdgeBend, exportSVG, formatCode, resetLayout,
+    addNode, addNote, addGroup, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, reconnectEdge, updateEdgeBend, exportSVG, formatCode, resetLayout,
   } = state;
 
   const findCodeLine = useCallback((type: "node" | "edge" | "note", id: string, fromId?: string) => {
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const codeLines = code.split("\n");
     for (let i = 0; i < codeLines.length; i++) {
       const trimmed = codeLines[i]!.trim();
-      if (type === "node" && trimmed.match(new RegExp(`^node\\s+${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s`))) {
-        return i + 1;
-      }
       if (type === "edge" && fromId) {
-        const escaped = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        if (trimmed.match(new RegExp(`^edge\\s+${escaped(fromId)}\\s+\\S+\\s+${escaped(id)}`))) {
+        if (trimmed.match(new RegExp(`^edge\\s+${esc(fromId)}\\s+\\S+\\s+${esc(id)}`))) {
           return i + 1;
         }
-      }
-      if (type === "note" && trimmed.match(new RegExp(`^note\\s+${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s`))) {
+      } else if (trimmed.match(new RegExp(`^${type}\\s+${esc(id)}\\s`))) {
         return i + 1;
       }
     }
@@ -229,6 +225,12 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       setBottomSheetNodeId(nodeId);
     }
   }, [edgeFromId, isMobile, addEdge]);
+
+  // グループ追加: 選択中のグループがあればその中にネスト作成
+  const handleAddGroup = useCallback(() => {
+    const selectedGroup = [...selectedIds].find((id) => groupById[id]);
+    addGroup(selectedGroup);
+  }, [selectedIds, groupById, addGroup]);
 
   const canvasW = 1200;
   const canvasH = 800;
@@ -417,6 +419,25 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               }}
             />
           ))}
+          {/* グループラベルをノードの上に再描画（ノードに隠れないようにする） */}
+          {parsed.groups.map((g) => (
+            <text
+              key={`label-${g.id}`}
+              x={g.x + 14}
+              y={g.y + 20}
+              fill={g.color}
+              fontSize={12}
+              fontFamily="'IBM Plex Mono', monospace"
+              fontWeight="600"
+              opacity={0.8}
+              stroke="#0a0c12"
+              strokeWidth={4}
+              paintOrder="stroke"
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {g.label}
+            </text>
+          ))}
         </g>
         {selectionRect && (
           <g transform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}>
@@ -575,6 +596,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
             <Toolbar
               onAddNode={addNode}
               onAddNote={addNote}
+              onAddGroup={handleAddGroup}
               onExportSVG={exportSVG}
               onZoomIn={zoomIn}
               onZoomOut={zoomOut}
@@ -637,6 +659,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
             <Toolbar
               onAddNode={addNode}
               onAddNote={addNote}
+              onAddGroup={handleAddGroup}
               onExportSVG={exportSVG}
               onZoomIn={zoomIn}
               onZoomOut={zoomOut}

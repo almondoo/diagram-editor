@@ -7,14 +7,17 @@ interface NoteBoxProps {
   isSelected?: boolean;
   onMouseDown?: (e: MouseEvent) => void;
   onTouchStart?: (e: RTouchEvent) => void;
+  onDoubleClick?: () => void;
 }
 
 export const NoteBox = memo(
-  function NoteBox({ note, isSelected, onMouseDown, onTouchStart }: NoteBoxProps) {
+  function NoteBox({ note, isSelected, onMouseDown, onTouchStart, onDoubleClick }: NoteBoxProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
     const onTouchStartRef = useRef(onTouchStart);
     onTouchStartRef.current = onTouchStart;
+    const onDoubleClickRef = useRef(onDoubleClick);
+    onDoubleClickRef.current = onDoubleClick;
 
     const handleMouseDown = useCallback((e: MouseEvent) => {
       onMouseDownRef.current?.(e);
@@ -24,12 +27,17 @@ export const NoteBox = memo(
       onTouchStartRef.current?.(e);
     }, []);
 
+    const handleDoubleClick = useCallback(() => {
+      onDoubleClickRef.current?.();
+    }, []);
+
     const w = Math.max(note.text.length * 7 + 16, 80);
     return (
       <g
         style={{ cursor: onMouseDown ? "grab" : "default" }}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
+        onDoubleClick={handleDoubleClick}
       >
         <rect
           x={note.x}

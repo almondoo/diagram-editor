@@ -41,16 +41,19 @@ interface ShapeNodeProps {
   onResizeMouseDown?: (e: React.MouseEvent) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
   onTap?: () => void;
+  onDoubleClick?: () => void;
 }
 
 export const ShapeNode = memo(
-  function ShapeNode({ node, isSelected, onMouseDown, onResizeMouseDown, onTouchStart, onTap }: ShapeNodeProps) {
+  function ShapeNode({ node, isSelected, onMouseDown, onResizeMouseDown, onTouchStart, onTap, onDoubleClick }: ShapeNodeProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
     const onTouchStartRef = useRef(onTouchStart);
     onTouchStartRef.current = onTouchStart;
     const onTapRef = useRef(onTap);
     onTapRef.current = onTap;
+    const onDoubleClickRef = useRef(onDoubleClick);
+    onDoubleClickRef.current = onDoubleClick;
 
     // タッチでタップ検出用
     const touchStartPos = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -178,10 +181,15 @@ export const ShapeNode = memo(
       />
     ) : null;
 
+    const handleDoubleClick = useCallback(() => {
+      onDoubleClickRef.current?.();
+    }, []);
+
     const gProps = {
       onMouseDown: handleMouseDown,
       onTouchStart: handleTouchStart,
       onTouchEnd: handleTouchEnd,
+      onDoubleClick: handleDoubleClick,
       style: { cursor: "grab" as const, opacity },
     };
 

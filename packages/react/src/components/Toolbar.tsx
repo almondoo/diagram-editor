@@ -13,6 +13,7 @@ const tbLeave = (e: MouseEvent<HTMLButtonElement>) => {
 interface ToolbarProps {
   onAddNode: (shape: string) => void;
   onAddNote: () => void;
+  onAddGroup: () => void;
   onExportSVG: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -21,7 +22,7 @@ interface ToolbarProps {
   isMobile?: boolean;
 }
 
-export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout, isMobile }: ToolbarProps) {
+export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout, isMobile }: ToolbarProps) {
   const shapes = [
     { shape: "rect", icon: "▭", tip: "矩形" },
     { shape: "stadium", icon: "⊂⊃", tip: "角丸" },
@@ -102,6 +103,15 @@ export function Toolbar({ onAddNode, onAddNote, onExportSVG, onZoomIn, onZoomOut
         onMouseLeave={tbLeave}
       >
         ✎
+      </button>
+      <button
+        onClick={onAddGroup}
+        title="グループ追加"
+        style={btnStyle}
+        onMouseEnter={tbHover}
+        onMouseLeave={tbLeave}
+      >
+        ▢
       </button>
       <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 4px" }} />
       <button onClick={onZoomIn} title="ズームイン" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>+</button>

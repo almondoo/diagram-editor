@@ -92,9 +92,11 @@ describe("getCompletionItems", () => {
     expect(items.map((i) => i.text)).toContain("circle");
   });
 
-  it("プレフィックスが空のkeywordは全キーワードを返す", () => {
+  it("プレフィックスが空のkeyword/propertyは候補を返さない", () => {
     const items = getCompletionItems({ type: "keyword", prefix: "" }, []);
-    expect(items.map((i) => i.text)).toEqual(["node", "edge", "group", "note", "style"]);
+    expect(items).toEqual([]);
+    const propItems = getCompletionItems({ type: "property", prefix: "", blockType: "node" }, []);
+    expect(propItems).toEqual([]);
   });
 
   it("valueコンテキストでanimate=の候補", () => {

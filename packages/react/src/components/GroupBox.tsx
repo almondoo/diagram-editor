@@ -57,7 +57,7 @@ export const GroupBox = memo(
           x={x}
           y={y}
           width={w}
-          height={30}
+          height={h}
           rx={12}
           fill="transparent"
           style={{ cursor: "grab" }}
@@ -73,6 +73,9 @@ export const GroupBox = memo(
           fontFamily="'IBM Plex Mono', monospace"
           fontWeight="600"
           opacity={0.8}
+          stroke="#0a0c12"
+          strokeWidth={4}
+          paintOrder="stroke"
           style={{ pointerEvents: "none", userSelect: "none" }}
         >
           {label}

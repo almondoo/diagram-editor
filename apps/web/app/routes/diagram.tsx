@@ -34,20 +34,23 @@ export default function Diagram() {
     undefined
   );
 
-  // id が変わったとき（/diagrams/new → /diagrams/:id へのリダイレクト後など）に同期
+  // id が変わったとき、または savedDiagrams がストレージから遅延ロードされたときに同期
+  const loadedForIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (id) {
-      const diagram = savedDiagrams.find((d) => d.id === id);
-      if (diagram) {
-        state.loadSaved(diagram.code, diagram.nodeStates, diagram.groupStates, diagram.noteStates);
-        setCurrentDiagramId(id);
-      }
-    } else {
+    if (!id) {
       setCurrentDiagramId(null);
+      loadedForIdRef.current = null;
+      return;
     }
+    if (id === loadedForIdRef.current) return;
+    const diagram = savedDiagrams.find((d) => d.id === id);
+    if (!diagram) return;
+    state.loadSaved(diagram.code, diagram.nodeStates, diagram.groupStates, diagram.noteStates, diagram.bendStates);
+    setCurrentDiagramId(id);
+    loadedForIdRef.current = id;
     // state は useDiagramState の安定した参照なので依存に含めない
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, savedDiagrams]);
 
   // テンプレート選択: 同一ルート内で navigate した場合、コンポーネントが
   // 再マウントされないため location.key の変化で loadTemplate を呼ぶ
@@ -72,33 +75,19 @@ export default function Diagram() {
     toastTimerRef.current = setTimeout(() => setToastVisible(false), 2000);
   }, []);
 
+  const { code, nodeStates, groupStates, noteStates, bendStates } = state;
+
   const handleSave = useCallback(() => {
     if (currentDiagramId) {
       const name =
         savedDiagrams.find((d) => d.id === currentDiagramId)?.name ?? "無題";
-      const saved = saveDiagram(
-        name,
-        currentDiagramId,
-        state.code,
-        state.nodeStates,
-        state.groupStates,
-        state.noteStates
-      );
+      const saved = saveDiagram(name, currentDiagramId, code, nodeStates, groupStates, noteStates, bendStates);
       setCurrentDiagramId(saved.id);
       showToast();
     } else {
       setShowSaveModal(true);
     }
-  }, [
-    currentDiagramId,
-    state.code,
-    state.nodeStates,
-    state.groupStates,
-    state.noteStates,
-    savedDiagrams,
-    saveDiagram,
-    showToast,
-  ]);
+  }, [currentDiagramId, code, nodeStates, groupStates, noteStates, bendStates, savedDiagrams, saveDiagram, showToast]);
 
   const currentDiagramName = currentDiagramId
     ? savedDiagrams.find((d) => d.id === currentDiagramId)?.name
@@ -114,21 +103,14 @@ export default function Diagram() {
 
   const handleModalSave = useCallback(
     (name: string) => {
-      const saved = saveDiagram(
-        name,
-        null,
-        state.code,
-        state.nodeStates,
-        state.groupStates,
-        state.noteStates
-      );
+      const saved = saveDiagram(name, null, code, nodeStates, groupStates, noteStates, bendStates);
       setCurrentDiagramId(saved.id);
       setShowSaveModal(false);
       showToast();
       // /diagrams/new の場合は保存後に /diagrams/:id にリダイレクト
       navigate(`/diagrams/${saved.id}`, { replace: true });
     },
-    [state.code, state.nodeStates, state.groupStates, state.noteStates, saveDiagram, navigate, showToast]
+    [code, nodeStates, groupStates, noteStates, bendStates, saveDiagram, navigate, showToast]
   );
 
   useEffect(() => {

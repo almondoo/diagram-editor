@@ -1,7 +1,9 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
 
 const STORAGE_KEY = "diagramcraft_saved_diagrams";
+
+export type BendStateMap = Record<string, { bendX: number; bendY: number }>;
 
 export interface SavedDiagram {
   id: string;
@@ -10,6 +12,7 @@ export interface SavedDiagram {
   nodeStates: Record<string, DiagramNode>;
   groupStates: Record<string, DiagramGroup>;
   noteStates: Record<string, DiagramNote>;
+  bendStates?: BendStateMap;
   savedAt: number;
 }
 
@@ -35,8 +38,12 @@ function saveToStorage(diagrams: SavedDiagram[]): void {
 }
 
 export function useLocalDiagrams() {
-  const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>(loadFromStorage);
+  const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>([]);
   const savedDiagramsRef = useRef(savedDiagrams);
+
+  useEffect(() => {
+    setSavedDiagrams(loadFromStorage());
+  }, []);
   savedDiagramsRef.current = savedDiagrams;
 
   const saveDiagram = useCallback(
@@ -46,7 +53,8 @@ export function useLocalDiagrams() {
       code: string,
       nodeStates: Record<string, DiagramNode>,
       groupStates: Record<string, DiagramGroup>,
-      noteStates: Record<string, DiagramNote>
+      noteStates: Record<string, DiagramNote>,
+      bendStates?: BendStateMap
     ): SavedDiagram => {
       const prev = savedDiagramsRef.current;
       const existingIdx = id ? prev.findIndex((d) => d.id === id) : -1;
@@ -57,6 +65,7 @@ export function useLocalDiagrams() {
         nodeStates,
         groupStates,
         noteStates,
+        bendStates: bendStates ?? {},
         savedAt: Date.now(),
       };
       const next =

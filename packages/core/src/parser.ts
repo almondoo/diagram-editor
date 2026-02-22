@@ -1,5 +1,5 @@
 import type { ParseResult, DiagramNode, DiagramGroup } from "./types.js";
-import { randomColor } from "./colors.js";
+import { colorForId } from "./colors.js";
 
 export function parseProps(str: string): Record<string, string> {
   const props: Record<string, string> = {};
@@ -134,7 +134,7 @@ function parseSegment(
         const group: DiagramGroup = {
           id: groupHeaderMatch[1]!,
           label: groupHeaderMatch[2]!,
-          color: props.color || randomColor(),
+          color: props.color || colorForId(groupHeaderMatch[1]!),
           x: absX,
           y: absY,
           w: parseFloat(props.w!) || 300,
@@ -162,7 +162,7 @@ function parseSegment(
         const group: DiagramGroup = {
           id: groupHeaderMatch[1]!,
           label: groupHeaderMatch[2]!,
-          color: props.color || randomColor(),
+          color: props.color || colorForId(groupHeaderMatch[1]!),
           x: offsetX + (parseFloat(props.x!) || 0),
           y: offsetY + (parseFloat(props.y!) || 0),
           w: parseFloat(props.w!) || 300,

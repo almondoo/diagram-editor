@@ -11,6 +11,14 @@ export function randomColor(): string {
   return VIBRANT_COLORS[Math.floor(Math.random() * VIBRANT_COLORS.length)]!;
 }
 
+export function colorForId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  }
+  return VIBRANT_COLORS[Math.abs(hash) % VIBRANT_COLORS.length]!;
+}
+
 export function randomPosition(
   existingNodes: Pick<DiagramNode, "x" | "y" | "w" | "h">[],
   w = 150,

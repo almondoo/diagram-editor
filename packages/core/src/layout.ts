@@ -1,6 +1,6 @@
 import dagre from "@dagrejs/dagre";
 import type { DiagramNode, DiagramEdge, DiagramGroup } from "./types.js";
-import { randomColor } from "./colors.js";
+import { colorForId } from "./colors.js";
 
 const LABEL_HEIGHT = 26; // グループラベルの高さ
 const PADDING = 12;      // グループ内パディング
@@ -68,13 +68,17 @@ function layoutGroupNodesDagre(
   }
 }
 
-/** グループを全メンバーノードを包含するサイズに計算する */
-function computeGroupFit(allMembers: DiagramNode[], g: DiagramGroup): DiagramGroup {
-  if (allMembers.length === 0) return g;
-  const minX = Math.min(...allMembers.map((n) => n.x)) - PADDING;
-  const minY = Math.min(...allMembers.map((n) => n.y)) - LABEL_HEIGHT - PADDING;
-  const maxX = Math.max(...allMembers.map((n) => n.x + n.w)) + PADDING;
-  const maxY = Math.max(...allMembers.map((n) => n.y + n.h)) + PADDING;
+/** グループを全メンバーノード＋子グループを包含するサイズに計算する */
+function computeGroupFit(allMembers: DiagramNode[], childGroups: DiagramGroup[], g: DiagramGroup): DiagramGroup {
+  if (allMembers.length === 0 && childGroups.length === 0) return g;
+  const rects = [
+    ...allMembers.map((n) => ({ x: n.x, y: n.y, r: n.x + n.w, b: n.y + n.h })),
+    ...childGroups.map((c) => ({ x: c.x, y: c.y, r: c.x + c.w, b: c.y + c.h })),
+  ];
+  const minX = Math.min(...rects.map((r) => r.x)) - PADDING;
+  const minY = Math.min(...rects.map((r) => r.y)) - LABEL_HEIGHT - PADDING;
+  const maxX = Math.max(...rects.map((r) => r.r)) + PADDING;
+  const maxY = Math.max(...rects.map((r) => r.b)) + PADDING;
   return { ...g, x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
@@ -190,7 +194,7 @@ export function autoLayout(
 
   // __RANDOM__ カラーを解決
   nodes.forEach((n) => {
-    if (n.color === "__RANDOM__") n.color = randomColor();
+    if (n.color === "__RANDOM__") n.color = colorForId(n.id);
   });
 
   const needsLayout = nodes.some((n) => n._needsPosition);
@@ -211,54 +215,96 @@ export function autoLayout(
     }
   });
 
-  // グループ内ノードを dagre でレイアウト → グループ自動フィット
+  // 子グループマップを構築
+  const childGroupsMap: Record<string, DiagramGroup[]> = {};
+  groups.forEach((g) => {
+    if (g.parentGroup) {
+      (childGroupsMap[g.parentGroup] ??= []).push(g);
+    }
+  });
+
+  // グループをボトムアップ順にソート（リーフが先）
+  const getDepth = (gid: string): number => {
+    const g = groupById[gid];
+    if (!g?.parentGroup || !groupById[g.parentGroup]) return 0;
+    return getDepth(g.parentGroup) + 1;
+  };
+  const sortedGroups = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
+
+  // グループ内ノードをレイアウト → 子グループ配置 → グループ自動フィット（ボトムアップ）
   const groupUpdates: Record<string, DiagramGroup> = {};
-  for (const [groupId, gnodes] of Object.entries(groupedNodesMap)) {
-    const g = groupById[groupId];
-    if (!g) continue;
+
+  // グループツリーとその所属ノードを (dx, dy) だけ移動する共通ヘルパー
+  const shiftGroupTree = (gid: string, dx: number, dy: number) => {
+    const cg = groupUpdates[gid] ?? groupById[gid];
+    if (cg) groupUpdates[gid] = { ...cg, x: cg.x + dx, y: cg.y + dy };
+    (childGroupsMap[gid] ?? []).forEach((d) => shiftGroupTree(d.id, dx, dy));
+  };
+  const collectDescendantIds = (gid: string, out: Set<string>) => {
+    out.add(gid);
+    (childGroupsMap[gid] ?? []).forEach((d) => collectDescendantIds(d.id, out));
+  };
+  const shiftGroupNodes = (gid: string, dx: number, dy: number) => {
+    const ids = new Set<string>();
+    collectDescendantIds(gid, ids);
+    nodes.forEach((n) => {
+      if (ids.has(n.group)) { n.x += dx; n.y += dy; }
+    });
+  };
+
+  for (const g of sortedGroups) {
+    const gnodes = groupedNodesMap[g.id] ?? [];
     const toLayout = gnodes.filter((n) => n._needsPosition);
     if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, gnodes, g, edges);
-    // 全メンバー（既配置ノードを含む）でグループ枠を再計算
-    groupUpdates[groupId] = computeGroupFit(gnodes, g);
+
+    // 処理済み子グループを直接ノードの下に配置
+    const childDefs = childGroupsMap[g.id] ?? [];
+    if (childDefs.length > 0) {
+      let contentBottom = g.y + LABEL_HEIGHT + PADDING;
+      if (gnodes.length > 0) {
+        contentBottom = Math.max(...gnodes.map((n) => n.y + n.h));
+      }
+      const startY = contentBottom + PADDING + LABEL_HEIGHT;
+      let curX = g.x + PADDING;
+
+      for (const childDef of childDefs) {
+        const child = groupUpdates[childDef.id] ?? childDef;
+        const dx = curX - child.x;
+        const dy = startY - child.y;
+
+        if (dx !== 0 || dy !== 0) {
+          shiftGroupTree(childDef.id, dx, dy);
+          shiftGroupNodes(childDef.id, dx, dy);
+        }
+
+        const updatedChild = groupUpdates[childDef.id] ?? childDef;
+        curX += updatedChild.w + PADDING;
+      }
+    }
+
+    // ノード＋子グループでグループ枠を再計算
+    const updatedChildren = childDefs.map((c) => groupUpdates[c.id] ?? c);
+    if (gnodes.length > 0 || updatedChildren.length > 0) {
+      groupUpdates[g.id] = computeGroupFit(gnodes, updatedChildren, g);
+    }
   }
 
-  // グループ自体を dagre でレイアウト（重なり解消）
   // トップレベルグループのみ dagre で再配置（子グループは親に追従）
   const topLevelGroups = groups.filter(
     (g) => groupUpdates[g.id] !== undefined && !g.parentGroup,
   );
   const repositionedGroups = layoutGroupsDagre(topLevelGroups, groupUpdates, edges, nodes);
-  // グループ位置の変化をグループ・ノードに適用（子グループも再帰的に）
-  for (const [groupId, newG] of Object.entries(repositionedGroups)) {
-    const oldG = groupUpdates[groupId] ?? groupById[groupId];
+  // トップレベルグループの位置変化をグループ・ノードに適用
+  for (const tlg of topLevelGroups) {
+    const newG = repositionedGroups[tlg.id];
+    if (!newG) continue;
+    const oldG = groupUpdates[tlg.id] ?? groupById[tlg.id];
     if (!oldG) continue;
     const dx = newG.x - oldG.x;
     const dy = newG.y - oldG.y;
     if (dx === 0 && dy === 0) continue;
-    // このグループと全子孫グループを移動
-    const applyDelta = (gid: string) => {
-      const g = groupUpdates[gid] ?? groupById[gid];
-      if (g) groupUpdates[gid] = { ...g, x: g.x + dx, y: g.y + dy };
-      groups.forEach((child) => {
-        if (child.parentGroup === gid) applyDelta(child.id);
-      });
-    };
-    applyDelta(groupId);
-    // 全ノード（このグループと子孫に属するもの）を移動
-    const movedGroupIds = new Set<string>();
-    const collectIds = (gid: string) => {
-      movedGroupIds.add(gid);
-      groups.forEach((child) => {
-        if (child.parentGroup === gid) collectIds(child.id);
-      });
-    };
-    collectIds(groupId);
-    nodes.forEach((n) => {
-      if (movedGroupIds.has(n.group)) {
-        n.x += dx;
-        n.y += dy;
-      }
-    });
+    shiftGroupTree(tlg.id, dx, dy);
+    shiftGroupNodes(tlg.id, dx, dy);
   }
 
   // フリーノードを dagre でレイアウト（全グループの下から開始）
