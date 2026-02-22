@@ -5,19 +5,19 @@ describe("highlightLine", () => {
   it("空行はグレーのトークンを返す", () => {
     const tokens = highlightLine("");
     expect(tokens).toHaveLength(1);
-    expect(tokens[0].color).toBe("#475569");
+    expect(tokens[0]!.color).toBe("#475569");
   });
 
   it("コメント行はグレーのトークンを返す", () => {
     const tokens = highlightLine("// コメント");
     expect(tokens).toHaveLength(1);
-    expect(tokens[0].color).toBe("#6b7280");
+    expect(tokens[0]!.color).toBe("#6b7280");
   });
 
   it("#コメントもグレーのトークンを返す", () => {
     const tokens = highlightLine("# コメント");
     expect(tokens).toHaveLength(1);
-    expect(tokens[0].color).toBe("#6b7280");
+    expect(tokens[0]!.color).toBe("#6b7280");
   });
 
   it("nodeキーワードを紫色でハイライトする", () => {
@@ -159,8 +159,8 @@ describe("highlightLine", () => {
 
   it("インデント付きのnode行", () => {
     const tokens = highlightLine("  node a \"A\"");
-    expect(tokens[0].text).toBe("  ");
-    expect(tokens[0].color).toBe("#e2e8f0");
+    expect(tokens[0]!.text).toBe("  ");
+    expect(tokens[0]!.color).toBe("#e2e8f0");
     const kwToken = tokens.find((t) => t.text === "node");
     expect(kwToken).toBeDefined();
     expect(kwToken!.color).toBe("#c084fc");
@@ -179,7 +179,7 @@ describe("highlightLine", () => {
   it("認識されない行はデフォルト色で返す", () => {
     const tokens = highlightLine("unknown text here");
     expect(tokens).toHaveLength(1);
-    expect(tokens[0].color).toBe("#e2e8f0");
+    expect(tokens[0]!.color).toBe("#e2e8f0");
   });
 
   it("全トークンを結合すると元の行に戻る", () => {

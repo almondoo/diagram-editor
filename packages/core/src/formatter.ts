@@ -10,8 +10,8 @@ export function formatPropsString(str: string): string {
   ];
   let m: RegExpExecArray | null;
   while ((m = regex.exec(str)) !== null) {
-    if (!LAYOUT_PROPS.has(m[1])) {
-      props[m[1]] = m[2] !== undefined ? `"${m[2]}"` : m[3];
+    if (!LAYOUT_PROPS.has(m[1]!)) {
+      props[m[1]!] = m[2] !== undefined ? `"${m[2]}"` : m[3]!;
     }
   }
   const keys = Object.keys(props);
@@ -34,7 +34,7 @@ function extractFormatterSegments(code: string): FormatterSegment[] {
   let i = 0;
 
   while (i < lines.length) {
-    const raw = lines[i];
+    const raw = lines[i]!;
     const line = raw.trim();
 
     if (!line) {
@@ -52,7 +52,7 @@ function extractFormatterSegments(code: string): FormatterSegment[] {
       const blockLines = [line];
       i++;
       while (i < lines.length && depth > 0) {
-        const bLine = lines[i].trim();
+        const bLine = lines[i]!.trim();
         const bo = (bLine.match(/\{/g) ?? []).length;
         const bc = (bLine.match(/\}/g) ?? []).length;
         depth += bo - bc;
@@ -74,7 +74,7 @@ function formatBlock(blockText: string, indentLevel: number): string {
   const childIndent = "  ".repeat(indentLevel + 1);
 
   // ヘッダー行（最初の行）を取得
-  const firstLine = blockText.split("\n")[0].trim();
+  const firstLine = blockText.split("\n")[0]!.trim();
   const openIdx = firstLine.indexOf("{");
   const headerBase = normalizeSpaces(openIdx >= 0 ? firstLine.slice(0, openIdx) : firstLine);
   const headerPropsStr = openIdx >= 0 ? firstLine.slice(openIdx + 1) : "";
@@ -117,7 +117,7 @@ function normalizeSpaces(s: string): string {
 
 /** DSL行のヘッダーとプロパティブロックを整形する共通ヘルパー */
 function formatHeaderAndProps(match: RegExpMatchArray, emptyFallback?: string): string {
-  const header = normalizeSpaces(match[1]);
+  const header = normalizeSpaces(match[1]!);
   const props = formatPropsString(match[2] || "");
   if (props) return `${header} { ${props} }`;
   return emptyFallback !== undefined ? `${header} ${emptyFallback}` : header;

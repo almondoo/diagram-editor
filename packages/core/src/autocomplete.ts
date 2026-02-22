@@ -53,7 +53,7 @@ const EDGE_OP_RE = /^<-->|^<->|^<--|^-->|^<-|^->|^--/;
  * @param line カーソルがある行のテキスト
  * @param col カーソルの行内オフセット（0-indexed）
  * @param blockHeaderLine このブロックのヘッダー行（{ } ブロック内にいる場合）。空文字 = トップレベル
- * @param allLines 全体の行テキスト配列（ブロック検出用）
+ * @param _allLines 全体の行テキスト配列（ブロック検出用）
  */
 export function getCompletionContext(
   line: string,
@@ -82,8 +82,8 @@ export function getCompletionContext(
       if (!kwMatch) {
         // キーワードの途中の可能性
         const partialKw = trimmedBefore.match(/^([a-z]+)$/);
-        if (partialKw && KEYWORDS.some((k) => k.startsWith(partialKw[1]))) {
-          return { type: "keyword", prefix: partialKw[1] };
+        if (partialKw && KEYWORDS.some((k) => k.startsWith(partialKw[1]!))) {
+          return { type: "keyword", prefix: partialKw[1]! };
         }
       }
     }
@@ -91,13 +91,13 @@ export function getCompletionContext(
     // プロパティ=値 の値部分
     const valueMatch = trimmedBefore.match(/(\w+)=(\S*)$/);
     if (valueMatch) {
-      return { type: "value", prefix: valueMatch[2], property: valueMatch[1], blockType };
+      return { type: "value", prefix: valueMatch[2]!, property: valueMatch[1]!, blockType };
     }
 
     // プロパティ名の途中
     const propMatch = trimmedBefore.match(/(?:^|\s)(\w*)$/);
     if (propMatch) {
-      return { type: "property", prefix: propMatch[1], blockType };
+      return { type: "property", prefix: propMatch[1]!, blockType };
     }
 
     return null;
@@ -159,7 +159,7 @@ export function getCompletionContext(
   // トップレベルのキーワード入力
   const partialKw = trimmedBefore.match(/^([a-z]+)$/);
   if (partialKw) {
-    return { type: "keyword", prefix: partialKw[1] };
+    return { type: "keyword", prefix: partialKw[1]! };
   }
 
   return null;

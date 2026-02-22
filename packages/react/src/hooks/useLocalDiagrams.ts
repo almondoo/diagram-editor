@@ -48,7 +48,7 @@ export function useLocalDiagrams() {
       const prev = savedDiagramsRef.current;
       const existingIdx = id ? prev.findIndex((d) => d.id === id) : -1;
       const entry: SavedDiagram = {
-        id: existingIdx >= 0 ? prev[existingIdx].id : `d${Date.now()}`,
+        id: existingIdx >= 0 ? prev[existingIdx]!.id : `d${Date.now()}`,
         name,
         code,
         nodeStates,

@@ -186,7 +186,7 @@ describe("nested block syntax", () => {
     expect(result).toContain('node n1 "ノード" { shape=rect }');
     // ブロックが閉じられる
     const lines = result.split('\n');
-    expect(lines[lines.length - 1].trim()).toBe('}');
+    expect(lines[lines.length - 1]!.trim()).toBe('}');
   });
 
   it("深いネストもインデントが正しい", () => {

@@ -94,7 +94,7 @@ export function useCanvasInteraction(
         e.preventDefault();
         isPinching = true;
         isSingleFingerPan = false;
-        initialPinchDist = getDist(e.touches[0], e.touches[1]);
+        initialPinchDist = getDist(e.touches[0]!, e.touches[1]!);
         initialPinchZoom = zoomRef.current;
         touchStartPanX = panRef.current.x;
         touchStartPanY = panRef.current.y;
@@ -102,8 +102,8 @@ export function useCanvasInteraction(
         // 背景タッチのみパン（ノード・グループ上のタッチはスキップ）
         e.preventDefault();
         isSingleFingerPan = true;
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0]!.clientX;
+        touchStartY = e.touches[0]!.clientY;
         touchStartPanX = panRef.current.x;
         touchStartPanY = panRef.current.y;
       }
@@ -112,7 +112,7 @@ export function useCanvasInteraction(
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
-        const dist = getDist(e.touches[0], e.touches[1]);
+        const dist = getDist(e.touches[0]!, e.touches[1]!);
         const scale = dist / initialPinchDist;
         const newZoom = Math.max(0.2, Math.min(3, initialPinchZoom * scale));
         // 画面中央を基準にズーム
@@ -127,8 +127,8 @@ export function useCanvasInteraction(
         setZoom(newZoom);
       } else if (e.touches.length === 1 && isSingleFingerPan) {
         e.preventDefault();
-        const dx = e.touches[0].clientX - touchStartX;
-        const dy = e.touches[0].clientY - touchStartY;
+        const dx = e.touches[0]!.clientX - touchStartX;
+        const dy = e.touches[0]!.clientY - touchStartY;
         applyPanDirect(touchStartPanX + dx, touchStartPanY + dy);
       }
     };

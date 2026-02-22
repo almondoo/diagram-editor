@@ -25,7 +25,7 @@ function makeNode(id: string, needsPos = true, group = ""): DiagramNode {
 }
 
 function makeGroup(id: string, x = 0, y = 0, w = 300, h = 200, parentGroup?: string): DiagramGroup {
-  return { id, label: id, x, y, w, h, color: "#6366f1", parentGroup };
+  return { id, label: id, x, y, w, h, color: "#6366f1", ...(parentGroup !== undefined ? { parentGroup } : {}) };
 }
 
 const EDGE = (from: string, to: string): DiagramEdge => ({
@@ -43,30 +43,30 @@ describe("autoLayout", () => {
   it("__RANDOM__カラーを解決する", () => {
     const nodes = [{ ...makeNode("a"), color: "__RANDOM__" }];
     const { nodes: result } = autoLayout(nodes, []);
-    expect(result[0].color).not.toBe("__RANDOM__");
-    expect(result[0].color).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(result[0]!.color).not.toBe("__RANDOM__");
+    expect(result[0]!.color).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
   it("位置なしノードに座標を割り当てる", () => {
     const nodes = [makeNode("a"), makeNode("b")];
     const { nodes: result } = autoLayout(nodes, []);
-    expect(result[0].x).not.toBeNaN();
-    expect(result[0].y).not.toBeNaN();
-    expect(result[1].x).not.toBeNaN();
-    expect(result[1].y).not.toBeNaN();
+    expect(result[0]!.x).not.toBeNaN();
+    expect(result[0]!.y).not.toBeNaN();
+    expect(result[1]!.x).not.toBeNaN();
+    expect(result[1]!.y).not.toBeNaN();
   });
 
   it("_needsPositionが削除される", () => {
     const nodes = [makeNode("a")];
     const { nodes: result } = autoLayout(nodes, []);
-    expect(result[0]._needsPosition).toBeUndefined();
+    expect(result[0]!._needsPosition).toBeUndefined();
   });
 
   it("位置があるノードは変更しない", () => {
     const nodes = [makeNode("a", false)];
     const { nodes: result } = autoLayout(nodes, []);
-    expect(result[0].x).toBe(100);
-    expect(result[0].y).toBe(100);
+    expect(result[0]!.x).toBe(100);
+    expect(result[0]!.y).toBe(100);
   });
 
   it("エッジに基づいてレイヤーを割り当てる (a < b < c)", () => {
@@ -74,8 +74,8 @@ describe("autoLayout", () => {
     const edges = [EDGE("a", "b"), EDGE("b", "c")];
     const { nodes: result } = autoLayout(nodes, edges);
     const byId = Object.fromEntries(result.map(n => [n.id, n]));
-    expect(byId.a.x).toBeLessThan(byId.b.x);
-    expect(byId.b.x).toBeLessThan(byId.c.x);
+    expect(byId.a!.x).toBeLessThan(byId.b!.x);
+    expect(byId.b!.x).toBeLessThan(byId.c!.x);
   });
 
   it("循環グラフでクラッシュしない", () => {
@@ -91,15 +91,15 @@ describe("autoLayout", () => {
     // グループ更新が返される
     expect(groupUpdates["g1"]).toBeDefined();
     // groupUpdates の幅・高さは正の値
-    expect(groupUpdates["g1"].w).toBeGreaterThan(0);
-    expect(groupUpdates["g1"].h).toBeGreaterThan(0);
+    expect(groupUpdates["g1"]!.w).toBeGreaterThan(0);
+    expect(groupUpdates["g1"]!.h).toBeGreaterThan(0);
   });
 
   it("グループ自動フィット: groupUpdates のサイズが全ノードを含む", () => {
     const group = makeGroup("g1", 0, 0, 400, 300);
     const nodes = [makeNode("a", true, "g1"), makeNode("b", true, "g1")];
     const { nodes: result, groupUpdates } = autoLayout(nodes, [], [group]);
-    const g = groupUpdates["g1"];
+    const g = groupUpdates["g1"]!;
     // 全メンバーノードが groupUpdates の枠内に入っている
     for (const n of result.filter(n => n.group === "g1")) {
       expect(n.x).toBeGreaterThanOrEqual(g.x);
@@ -155,8 +155,8 @@ describe("autoLayout", () => {
   it("単一ノードでもレイアウトが動作する", () => {
     const nodes = [makeNode("a")];
     const { nodes: result } = autoLayout(nodes, []);
-    expect(result[0].x).not.toBeNaN();
-    expect(result[0].y).not.toBeNaN();
+    expect(result[0]!.x).not.toBeNaN();
+    expect(result[0]!.y).not.toBeNaN();
   });
 
   it("グループに属しないフリーノードがグループの下に配置される", () => {
@@ -183,8 +183,8 @@ describe("autoLayout", () => {
     const { nodes: result } = autoLayout(nodes, edges, [group]);
     const byId = Object.fromEntries(result.map(n => [n.id, n]));
     // a -> b -> c の順に x が増える (LR layout)
-    expect(byId.a.x).toBeLessThan(byId.b.x);
-    expect(byId.b.x).toBeLessThan(byId.c.x);
+    expect(byId.a!.x).toBeLessThan(byId.b!.x);
+    expect(byId.b!.x).toBeLessThan(byId.c!.x);
   });
 
   it("複数の__RANDOM__カラーが全て解決される", () => {

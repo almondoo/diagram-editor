@@ -6,7 +6,7 @@ export function parseProps(str: string): Record<string, string> {
   const regex = /(\w+)\s*=\s*(?:"([^"]*)"|(\S+))/g;
   let m: RegExpExecArray | null;
   while ((m = regex.exec(str)) !== null) {
-    props[m[1]] = m[2] !== undefined ? m[2] : m[3];
+    props[m[1]!] = m[2] !== undefined ? m[2] : m[3]!;
   }
   return props;
 }
@@ -34,7 +34,7 @@ function extractSegments(
   let i = 0;
 
   while (i < lines.length) {
-    const line = lines[i].trim();
+    const line = lines[i]!.trim();
     if (!line || line.startsWith("//") || line.startsWith("#")) {
       i++;
       continue;
@@ -50,7 +50,7 @@ function extractSegments(
       const blockLines = [line];
       i++;
       while (i < lines.length && depth > 0) {
-        const bLine = lines[i].trim();
+        const bLine = lines[i]!.trim();
         const bo = (bLine.match(/\{/g) ?? []).length;
         const bc = (bLine.match(/\}/g) ?? []).length;
         depth += bo - bc;
@@ -79,7 +79,7 @@ function extractMultilineBlockBody(blockText: string): string {
   // ヘッダー行（lines[0]）をスキップ、末尾の "}" のみの行もスキップ
   const bodyLines = lines.slice(1);
   // 末尾が "}" だけの行なら除去
-  if (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === "}") {
+  if (bodyLines.length > 0 && bodyLines[bodyLines.length - 1]!.trim() === "}") {
     bodyLines.pop();
   }
   return bodyLines.join("\n");
@@ -112,7 +112,7 @@ function parseSegment(
   offsetY: number,
   ctx: ParseContext,
 ): void {
-  const firstLine = text.split("\n")[0].trim();
+  const firstLine = text.split("\n")[0]!.trim();
   if (!firstLine || firstLine.startsWith("//") || firstLine.startsWith("#")) return;
 
   try {
@@ -126,19 +126,19 @@ function parseSegment(
         const headerPropsStr = groupHeaderMatch[3] ?? "";
         const props = parseProps(headerPropsStr);
 
-        const relX = parseFloat(props.x) || 0;
-        const relY = parseFloat(props.y) || 0;
+        const relX = parseFloat(props.x!) || 0;
+        const relY = parseFloat(props.y!) || 0;
         const absX = offsetX + relX;
         const absY = offsetY + relY;
 
         const group: DiagramGroup = {
-          id: groupHeaderMatch[1],
-          label: groupHeaderMatch[2],
+          id: groupHeaderMatch[1]!,
+          label: groupHeaderMatch[2]!,
           color: props.color || randomColor(),
           x: absX,
           y: absY,
-          w: parseFloat(props.w) || 300,
-          h: parseFloat(props.h) || 200,
+          w: parseFloat(props.w!) || 300,
+          h: parseFloat(props.h!) || 200,
           parentGroup: parentGroupId ?? undefined,
         };
         ctx.groups.push(group);
@@ -160,13 +160,13 @@ function parseSegment(
         // フラット構文: offsetを加算して絶対座標を計算
         const props = parseProps(groupHeaderMatch[3] || "");
         const group: DiagramGroup = {
-          id: groupHeaderMatch[1],
-          label: groupHeaderMatch[2],
+          id: groupHeaderMatch[1]!,
+          label: groupHeaderMatch[2]!,
           color: props.color || randomColor(),
-          x: offsetX + (parseFloat(props.x) || 0),
-          y: offsetY + (parseFloat(props.y) || 0),
-          w: parseFloat(props.w) || 300,
-          h: parseFloat(props.h) || 200,
+          x: offsetX + (parseFloat(props.x!) || 0),
+          y: offsetY + (parseFloat(props.y!) || 0),
+          w: parseFloat(props.w!) || 300,
+          h: parseFloat(props.h!) || 200,
           parentGroup: parentGroupId ?? undefined,
         };
         ctx.groups.push(group);
@@ -177,7 +177,7 @@ function parseSegment(
     // Note: note n1 "text" { x=100 y=100 }
     const noteMatch = firstLine.match(/^note\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
     if (noteMatch) {
-      const noteId = noteMatch[1];
+      const noteId = noteMatch[1]!;
       if (ctx.noteIdSet.has(noteId)) {
         ctx.errors.push({ line: startLine, message: `重複IDエラー: ノート "${noteId}" が既に存在します` });
         return;
@@ -188,9 +188,9 @@ function parseSegment(
       const hasY = props.y !== undefined;
       ctx.notes.push({
         id: noteId,
-        text: noteMatch[2],
-        x: hasX ? offsetX + parseFloat(props.x) : NaN,
-        y: hasY ? offsetY + parseFloat(props.y) : NaN,
+        text: noteMatch[2]!,
+        x: hasX ? offsetX + parseFloat(props.x!) : NaN,
+        y: hasY ? offsetY + parseFloat(props.y!) : NaN,
         color: props.color || "#fbbf24",
         _needsPosition: !hasX || !hasY,
       });
@@ -201,7 +201,7 @@ function parseSegment(
     const nodeMatch = firstLine.match(/^node\s+(\S+)\s+"([^"]*)"(?:\s*\{([^}]*)\})?/);
     if (nodeMatch) {
       const props = parseProps(nodeMatch[3] || "");
-      const id = nodeMatch[1];
+      const id = nodeMatch[1]!;
       if (ctx.nodeMap[id]) {
         ctx.errors.push({ line: startLine, message: `重複IDエラー: ノード "${id}" が既に存在します` });
         return;
@@ -214,20 +214,20 @@ function parseSegment(
 
       const node: DiagramNode = {
         id,
-        label: nodeMatch[2],
+        label: nodeMatch[2]!,
         shape: props.shape || "rect",
         color: props.color || "__RANDOM__",
         textColor: props.text || "#ffffff",
-        x: hasX ? offsetX + parseFloat(props.x) : NaN,
-        y: hasY ? offsetY + parseFloat(props.y) : NaN,
-        w: parseFloat(props.w) || 150,
-        h: parseFloat(props.h) || 60,
+        x: hasX ? offsetX + parseFloat(props.x!) : NaN,
+        y: hasY ? offsetY + parseFloat(props.y!) : NaN,
+        w: parseFloat(props.w!) || 150,
+        h: parseFloat(props.h!) || 60,
         icon: props.icon || "",
         group: groupId,
-        fontSize: parseFloat(props.fontSize) || 13,
+        fontSize: parseFloat(props.fontSize!) || 13,
         borderColor: props.border || "",
-        borderWidth: parseFloat(props.borderWidth) || 2,
-        opacity: parseFloat(props.opacity) || 1,
+        borderWidth: parseFloat(props.borderWidth!) || 2,
+        opacity: parseFloat(props.opacity!) || 1,
         dashed: props.dashed === "true",
         _needsPosition: !hasX || !hasY,
         _explicitProps: new Set(["id", "label", ...Object.keys(props)]),
@@ -250,16 +250,16 @@ function parseSegment(
         "->":   { arrow: "end",   style: "solid" },
         "--":   { arrow: "none",  style: "solid" },
       };
-      const op = OP_MAP[edgeMatch[2]];
+      const op = OP_MAP[edgeMatch[2]!]!;
       const props = parseProps(edgeMatch[4] || "");
       ctx.edges.push({
-        from: edgeMatch[1],
-        to: edgeMatch[3],
+        from: edgeMatch[1]!,
+        to: edgeMatch[3]!,
         label: props.label || "",
         color: props.color || "#94a3b8",
         style: op.style,
         animate: props.animate === "true",
-        thickness: parseFloat(props.thickness) || 1.5,
+        thickness: parseFloat(props.thickness!) || 1.5,
         arrow: op.arrow,
         curve: props.curve || "smooth",
       });
@@ -269,10 +269,10 @@ function parseSegment(
     // Style shorthand: style id { props }
     const styleMatch = firstLine.match(/^style\s+(\S+)\s*\{([^}]*)\}/);
     if (styleMatch) {
-      const id = styleMatch[1];
-      const props = parseProps(styleMatch[2]);
+      const id = styleMatch[1]!;
+      const props = parseProps(styleMatch[2]!);
       if (ctx.nodeMap[id]) {
-        Object.assign(ctx.nodeMap[id], {
+        Object.assign(ctx.nodeMap[id]!, {
           ...(props.color && { color: props.color }),
           ...(props.shape && { shape: props.shape }),
           ...(props.border && { borderColor: props.border }),

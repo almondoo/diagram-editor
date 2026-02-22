@@ -10,6 +10,8 @@
     "moduleDetection": "force",
     "noUncheckedSideEffectImports": true,
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
   }
 }
