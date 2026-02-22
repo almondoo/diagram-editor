@@ -71,7 +71,7 @@ export function generateExportSVG(parsed: ParseResult): string | null {
     if (!fromNode || !toNode) return;
 
     const { from, to } = getEdgePoints(fromNode, toNode);
-    const { pathD, labelX, labelY } = buildEdgePath(from, to, edge.curve, edge._routePoints);
+    const { pathD, labelX, labelY } = buildEdgePath(from, to, edge.curve);
 
     const mid = `ah-export-${i}`;
     const midStart = `ah-start-export-${i}`;

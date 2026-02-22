@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getShapePath, getNodeCenter, getEdgePoints, computeEdgeRoute, buildEdgePath } from "../geometry.js";
+import { getShapePath, getNodeCenter, getEdgePoints, buildEdgePath } from "../geometry.js";
 import type { DiagramNode } from "../types.js";
 
 function makeNode(overrides: Partial<DiagramNode> = {}): DiagramNode {
@@ -153,51 +153,6 @@ describe("getEdgePoints", () => {
   });
 });
 
-describe("computeEdgeRoute", () => {
-  it("障害物がない場合はnullを返す", () => {
-    const from = { x: 0, y: 0 };
-    const to = { x: 200, y: 0 };
-    const result = computeEdgeRoute(from, to, []);
-    expect(result).toBeNull();
-  });
-
-  it("直線パス上に障害物がある場合はウェイポイントを返す", () => {
-    const from = { x: 0, y: 30 };
-    const to = { x: 300, y: 30 };
-    const obstacle = makeNode({ x: 100, y: 0, w: 100, h: 60 });
-    const result = computeEdgeRoute(from, to, [obstacle]);
-    expect(result).not.toBeNull();
-    expect(result!.length).toBeGreaterThan(0);
-  });
-
-  it("障害物が直線パスから離れている場合はnullを返す", () => {
-    const from = { x: 0, y: 0 };
-    const to = { x: 200, y: 0 };
-    const obstacle = makeNode({ x: 100, y: 200, w: 100, h: 60 });
-    const result = computeEdgeRoute(from, to, [obstacle]);
-    expect(result).toBeNull();
-  });
-
-  it("カスタムパディングを指定できる", () => {
-    const from = { x: 0, y: 30 };
-    const to = { x: 300, y: 30 };
-    const obstacle = makeNode({ x: 100, y: 0, w: 100, h: 60 });
-    const result = computeEdgeRoute(from, to, [obstacle], 50);
-    expect(result).not.toBeNull();
-  });
-
-  it("複数の障害物がある場合、最初の障害物を迂回する", () => {
-    const from = { x: 0, y: 30 };
-    const to = { x: 500, y: 30 };
-    const obstacles = [
-      makeNode({ x: 100, y: 0, w: 100, h: 60 }),
-      makeNode({ x: 300, y: 0, w: 100, h: 60 }),
-    ];
-    const result = computeEdgeRoute(from, to, obstacles);
-    expect(result).not.toBeNull();
-  });
-});
-
 describe("buildEdgePath", () => {
   const from = { x: 0, y: 0 };
   const to = { x: 200, y: 0 };
@@ -221,25 +176,6 @@ describe("buildEdgePath", () => {
     const result = buildEdgePath(from, to, "straight");
     expect(result.labelX).toBe(100);
     expect(result.labelY).toBe(0);
-  });
-
-  it("ルートポイントがある場合はCatmull-Romパスを返す", () => {
-    const routePoints = [{ x: 100, y: -50 }];
-    const result = buildEdgePath(from, to, "smooth", routePoints);
-    expect(result.pathD).toContain("M");
-    expect(result.pathD).toContain("C");
-  });
-
-  it("ルートポイントがある場合もlabelX,labelYを返す", () => {
-    const routePoints = [{ x: 100, y: -50 }];
-    const result = buildEdgePath(from, to, "smooth", routePoints);
-    expect(typeof result.labelX).toBe("number");
-    expect(typeof result.labelY).toBe("number");
-  });
-
-  it("空のルートポイントは通常の曲線パスを返す", () => {
-    const result = buildEdgePath(from, to, "smooth", []);
-    expect(result.pathD).toContain("Q");
   });
 
   it("垂直方向のエッジ", () => {
