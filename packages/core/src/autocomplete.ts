@@ -171,6 +171,11 @@ export function getCompletionItems(
   context: CompletionContext,
   existingIds: string[],
 ): CompletionItem[] {
+  // keyword / property はプレフィックスが空なら候補を出さない（オートコンプリート動作）
+  if (context.prefix.length === 0 && (context.type === "keyword" || context.type === "property")) {
+    return [];
+  }
+
   const prefix = context.prefix.toLowerCase();
 
   switch (context.type) {

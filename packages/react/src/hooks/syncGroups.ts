@@ -1,5 +1,9 @@
 import type { DiagramGroup } from "diagram-dsl-core";
 
+// グループ内レイアウト用定数（useDiagramState.ts と合わせる）
+const GROUP_PADDING = 12;
+const GROUP_LABEL_H = 26;
+
 /**
  * コード変更時に groupStates を更新する純粋関数。
  * - 新規グループ: parsed の値で初期化
@@ -13,9 +17,24 @@ export function syncGroups(
   const next: Record<string, DiagramGroup> = {};
   for (const g of parsedGroups) {
     const prev = prevStates[g.id];
-    next[g.id] = prev
-      ? { ...prev, ...(g.parentGroup !== undefined ? { parentGroup: g.parentGroup } : {}) }
-      : { ...g };
+    if (prev) {
+      next[g.id] = {
+        ...prev,
+        label: g.label,
+        color: g.color,
+        ...(g.parentGroup !== undefined ? { parentGroup: g.parentGroup } : {}),
+      };
+    } else if (g.parentGroup) {
+      // 新規子グループ: 親の実際の位置に基づいて配置
+      const parent = prevStates[g.parentGroup] ?? next[g.parentGroup];
+      if (parent) {
+        next[g.id] = { ...g, x: parent.x + GROUP_PADDING, y: parent.y + GROUP_LABEL_H + GROUP_PADDING };
+      } else {
+        next[g.id] = { ...g };
+      }
+    } else {
+      next[g.id] = { ...g };
+    }
   }
   return next;
 }

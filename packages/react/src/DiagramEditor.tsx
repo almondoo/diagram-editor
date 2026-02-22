@@ -12,6 +12,7 @@ import { useNodeDrag } from "./hooks/useNodeDrag.js";
 import { useGroupDrag } from "./hooks/useGroupDrag.js";
 import { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
 import { useMultiSelect } from "./hooks/useMultiSelect.js";
+import { useEdgeDrag } from "./hooks/useEdgeDrag.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { useViewport } from "./hooks/useViewport.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
@@ -44,6 +45,15 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     isMulti: boolean;
   } | null>(null);
 
+  // ダブルクリック → コードエディタフォーカス
+  const [focusLine, setFocusLine] = useState<number | null>(null);
+  // focusLine を消費後にクリアして、同じ行への再フォーカスを可能にする
+  useEffect(() => {
+    if (focusLine !== null) {
+      requestAnimationFrame(() => setFocusLine(null));
+    }
+  }, [focusLine]);
+
   // レスポンシブ
   const { isMobile } = useViewport();
   // ボトムシート
@@ -55,8 +65,24 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const {
     code, setCode, parsed, nodeById, groupById, noteStates,
     setNodeLayout, setNodeSize, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
-    addNode, addNote, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, exportSVG, formatCode, resetLayout,
+    addNode, addNote, addGroup, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, reconnectEdge, updateEdgeBend, exportSVG, formatCode, resetLayout,
   } = state;
+
+  const findCodeLine = useCallback((type: "node" | "edge" | "note", id: string, fromId?: string) => {
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const codeLines = code.split("\n");
+    for (let i = 0; i < codeLines.length; i++) {
+      const trimmed = codeLines[i]!.trim();
+      if (type === "edge" && fromId) {
+        if (trimmed.match(new RegExp(`^edge\\s+${esc(fromId)}\\s+\\S+\\s+${esc(id)}`))) {
+          return i + 1;
+        }
+      } else if (trimmed.match(new RegExp(`^${type}\\s+${esc(id)}\\s`))) {
+        return i + 1;
+      }
+    }
+    return null;
+  }, [code]);
 
   const { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef, svgGroupRef, gridRef, gridLargeRef);
@@ -165,6 +191,9 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown, handleGroupResizeTouchStart } =
     useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove);
 
+  const { edgeDragInfo, handleEdgeMoveMouseDown, handleEdgeEndpointMouseDown } =
+    useEdgeDrag(nodeById, parsed.edges, zoom, updateEdgeBend, reconnectEdge, svgRef, panRef);
+
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
 
   // ボトムシート用: 選択ノードに接続されたエッジ一覧
@@ -196,6 +225,12 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       setBottomSheetNodeId(nodeId);
     }
   }, [edgeFromId, isMobile, addEdge]);
+
+  // グループ追加: 選択中のグループがあればその中にネスト作成
+  const handleAddGroup = useCallback(() => {
+    const selectedGroup = [...selectedIds].find((id) => groupById[id]);
+    addGroup(selectedGroup);
+  }, [selectedIds, groupById, addGroup]);
 
   const canvasW = 1200;
   const canvasH = 800;
@@ -324,6 +359,10 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 if (!isSelected(n.id)) selectSingle(n.id);
                 handleNoteTouchStart(e, n.id);
               }}
+              onDoubleClick={() => {
+                const line = findCodeLine("note", n.id);
+                if (line) setFocusLine(line);
+              }}
             />
           ))}
           {parsed.edges.map((edge, i) => (
@@ -332,8 +371,33 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               edge={edge}
               fromNode={nodeById[edge.from]}
               toNode={nodeById[edge.to]}
+              onMoveMouseDown={handleEdgeMoveMouseDown}
+              onEndpointMouseDown={handleEdgeEndpointMouseDown}
+              onDoubleClick={() => {
+                const line = findCodeLine("edge", edge.to, edge.from);
+                if (line) setFocusLine(line);
+              }}
             />
           ))}
+          {/* 接続付け替え中の仮エッジ線 */}
+          {edgeDragInfo?.type === "reconnect" && (() => {
+            const anchorNode = nodeById[edgeDragInfo.anchorId];
+            if (!anchorNode) return null;
+            const ac = { x: anchorNode.x + anchorNode.w / 2, y: anchorNode.y + anchorNode.h / 2 };
+            const cursor = { x: edgeDragInfo.cursorX, y: edgeDragInfo.cursorY };
+            const from = edgeDragInfo.end === "from" ? cursor : ac;
+            const to = edgeDragInfo.end === "from" ? ac : cursor;
+            return (
+              <line
+                x1={from.x} y1={from.y}
+                x2={to.x} y2={to.y}
+                stroke="#6366f1"
+                strokeWidth={2}
+                strokeDasharray="6,3"
+                style={{ pointerEvents: "none" }}
+              />
+            );
+          })()}
           {parsed.nodes.map((node) => (
             <ShapeNode
               key={node.id}
@@ -349,7 +413,30 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               }}
               onTap={() => handleNodeTap(node.id)}
               onResizeMouseDown={(e) => handleNodeResizeMouseDown(e, node.id)}
+              onDoubleClick={() => {
+                const line = findCodeLine("node", node.id);
+                if (line) setFocusLine(line);
+              }}
             />
+          ))}
+          {/* グループラベルをノードの上に再描画（ノードに隠れないようにする） */}
+          {parsed.groups.map((g) => (
+            <text
+              key={`label-${g.id}`}
+              x={g.x + 14}
+              y={g.y + 20}
+              fill={g.color}
+              fontSize={12}
+              fontFamily="'IBM Plex Mono', monospace"
+              fontWeight="600"
+              opacity={0.8}
+              stroke="#0a0c12"
+              strokeWidth={4}
+              paintOrder="stroke"
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {g.label}
+            </text>
           ))}
         </g>
         {selectionRect && (
@@ -453,7 +540,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       </div>
 
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} />
+        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} focusLine={focusLine} />
       </div>
 
       {parsed.errors.length > 0 && (
@@ -509,6 +596,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
             <Toolbar
               onAddNode={addNode}
               onAddNote={addNote}
+              onAddGroup={handleAddGroup}
               onExportSVG={exportSVG}
               onZoomIn={zoomIn}
               onZoomOut={zoomOut}
@@ -571,6 +659,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
             <Toolbar
               onAddNode={addNode}
               onAddNote={addNote}
+              onAddGroup={handleAddGroup}
               onExportSVG={exportSVG}
               onZoomIn={zoomIn}
               onZoomOut={zoomOut}

@@ -5,8 +5,6 @@ import {
   formatDSLCode,
   generateExportSVG,
   randomColor,
-  getEdgePoints,
-  computeEdgeRoute,
 } from "diagram-dsl-core";
 import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
 import { syncNodes } from "./syncNodes.js";
@@ -16,6 +14,100 @@ import { syncNotes } from "./syncNotes.js";
 // グループ内ノードの境界クランプ用定数（layout.ts と合わせる）
 const GROUP_PADDING = 12;
 const GROUP_LABEL_H = 26;
+
+/** 親グループが子グループ・メンバーノードを必ず包含するように補正する */
+function enforceGroupContainment(
+  groups: DiagramGroup[],
+  nodes: DiagramNode[],
+): DiagramGroup[] {
+  if (groups.length === 0) return groups;
+
+  const result = new Map(groups.map((g) => [g.id, { ...g }]));
+
+  const childGroupMap: Record<string, string[]> = {};
+  const memberNodeMap: Record<string, DiagramNode[]> = {};
+
+  for (const g of groups) {
+    if (g.parentGroup && result.has(g.parentGroup)) {
+      (childGroupMap[g.parentGroup] ??= []).push(g.id);
+    }
+  }
+  for (const n of nodes) {
+    if (n.group && result.has(n.group)) {
+      (memberNodeMap[n.group] ??= []).push(n);
+    }
+  }
+
+  // ボトムアップ（深い子から先に処理）
+  const getDepth = (gid: string): number => {
+    const g = result.get(gid);
+    if (!g?.parentGroup || !result.has(g.parentGroup)) return 0;
+    return getDepth(g.parentGroup) + 1;
+  };
+  const sorted = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
+
+  // Step 1: 子グループが親の外にある場合、親の内部に再配置
+  for (const { id: gid } of sorted) {
+    const g = result.get(gid)!;
+    if (!g.parentGroup) continue;
+    const parent = result.get(g.parentGroup);
+    if (!parent) continue;
+
+    const insideParent =
+      g.x >= parent.x && g.y >= parent.y &&
+      g.x + g.w <= parent.x + parent.w && g.y + g.h <= parent.y + parent.h;
+
+    if (!insideParent) {
+      const siblings = memberNodeMap[g.parentGroup] ?? [];
+      const contentBottom = siblings.length > 0
+        ? Math.max(...siblings.map((n) => n.y + n.h))
+        : parent.y;
+      const targetY = contentBottom + GROUP_LABEL_H + GROUP_PADDING;
+      result.set(g.id, { ...g, x: parent.x + GROUP_PADDING, y: targetY });
+    }
+  }
+
+  // Step 2: 親グループが子グループ・ノードを包含するように拡張
+  for (const { id: gid } of sorted) {
+    const g = result.get(gid)!;
+    const members = memberNodeMap[g.id] ?? [];
+    const childIds = childGroupMap[g.id] ?? [];
+    const children = childIds.map((id) => result.get(id)!).filter(Boolean);
+
+    if (members.length === 0 && children.length === 0) continue;
+
+    // メンバー・子グループの包含矩形を一括計算
+    let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+    for (const n of members) {
+      minL = Math.min(minL, n.x);
+      minT = Math.min(minT, n.y);
+      maxR = Math.max(maxR, n.x + n.w);
+      maxB = Math.max(maxB, n.y + n.h);
+    }
+    for (const c of children) {
+      minL = Math.min(minL, c.x);
+      minT = Math.min(minT, c.y);
+      maxR = Math.max(maxR, c.x + c.w);
+      maxB = Math.max(maxB, c.y + c.h);
+    }
+
+    const needLeft = minL - GROUP_PADDING;
+    const needTop = minT - GROUP_LABEL_H - GROUP_PADDING;
+    const needRight = maxR + GROUP_PADDING;
+    const needBottom = maxB + GROUP_PADDING;
+
+    const newX = Math.min(g.x, needLeft);
+    const newY = Math.min(g.y, needTop);
+    const newRight = Math.max(g.x + g.w, needRight);
+    const newBottom = Math.max(g.y + g.h, needBottom);
+
+    if (newX !== g.x || newY !== g.y || newRight - newX !== g.w || newBottom - newY !== g.h) {
+      result.set(g.id, { ...g, x: newX, y: newY, w: newRight - newX, h: newBottom - newY });
+    }
+  }
+
+  return groups.map((g) => result.get(g.id)!);
+}
 
 /** 指定グループIDとその全子孫グループIDを再帰的に収集する */
 function collectDescendantGroups(
@@ -35,6 +127,7 @@ export interface DiagramState {
   nodeStates: Record<string, DiagramNode>;
   groupStates: Record<string, DiagramGroup>;
   noteStates: Record<string, DiagramNote>;
+  bendStates: Record<string, { bendX: number; bendY: number }>;
   setNodeLayout: (nodeId: string, x: number, y: number) => void;
   setNodeSize: (nodeId: string, w: number, h: number) => void;
   setGroupLayout: (groupId: string, dx: number, dy: number) => void;
@@ -43,16 +136,19 @@ export interface DiagramState {
   multiMoveLayout: (selectedIds: Set<string>, dx: number, dy: number) => void;
   addNode: (shape: string) => void;
   addNote: () => void;
+  addGroup: (parentGroupId?: string) => void;
   addEdge: (fromId: string, toId: string) => void;
   updateNodeProp: (nodeId: string, key: string, value: string) => void;
   updateEdgeProp: (fromId: string, toId: string, key: string, value: string) => void;
   deleteEdge: (fromId: string, toId: string) => void;
   deleteNode: (nodeId: string) => void;
+  reconnectEdge: (originalFrom: string, originalTo: string, newFrom: string, newTo: string) => void;
+  updateEdgeBend: (fromId: string, toId: string, bendX: number, bendY: number) => void;
   exportSVG: () => void;
   formatCode: () => void;
   resetLayout: () => void;
   loadTemplate: (templateCode: string) => void;
-  loadSaved: (code: string, nodeStates: Record<string, DiagramNode>, groupStates: Record<string, DiagramGroup>, noteStates?: Record<string, DiagramNote>) => void;
+  loadSaved: (code: string, nodeStates: Record<string, DiagramNode>, groupStates: Record<string, DiagramGroup>, noteStates?: Record<string, DiagramNote>, bendStates?: Record<string, { bendX: number; bendY: number }>) => void;
 }
 
 export function useDiagramState(initialCode: string = ""): DiagramState {
@@ -60,6 +156,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   const [nodeStates, setNodeStates] = useState<Record<string, DiagramNode>>({});
   const [groupStates, setGroupStates] = useState<Record<string, DiagramGroup>>({});
   const [noteStates, setNoteStates] = useState<Record<string, DiagramNote>>({});
+  const [bendStates, setBendStates] = useState<Record<string, { bendX: number; bendY: number }>>({});
 
   // グループ状態の ref（setNodeLayout の stable callback から読むため）
   const groupStatesRef = useRef(groupStates);
@@ -82,9 +179,13 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setNoteStates((prev) => syncNotes(parsedRaw.notes, prev));
   }, [parsedRaw]);
 
-  // displayGroups: groupStates の値を優先（ドラッグ/リサイズを反映）
+  // displayGroups: 位置/サイズは groupStates、label/color は parsedRaw を優先
   const displayGroups = useMemo<DiagramGroup[]>(() => {
-    return parsedRaw.groups.map((g) => groupStates[g.id] ?? g);
+    return parsedRaw.groups.map((g) => {
+      const state = groupStates[g.id];
+      if (!state) return g;
+      return { ...state, label: g.label, color: g.color, parentGroup: g.parentGroup };
+    });
   }, [parsedRaw.groups, groupStates]);
 
   // displayNotes: noteStates の値を優先（ドラッグを反映）
@@ -142,26 +243,24 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setNoteStates((prev) => ({ ...prev, ...noteUpdates }));
   }, [displayNotes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // エッジルーティング: 各エッジに迂回ウェイポイントを計算
-  const routedEdges = useMemo(() => {
-    const nodeMap: Record<string, DiagramNode> = {};
-    for (const n of displayNodes) nodeMap[n.id] = n;
+  // displayEdges: bendStates のベンド値を優先（ドラッグベンドを反映）
+  const displayEdges = useMemo(() => {
     return parsedRaw.edges.map((edge) => {
-      const fromNode = nodeMap[edge.from];
-      const toNode = nodeMap[edge.to];
-      if (!fromNode || !toNode) return edge;
-      const { from, to } = getEdgePoints(fromNode, toNode);
-      const obstacles = displayNodes.filter((n) => n.id !== edge.from && n.id !== edge.to);
-      const routePoints = computeEdgeRoute(from, to, obstacles);
-      if (!routePoints) return edge;
-      return { ...edge, _routePoints: routePoints };
+      const bend = bendStates[`${edge.from}->${edge.to}`];
+      return bend ? { ...edge, bendX: bend.bendX, bendY: bend.bendY } : edge;
     });
-  }, [parsedRaw.edges, displayNodes]);
+  }, [parsedRaw.edges, bendStates]);
+
+  // 親グループが子グループ・ノードを必ず包含するように補正
+  const adjustedGroups = useMemo(
+    () => enforceGroupContainment(displayGroups, displayNodes),
+    [displayGroups, displayNodes],
+  );
 
   // 最終的な parsed（consumers はこれを使う）
   const parsed: ParseResult = useMemo(
-    () => ({ ...parsedRaw, nodes: displayNodes, groups: displayGroups, notes: displayNotes, edges: routedEdges }),
-    [parsedRaw, displayNodes, displayGroups, displayNotes, routedEdges],
+    () => ({ ...parsedRaw, nodes: displayNodes, edges: displayEdges, groups: adjustedGroups, notes: displayNotes }),
+    [parsedRaw, displayNodes, displayEdges, adjustedGroups, displayNotes],
   );
 
   const nodeById = useMemo(
@@ -170,8 +269,8 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   );
 
   const groupById = useMemo(
-    () => Object.fromEntries(displayGroups.map((g) => [g.id, g])),
-    [displayGroups],
+    () => Object.fromEntries(adjustedGroups.map((g) => [g.id, g])),
+    [adjustedGroups],
   );
 
   // ドラッグ用: nodeStates の x/y を更新（グループを自動拡張）
@@ -367,6 +466,63 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setCode((c) => `${c  }\nnote ${id} "メモ" { color=#fbbf24 }`);
   };
 
+  // グループ追加（parentGroupId があれば親グループ内にネスト）
+  const addGroup = (parentGroupId?: string) => {
+    const id = `g${Date.now().toString(36)}`;
+    const col = randomColor();
+
+    if (!parentGroupId) {
+      setCode((c) => `${c}\ngroup ${id} "新規グループ" { color=${col} x=0 y=0 w=300 h=200 }`);
+      return;
+    }
+
+    setCode((c) => {
+      const lines = c.split("\n");
+      const groupPattern = new RegExp(`^(\\s*)group\\s+${parentGroupId}\\s+`);
+
+      for (let i = 0; i < lines.length; i++) {
+        const match = lines[i]!.match(groupPattern);
+        if (!match) continue;
+
+        const indent = match[1] ?? "";
+        const childIndent = `${indent}  `;
+        const childLine = `${childIndent}group ${id} "新規グループ" { color=${col} w=200 h=150 }`;
+        const line = lines[i]!;
+
+        // 単一行グループ: { ... } を複数行に展開
+        if (line.includes("{") && line.includes("}")) {
+          const closeBrace = line.lastIndexOf("}");
+          lines[i] = line.slice(0, closeBrace).trimEnd();
+          lines.splice(i + 1, 0, childLine, `${indent}}`);
+          break;
+        }
+
+        // 複数行ブロック: 閉じ } の直前に挿入
+        if (line.includes("{")) {
+          let depth = 1;
+          let j = i + 1;
+          while (j < lines.length && depth > 0) {
+            const opens = (lines[j]!.match(/\{/g) ?? []).length;
+            const closes = (lines[j]!.match(/\}/g) ?? []).length;
+            depth += opens - closes;
+            if (depth === 0) {
+              lines.splice(j, 0, childLine);
+              break;
+            }
+            j++;
+          }
+          break;
+        }
+
+        // ブロックなし: { } で囲んで子を追加
+        lines[i] = `${line} {`;
+        lines.splice(i + 1, 0, childLine, `${indent}}`);
+        break;
+      }
+      return lines.join("\n");
+    });
+  };
+
   // エッジ追加
   const addEdge = useCallback((fromId: string, toId: string) => {
     setCode((c) => `${c  }\nedge ${fromId} -> ${toId}`);
@@ -491,6 +647,30 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     });
   }, []);
 
+  // エッジの接続先を付け替え（DSLコード内の edge 行を書き換え）
+  const reconnectEdge = useCallback((originalFrom: string, originalTo: string, newFrom: string, newTo: string) => {
+    setCode((c) => {
+      const lines = c.split("\n");
+      const edgePattern = new RegExp(
+        `^(\\s*edge\\s+)${originalFrom}(\\s*(?:<-->|<->|<--|-->|<-|->|--)\\s*)${originalTo}(\\s|$)(.*)`
+      );
+      const updated = lines.map((line) => {
+        const match = line.match(edgePattern);
+        if (!match) return line;
+        return `${match[1]}${newFrom}${match[2]}${newTo}${match[3]}${match[4] ?? ""}`;
+      });
+      return updated.join("\n");
+    });
+  }, []);
+
+  // エッジのベンド値を更新（コードには書き戻さず bendStates で管理）
+  const updateEdgeBend = useCallback((fromId: string, toId: string, bendX: number, bendY: number) => {
+    setBendStates((prev) => ({
+      ...prev,
+      [`${fromId}->${toId}`]: { bendX: Math.round(bendX), bendY: Math.round(bendY) },
+    }));
+  }, []);
+
   const exportSVG = () => {
     const svgData = generateExportSVG(parsed);
     if (!svgData) return;
@@ -540,6 +720,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
     setNodeStates(initialNodeStates);
     setGroupStates(initialGroupStates);
+    setBendStates({});
     setCode(formatDSLCode(templateCode));
   };
 
@@ -548,11 +729,13 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     savedCode: string,
     savedNodeStates: Record<string, DiagramNode>,
     savedGroupStates: Record<string, DiagramGroup>,
-    savedNoteStates?: Record<string, DiagramNote>
+    savedNoteStates?: Record<string, DiagramNote>,
+    savedBendStates?: Record<string, { bendX: number; bendY: number }>
   ) => {
     setNodeStates(savedNodeStates);
     setGroupStates(savedGroupStates);
     setNoteStates(savedNoteStates ?? {});
+    setBendStates(savedBendStates ?? {});
     setCode(savedCode);
   };
 
@@ -565,6 +748,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     nodeStates,
     groupStates,
     noteStates,
+    bendStates,
     setNodeLayout,
     setNodeSize,
     setGroupLayout,
@@ -573,11 +757,14 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     multiMoveLayout,
     addNode,
     addNote,
+    addGroup,
     addEdge,
     updateNodeProp,
     updateEdgeProp,
     deleteEdge,
     deleteNode,
+    reconnectEdge,
+    updateEdgeBend,
     exportSVG,
     formatCode,
     resetLayout,

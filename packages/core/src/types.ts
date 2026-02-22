@@ -27,8 +27,8 @@ export interface DiagramEdge {
   /** "end" | "start" | "both" | "none" */
   arrow: string;
   curve: string;
-  /** ランタイム専用: エッジ迂回ウェイポイント（DSLには保存しない） */
-  _routePoints?: Array<{ x: number; y: number }>;
+  bendX: number;
+  bendY: number;
 }
 
 export interface DiagramGroup {

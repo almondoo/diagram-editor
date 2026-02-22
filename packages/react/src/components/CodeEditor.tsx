@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useCallback, memo } from "react";
+import { useRef, useMemo, useState, useCallback, useEffect, memo } from "react";
 import type { ParseError, CompletionItem } from "diagram-dsl-core";
 import { highlightLine, getCompletionContext, getCompletionItems } from "diagram-dsl-core";
 import { AutocompleteDropdown } from "./AutocompleteDropdown.js";
@@ -9,11 +9,12 @@ interface CodeEditorProps {
   errors: ParseError[];
   onFormat: () => void;
   existingIds?: string[];
+  focusLine?: number | null;
 }
 
 const UNDO_MERGE_INTERVAL = 300;
 
-export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onFormat, existingIds = [] }: CodeEditorProps) {
+export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onFormat, existingIds = [], focusLine }: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const lineCountRef = useRef<HTMLDivElement>(null);
@@ -22,6 +23,39 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
   const errorLines = useMemo(() => new Set(errors.map((e) => e.line)), [errors]);
 
   const composingRef = useRef(false);
+
+  // カーソル行追跡 (0-indexed)
+  const [cursorLine, setCursorLine] = useState(0);
+
+  const updateCursorLine = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const textBefore = textarea.value.slice(0, textarea.selectionStart);
+    setCursorLine(textBefore.split("\n").length - 1);
+  }, []);
+
+  // focusLine による外部からのフォーカス (1-indexed)
+  useEffect(() => {
+    if (!focusLine || focusLine < 1) return;
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const codeLines = textarea.value.split("\n");
+    const targetIndex = Math.min(focusLine - 1, codeLines.length - 1);
+    let pos = 0;
+    for (let i = 0; i < targetIndex; i++) {
+      pos += codeLines[i]!.length + 1;
+    }
+    textarea.focus();
+    textarea.selectionStart = pos;
+    textarea.selectionEnd = pos;
+    setCursorLine(targetIndex);
+    // スクロールして対象行を表示
+    const lineHeight = 21;
+    const scrollTarget = targetIndex * lineHeight - textarea.clientHeight / 2 + lineHeight;
+    textarea.scrollTop = Math.max(0, scrollTarget);
+    if (lineCountRef.current) lineCountRef.current.scrollTop = textarea.scrollTop;
+    if (highlightRef.current) highlightRef.current.scrollTop = textarea.scrollTop;
+  }, [focusLine]);
 
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
@@ -172,6 +206,65 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
       return;
     }
 
+    // Cmd+X (行切り取り / 選択範囲切り取り)
+    if ((e.metaKey || e.ctrlKey) && e.key === "x") {
+      if (start === end) {
+        // 選択なし → 現在行をコピー＆切り取り
+        e.preventDefault();
+        const codeLines = code.split("\n");
+        const textBefore = code.slice(0, start);
+        const lineIndex = textBefore.split("\n").length - 1;
+        const cutLine = codeLines[lineIndex]!;
+        navigator.clipboard.writeText(`${cutLine}\n`);
+        pushUndo(code);
+        // 行を削除: splice して再結合
+        codeLines.splice(lineIndex, 1);
+        const newCode = codeLines.join("\n");
+        onChange(newCode);
+        // カーソルを削除後の同じ行頭に配置
+        let newPos = 0;
+        for (let i = 0; i < lineIndex; i++) newPos += codeLines[i]!.length + 1;
+        newPos = Math.min(newPos, newCode.length);
+        requestAnimationFrame(() => {
+          textarea.selectionStart = newPos;
+          textarea.selectionEnd = newPos;
+          updateCursorLine();
+        });
+      }
+      // 選択ありの場合はブラウザのデフォルト動作（選択範囲のcut）に任せる
+      return;
+    }
+
+    // Alt+Arrow (行移動)
+    if (e.altKey && !e.metaKey && !e.ctrlKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      const codeLines = code.split("\n");
+      const textBefore = code.slice(0, start);
+      const lineIndex = textBefore.split("\n").length - 1;
+      const targetIndex = e.key === "ArrowUp" ? lineIndex - 1 : lineIndex + 1;
+
+      if (targetIndex >= 0 && targetIndex < codeLines.length) {
+        pushUndo(code);
+        const colInLine = start - textBefore.lastIndexOf("\n") - 1;
+        // 隣接行と入れ替え
+        const temp = codeLines[targetIndex]!;
+        codeLines[targetIndex] = codeLines[lineIndex]!;
+        codeLines[lineIndex] = temp;
+        const newCode = codeLines.join("\n");
+        onChange(newCode);
+        // カーソル位置を移動先の行に合わせる
+        let newPos = 0;
+        for (let i = 0; i < targetIndex; i++) newPos += codeLines[i]!.length + 1;
+        newPos += Math.min(colInLine, codeLines[targetIndex]!.length);
+        requestAnimationFrame(() => {
+          textarea.selectionStart = newPos;
+          textarea.selectionEnd = newPos;
+          updateCursorLine();
+        });
+      }
+      return;
+    }
+
     // 補完表示中のキーインターセプト
     if (showCompletion) {
       if (e.key === "ArrowDown") {
@@ -210,6 +303,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
 
     if (e.key === "{") {
       e.preventDefault();
+      setCompletionItems([]);
       pushUndo(code);
       const newCode = `${code.slice(0, start)  }{}${  code.slice(end)}`;
       onChange(newCode);
@@ -313,8 +407,10 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
           <div
             key={i}
             style={{
-              color: errorLines.has(i + 1) ? "#f87171" : "#475569",
+              color: errorLines.has(i + 1) ? "#f87171" : i === cursorLine ? "#e2e8f0" : "#475569",
               fontWeight: errorLines.has(i + 1) ? 700 : 400,
+              background: i === cursorLine ? "rgba(99,102,241,0.15)" : "transparent",
+              borderRadius: 2,
             }}
           >
             {i + 1}
@@ -375,6 +471,9 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
             requestAnimationFrame(() => updateCompletion());
           }}
           onKeyDown={handleKeyDown}
+          onKeyUp={updateCursorLine}
+          onClick={updateCursorLine}
+          onSelect={updateCursorLine}
           onCompositionStart={() => (composingRef.current = true)}
           onCompositionEnd={() => (composingRef.current = false)}
           onScroll={handleScroll}
