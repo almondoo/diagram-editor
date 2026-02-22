@@ -45,8 +45,6 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   // レスポンシブ
   const { isMobile } = useViewport();
-  const [activeTab, setActiveTab] = useState<"code" | "canvas">("canvas");
-
   // ボトムシート
   const [bottomSheetNodeId, setBottomSheetNodeId] = useState<string | null>(null);
 
@@ -477,71 +475,20 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       <style>{DIAGRAM_EDITOR_STYLES}</style>
 
       {isMobile ? (
-        /* ─── モバイルレイアウト: タブ切り替え ─── */
+        /* ─── モバイルレイアウト: キャンバスのみ（コードエディタ非表示） ─── */
         <>
-          {/* タブバー */}
-          <div
-            style={{
-              display: "flex",
-              height: 40,
-              borderBottom: "1px solid #1e293b",
-              background: "#0c0e14",
-              flexShrink: 0,
-            }}
-          >
-            <button
-              onClick={() => setActiveTab("canvas")}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                borderBottom: activeTab === "canvas" ? "2px solid #6366f1" : "2px solid transparent",
-                color: activeTab === "canvas" ? "#e2e8f0" : "#475569",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              ◈ キャンバス
-            </button>
-            <button
-              onClick={() => setActiveTab("code")}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                borderBottom: activeTab === "code" ? "2px solid #6366f1" : "2px solid transparent",
-                color: activeTab === "code" ? "#e2e8f0" : "#475569",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              {"</>"} コード
-            </button>
-          </div>
-
-          {/* アクティブなパネル */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            {activeTab === "canvas" ? (
-              <>
-                <Toolbar
-                  onAddNode={addNode}
-                  onAddNote={addNote}
-                  onExportSVG={exportSVG}
-                  onZoomIn={zoomIn}
-                  onZoomOut={zoomOut}
-                  onFitView={() => fitView(parsed.nodes, parsed.groups)}
-                  onResetLayout={resetLayout}
-                  isMobile={isMobile}
-                />
-                {renderCanvas()}
-              </>
-            ) : (
-              renderCodePanel()
-            )}
+            <Toolbar
+              onAddNode={addNode}
+              onAddNote={addNote}
+              onExportSVG={exportSVG}
+              onZoomIn={zoomIn}
+              onZoomOut={zoomOut}
+              onFitView={() => fitView(parsed.nodes, parsed.groups)}
+              onResetLayout={resetLayout}
+              isMobile={isMobile}
+            />
+            {renderCanvas()}
           </div>
 
           {/* ノード編集ボトムシート */}
