@@ -35,7 +35,7 @@ export function useGroupDrag(
   const handleGroupMoveTouchStart = useCallback((e: React.TouchEvent, groupId: string) => {
     if (e.touches.length !== 1) return;
     e.stopPropagation();
-    const touch = e.touches[0];
+    const touch = e.touches[0]!;
     const isMulti = selectedIds.size > 1 && selectedIds.has(groupId);
     setDragInfo({ groupId, type: "move", startClientX: touch.clientX, startClientY: touch.clientY, isMulti });
   }, [selectedIds]);
@@ -57,7 +57,7 @@ export function useGroupDrag(
   ) => {
     if (e.touches.length !== 1) return;
     e.stopPropagation();
-    const touch = e.touches[0];
+    const touch = e.touches[0]!;
     setDragInfo({ groupId, type: "resize", handle, startClientX: touch.clientX, startClientY: touch.clientY, isMulti: false });
   }, []);
 
@@ -95,7 +95,7 @@ export function useGroupDrag(
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
-      const touch = e.touches[0];
+      const touch = e.touches[0]!;
       if (applyDrag(touch.clientX, touch.clientY)) {
         setDragInfo((d) => d ? { ...d, startClientX: touch.clientX, startClientY: touch.clientY } : null);
       }

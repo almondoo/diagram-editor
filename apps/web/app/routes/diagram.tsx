@@ -159,7 +159,7 @@ export default function Diagram() {
         }}
         onSave={handleSave}
         saveLabel={currentDiagramId ? "更新" : "保存"}
-        currentDiagramName={currentDiagramName}
+        {...(currentDiagramName !== undefined && { currentDiagramName })}
         onRenameDiagram={handleRenameDiagram}
       />
       <DiagramEditor state={state} style={{ flex: 1 }} />

@@ -63,8 +63,8 @@ export const ShapeNode = memo(
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
       if (e.touches.length === 1) {
         touchStartPos.current = {
-          x: e.touches[0].clientX,
-          y: e.touches[0].clientY,
+          x: e.touches[0]!.clientX,
+          y: e.touches[0]!.clientY,
           time: Date.now(),
         };
       }
@@ -75,8 +75,8 @@ export const ShapeNode = memo(
       if (!touchStartPos.current) return;
       const elapsed = Date.now() - touchStartPos.current.time;
       if (elapsed < 300 && e.changedTouches.length === 1) {
-        const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.current.x);
-        const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.current.y);
+        const dx = Math.abs(e.changedTouches[0]!.clientX - touchStartPos.current.x);
+        const dy = Math.abs(e.changedTouches[0]!.clientY - touchStartPos.current.y);
         if (dx < 10 && dy < 10) {
           onTapRef.current?.();
         }

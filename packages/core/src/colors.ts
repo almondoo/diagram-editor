@@ -8,7 +8,7 @@ export const VIBRANT_COLORS = [
 ];
 
 export function randomColor(): string {
-  return VIBRANT_COLORS[Math.floor(Math.random() * VIBRANT_COLORS.length)];
+  return VIBRANT_COLORS[Math.floor(Math.random() * VIBRANT_COLORS.length)]!;
 }
 
 export function randomPosition(

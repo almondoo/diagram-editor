@@ -90,7 +90,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const handleNoteTouchStart = useCallback((e: React.TouchEvent, noteId: string) => {
     if (e.touches.length !== 1) return;
     e.stopPropagation();
-    const touch = e.touches[0];
+    const touch = e.touches[0]!;
     const isMulti = selectedIds.size > 1 && selectedIds.has(noteId);
     setNoteDragInfo({ noteId, startX: touch.clientX, startY: touch.clientY, isMulti });
   }, [selectedIds]);
@@ -115,7 +115,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
-      applyMove(e.touches[0].clientX, e.touches[0].clientY);
+      applyMove(e.touches[0]!.clientX, e.touches[0]!.clientY);
     };
     const handleUp = () => setNoteDragInfo(null);
 

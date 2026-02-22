@@ -65,7 +65,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     const textBeforeCursor = textarea.value.slice(0, textarea.selectionStart);
     const lines = textBeforeCursor.split("\n");
     const currentLineIndex = lines.length - 1;
-    const currentCol = lines[currentLineIndex].length;
+    const currentCol = lines[currentLineIndex]!.length;
 
     // 行の高さとパディングから計算
     const lineHeight = 21;
@@ -73,7 +73,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     const paddingLeft = 16;
 
     // ミラー要素を使ってテキスト幅を計測
-    mirror.textContent = lines[currentLineIndex].slice(0, currentCol);
+    mirror.textContent = lines[currentLineIndex]!.slice(0, currentCol);
     const textWidth = mirror.scrollWidth;
 
     const top = paddingTop + (currentLineIndex + 1) * lineHeight - textarea.scrollTop;
@@ -94,7 +94,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     const textBeforeCursor = currentCode.slice(0, pos);
     const allLines = currentCode.split("\n");
     const linesBeforeCursor = textBeforeCursor.split("\n");
-    const currentLine = linesBeforeCursor[linesBeforeCursor.length - 1];
+    const currentLine = linesBeforeCursor[linesBeforeCursor.length - 1]!;
     const col = currentLine.length;
     const currentLineIndex = linesBeforeCursor.length - 1;
 
@@ -102,7 +102,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     let blockHeaderLine = "";
     let depth = 0;
     for (let i = currentLineIndex - 1; i >= 0; i--) {
-      const l = allLines[i];
+      const l = allLines[i]!;
       const opens = (l.match(/\{/g) ?? []).length;
       const closes = (l.match(/\}/g) ?? []).length;
       depth += closes - opens;
@@ -133,7 +133,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     const pos = textarea.selectionStart;
     const textBeforeCursor = code.slice(0, pos);
     const linesBeforeCursor = textBeforeCursor.split("\n");
-    const currentLine = linesBeforeCursor[linesBeforeCursor.length - 1];
+    const currentLine = linesBeforeCursor[linesBeforeCursor.length - 1]!;
 
     // プレフィックスの長さを計算
     const prefixMatch = currentLine.match(/[\w#<>-]*$/);
@@ -186,7 +186,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
       }
       if (e.key === "Tab" || e.key === "Enter") {
         e.preventDefault();
-        applyCompletion(completionItems[selectedIndex]);
+        applyCompletion(completionItems[selectedIndex]!);
         return;
       }
       if (e.key === "Escape") {

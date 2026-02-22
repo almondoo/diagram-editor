@@ -42,7 +42,7 @@ export interface DiagramGroup {
   y: number;
   w: number;
   h: number;
-  parentGroup?: string;
+  parentGroup?: string | undefined;
 }
 
 export interface DiagramNote {

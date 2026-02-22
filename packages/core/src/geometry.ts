@@ -50,7 +50,7 @@ export function computeEdgeRoute(
   if (blocking.length === 0) return null;
 
   // 最初の障害物を上下に迂回するウェイポイントを計算
-  const blocker = blocking[0];
+  const blocker = blocking[0]!;
   const topY = blocker.y - padding;
   const bottomY = blocker.y + blocker.h + padding;
   const midX = blocker.x + blocker.w / 2;
@@ -87,12 +87,12 @@ export function computeEdgeRoute(
  */
 function catmullRomPath(points: Array<{ x: number; y: number }>): string {
   if (points.length < 2) return "";
-  const d: string[] = [`M${points[0].x},${points[0].y}`];
+  const d: string[] = [`M${points[0]!.x},${points[0]!.y}`];
   for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(points.length - 1, i + 2)];
+    const p0 = points[Math.max(0, i - 1)]!;
+    const p1 = points[i]!;
+    const p2 = points[i + 1]!;
+    const p3 = points[Math.min(points.length - 1, i + 2)]!;
     const cp1x = p1.x + (p2.x - p0.x) / 6;
     const cp1y = p1.y + (p2.y - p0.y) / 6;
     const cp2x = p2.x - (p3.x - p1.x) / 6;
@@ -118,7 +118,7 @@ export function buildEdgePath(
     // ラベルは全体の中点（セグメント数が奇数なら中間セグメントの中点）
     const midIdx = Math.floor(pts.length / 2);
     const p1 = pts[midIdx - 1] ?? from;
-    const p2 = pts[midIdx];
+    const p2 = pts[midIdx]!;
     const labelX = (p1.x + p2.x) / 2;
     const labelY = (p1.y + p2.y) / 2;
     return { pathD, labelX, labelY };

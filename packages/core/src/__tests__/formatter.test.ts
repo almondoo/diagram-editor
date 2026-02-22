@@ -186,7 +186,7 @@ describe("nested block syntax", () => {
     expect(result).toContain('node n1 "ノード" { shape=rect }');
     // ブロックが閉じられる
     const lines = result.split('\n');
-    expect(lines[lines.length - 1].trim()).toBe('}');
+    expect(lines[lines.length - 1]!.trim()).toBe('}');
   });
 
   it("深いネストもインデントが正しい", () => {
@@ -200,9 +200,9 @@ describe("nested block syntax", () => {
     // lv1 はインデントなし
     expect(lines[0]).toMatch(/^group lv1/);
     // lv2 は 2スペースインデント
-    expect(lines[1]).toMatch(/^  group lv2/);
+    expect(lines[1]).toMatch(/^ {2}group lv2/);
     // node a は 4スペースインデント
-    expect(lines[2]).toMatch(/^    node a/);
+    expect(lines[2]).toMatch(/^ {4}node a/);
     // 内側の閉じ括弧は 2スペース
     expect(lines[3]).toBe("  }");
     // 外側の閉じ括弧はインデントなし

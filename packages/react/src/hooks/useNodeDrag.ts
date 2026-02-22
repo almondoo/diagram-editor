@@ -35,7 +35,7 @@ export function useNodeDrag(
   const handleNodeTouchStart = useCallback((e: React.TouchEvent, nodeId: string) => {
     if (e.touches.length !== 1) return;
     e.stopPropagation();
-    const touch = e.touches[0];
+    const touch = e.touches[0]!;
     const isMulti = selectedIds.size > 1 && selectedIds.has(nodeId);
     setDragInfo({ nodeId, startX: touch.clientX, startY: touch.clientY, type: "move", isMulti });
   }, [selectedIds]);
@@ -71,7 +71,7 @@ export function useNodeDrag(
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
-      const touch = e.touches[0];
+      const touch = e.touches[0]!;
       if (applyDrag(touch.clientX, touch.clientY, 3)) {
         setDragInfo((d) => (d ? { ...d, startX: touch.clientX, startY: touch.clientY } : null));
       }
