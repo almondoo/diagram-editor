@@ -72,16 +72,26 @@ export function useCanvasInteraction(
     const getDist = (t1: Touch, t2: Touch) =>
       Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
 
+    const isBgTarget = (target: EventTarget | null): boolean => {
+      if (!target || !(target instanceof Element)) return false;
+      return target === svgRef.current || target.getAttribute("data-bg") === "true";
+    };
+
+    let isSingleFingerPan = false;
+
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
         isPinching = true;
+        isSingleFingerPan = false;
         initialPinchDist = getDist(e.touches[0], e.touches[1]);
         initialPinchZoom = zoomRef.current;
         touchStartPanX = panRef.current.x;
         touchStartPanY = panRef.current.y;
-      } else if (e.touches.length === 1 && !isPinching) {
+      } else if (e.touches.length === 1 && !isPinching && isBgTarget(e.target)) {
+        // 背景タッチのみパン（ノード・グループ上のタッチはスキップ）
         e.preventDefault();
+        isSingleFingerPan = true;
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
         touchStartPanX = panRef.current.x;
@@ -96,7 +106,7 @@ export function useCanvasInteraction(
         const scale = dist / initialPinchDist;
         const newZoom = Math.max(0.2, Math.min(3, initialPinchZoom * scale));
         setZoom(newZoom);
-      } else if (e.touches.length === 1 && !isPinching) {
+      } else if (e.touches.length === 1 && isSingleFingerPan) {
         e.preventDefault();
         const dx = e.touches[0].clientX - touchStartX;
         const dy = e.touches[0].clientY - touchStartY;
@@ -105,7 +115,8 @@ export function useCanvasInteraction(
     };
 
     const onTouchEnd = () => {
-      if (isPinching) isPinching = false;
+      isPinching = false;
+      isSingleFingerPan = false;
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });

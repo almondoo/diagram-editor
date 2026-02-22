@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { VIBRANT_COLORS } from "diagram-dsl-core";
-import type { DiagramNode } from "diagram-dsl-core";
+import type { DiagramNode, DiagramEdge } from "diagram-dsl-core";
 import { BottomSheet } from "./BottomSheet.js";
 
 const SHAPES = [
@@ -15,11 +15,21 @@ const SHAPES = [
   { value: "trapezoid", label: "台形", icon: "⏢" },
 ] as const;
 
+interface ConnectedEdge {
+  edge: DiagramEdge;
+  direction: "outgoing" | "incoming";
+  targetId: string;
+  targetLabel: string;
+}
+
 interface NodeBottomSheetProps {
   node: DiagramNode | null;
+  edges: ConnectedEdge[];
   open: boolean;
   onClose: () => void;
   onUpdateProp: (nodeId: string, key: string, value: string) => void;
+  onUpdateEdgeProp: (fromId: string, toId: string, key: string, value: string) => void;
+  onDeleteEdge: (fromId: string, toId: string) => void;
   onDelete: (nodeId: string) => void;
   onStartEdge: (fromId: string) => void;
 }
@@ -46,11 +56,57 @@ const inputStyle: CSSProperties = {
   boxSizing: "border-box",
 };
 
+function EdgeLabelInput({
+  edge,
+  onUpdate,
+}: {
+  edge: DiagramEdge;
+  onUpdate: (fromId: string, toId: string, key: string, value: string) => void;
+}) {
+  const [localValue, setLocalValue] = useState(edge.label);
+  const [editing, setEditing] = useState(false);
+
+  if (!editing && localValue !== edge.label) {
+    setLocalValue(edge.label);
+  }
+
+  return (
+    <input
+      value={editing ? localValue : edge.label}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onFocus={() => {
+        setLocalValue(edge.label);
+        setEditing(true);
+      }}
+      onBlur={() => {
+        setEditing(false);
+        const trimmed = localValue.trim();
+        if (trimmed !== edge.label) {
+          onUpdate(edge.from, edge.to, "label", trimmed);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      style={{
+        ...inputStyle,
+        padding: "6px 10px",
+        fontSize: 13,
+        flex: 1,
+      }}
+      placeholder="ラベルなし"
+    />
+  );
+}
+
 export function NodeBottomSheet({
   node,
+  edges,
   open,
   onClose,
   onUpdateProp,
+  onUpdateEdgeProp,
+  onDeleteEdge,
   onDelete,
   onStartEdge,
 }: NodeBottomSheetProps) {
@@ -154,6 +210,67 @@ export function NodeBottomSheet({
           ))}
         </div>
       </div>
+
+      {/* エッジ一覧 */}
+      {edges.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={sectionTitle}>エッジ ({edges.length})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {edges.map((ce, i) => (
+              <div
+                key={`${ce.edge.from}-${ce.edge.to}-${i}`}
+                style={{
+                  background: "#131720",
+                  border: "1px solid #2d3548",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                }}
+              >
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginBottom: 8,
+                  fontSize: 12,
+                  color: "#94a3b8",
+                }}>
+                  <span style={{
+                    background: ce.direction === "outgoing" ? "#1e3a5f" : "#3a1e5f",
+                    color: ce.direction === "outgoing" ? "#7dd3fc" : "#c4b5fd",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    fontSize: 10,
+                    fontWeight: 600,
+                  }}>
+                    {ce.direction === "outgoing" ? "OUT" : "IN"}
+                  </span>
+                  <span style={{ color: "#64748b" }}>
+                    {ce.direction === "outgoing" ? `→ ${ce.targetLabel}` : `${ce.targetLabel} →`}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <EdgeLabelInput edge={ce.edge} onUpdate={onUpdateEdgeProp} />
+                  <button
+                    onClick={() => onDeleteEdge(ce.edge.from, ce.edge.to)}
+                    style={{
+                      background: "#1a0a0a",
+                      border: "1px solid #7f1d1d",
+                      borderRadius: 6,
+                      color: "#fca5a5",
+                      padding: "6px 10px",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* アクション */}
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

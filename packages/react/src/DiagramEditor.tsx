@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { ShapeNode } from "./components/ShapeNode.js";
 import { EdgeLine } from "./components/EdgeLine.js";
 import { GroupBox } from "./components/GroupBox.js";
@@ -54,7 +54,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const {
     code, setCode, parsed, nodeById, groupById, noteStates,
     setNodeLayout, setNodeSize, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
-    addNode, addNote, addEdge, updateNodeProp, deleteNode, exportSVG, formatCode, resetLayout,
+    addNode, addNote, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, exportSVG, formatCode, resetLayout,
   } = state;
 
   const { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
@@ -165,6 +165,24 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove);
 
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
+
+  // ボトムシート用: 選択ノードに接続されたエッジ一覧
+  const connectedEdges = useMemo(() => {
+    if (!bottomSheetNodeId) return [];
+    return parsed.edges
+      .filter((e) => e.from === bottomSheetNodeId || e.to === bottomSheetNodeId)
+      .map((e) => {
+        const isOutgoing = e.from === bottomSheetNodeId;
+        const targetId = isOutgoing ? e.to : e.from;
+        const targetNode = nodeById[targetId];
+        return {
+          edge: e,
+          direction: isOutgoing ? "outgoing" as const : "incoming" as const,
+          targetId,
+          targetLabel: targetNode?.label ?? targetId,
+        };
+      });
+  }, [bottomSheetNodeId, parsed.edges, nodeById]);
 
   // ノードタップ処理: エッジモードならエッジ追加、通常ならボトムシート表示
   const handleNodeTap = useCallback((nodeId: string) => {
@@ -494,9 +512,12 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
           {/* ノード編集ボトムシート */}
           <NodeBottomSheet
             node={bottomSheetNodeId ? nodeById[bottomSheetNodeId] ?? null : null}
+            edges={connectedEdges}
             open={bottomSheetNodeId !== null}
             onClose={() => setBottomSheetNodeId(null)}
             onUpdateProp={updateNodeProp}
+            onUpdateEdgeProp={updateEdgeProp}
+            onDeleteEdge={deleteEdge}
             onDelete={deleteNode}
             onStartEdge={(fromId) => setEdgeFromId(fromId)}
           />

@@ -36,6 +36,8 @@ export interface DiagramState {
   addNote: () => void;
   addEdge: (fromId: string, toId: string) => void;
   updateNodeProp: (nodeId: string, key: string, value: string) => void;
+  updateEdgeProp: (fromId: string, toId: string, key: string, value: string) => void;
+  deleteEdge: (fromId: string, toId: string) => void;
   deleteNode: (nodeId: string) => void;
   exportSVG: () => void;
   formatCode: () => void;
@@ -428,6 +430,60 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     });
   }, []);
 
+  // エッジのプロパティをDSLコード内で更新
+  const updateEdgeProp = useCallback((fromId: string, toId: string, key: string, value: string) => {
+    setCode((c) => {
+      const lines = c.split("\n");
+      const edgePattern = new RegExp(`^edge\\s+${fromId}\\s*->\\s*${toId}(\\s|$)`);
+      const updated = lines.map((line) => {
+        const trimmed = line.trimStart();
+        if (!edgePattern.test(trimmed)) return line;
+        const indent = line.slice(0, line.length - trimmed.length);
+
+        if (key === "label") {
+          // ラベル付きの {} ブロックがあるか確認
+          const braceIdx = trimmed.indexOf("{");
+          if (braceIdx === -1) {
+            // {} なし → 追加
+            return `${indent}${trimmed} { label="${value}" }`;
+          }
+          const header = trimmed.slice(0, braceIdx);
+          const propsBlock = trimmed.slice(braceIdx);
+          const labelRegex = /label\s*=\s*("[^"]*"|\S+)/;
+          if (labelRegex.test(propsBlock)) {
+            return indent + header + propsBlock.replace(labelRegex, `label="${value}"`);
+          } else {
+            return indent + header + propsBlock.replace("{", `{ label="${value}"`);
+          }
+        }
+
+        // その他のプロパティ
+        const braceIdx = trimmed.indexOf("{");
+        if (braceIdx === -1) {
+          return `${indent}${trimmed} { ${key}=${value} }`;
+        }
+        const header = trimmed.slice(0, braceIdx);
+        const propsBlock = trimmed.slice(braceIdx);
+        const propRegex = new RegExp(`(${key})\\s*=\\s*(?:"[^"]*"|\\S+)`);
+        if (propRegex.test(propsBlock)) {
+          return indent + header + propsBlock.replace(propRegex, `${key}=${value}`);
+        } else {
+          return indent + header + propsBlock.replace("{", `{ ${key}=${value}`);
+        }
+      });
+      return updated.join("\n");
+    });
+  }, []);
+
+  // エッジをDSLコードから削除
+  const deleteEdge = useCallback((fromId: string, toId: string) => {
+    setCode((c) => {
+      const lines = c.split("\n");
+      const edgePattern = new RegExp(`^edge\\s+${fromId}\\s*->\\s*${toId}(\\s|$)`);
+      return lines.filter((line) => !edgePattern.test(line.trim())).join("\n");
+    });
+  }, []);
+
   // ノードをDSLコードから削除（関連エッジとスタイルも削除）
   const deleteNode = useCallback((nodeId: string) => {
     setCode((c) => {
@@ -535,6 +591,8 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     addNote,
     addEdge,
     updateNodeProp,
+    updateEdgeProp,
+    deleteEdge,
     deleteNode,
     exportSVG,
     formatCode,
