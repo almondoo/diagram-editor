@@ -16,3 +16,5 @@ export { formatPropsString, formatDSLCode } from "./formatter.js";
 export { highlightLine } from "./syntax.js";
 export { getShapePath, getNodeCenter, getEdgePoints, computeEdgeRoute, buildEdgePath } from "./geometry.js";
 export { escapeXml, generateExportSVG } from "./svg-export.js";
+export { getCompletionContext, getCompletionItems } from "./autocomplete.js";
+export type { CompletionContext, CompletionItem } from "./autocomplete.js";
