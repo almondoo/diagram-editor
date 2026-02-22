@@ -13,15 +13,17 @@ export const EdgeLine = memo(
     if (!fromNode || !toNode) return null;
     const { from, to } = getEdgePoints(fromNode, toNode);
     const { label, color, style, animate, thickness, arrow, curve, _routePoints } = edge;
-    // ランダムIDを廃止 → 固定IDでSVG marker の不要な再作成を防止
     const id = `edge-${edge.from}-${edge.to}`;
 
     const { pathD, labelX, labelY } = buildEdgePath(from, to, curve, _routePoints);
 
+    const hasEndMarker = arrow === "end" || arrow === "both";
+    const hasStartMarker = arrow === "start" || arrow === "both";
+
     return (
       <g>
         <defs>
-          {(arrow === "end" || arrow === "both" || !arrow) && (
+          {hasEndMarker && (
             <marker
               id={`ah-${id}`}
               markerWidth="10"
@@ -33,7 +35,7 @@ export const EdgeLine = memo(
               <polygon points="0 0, 10 3.5, 0 7" fill={color} />
             </marker>
           )}
-          {arrow === "both" && (
+          {hasStartMarker && (
             <marker
               id={`ah-start-${id}`}
               markerWidth="10"
@@ -52,8 +54,8 @@ export const EdgeLine = memo(
           stroke={color}
           strokeWidth={thickness}
           strokeDasharray={style === "dashed" ? "8,4" : "none"}
-          markerEnd={arrow !== "none" ? `url(#ah-${id})` : undefined}
-          markerStart={arrow === "both" ? `url(#ah-start-${id})` : undefined}
+          markerEnd={hasEndMarker ? `url(#ah-${id})` : undefined}
+          markerStart={hasStartMarker ? `url(#ah-start-${id})` : undefined}
           className={animate ? "edge-animate" : ""}
         />
         {label && (

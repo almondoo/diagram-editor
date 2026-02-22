@@ -1,8 +1,40 @@
+import type { CSSProperties } from "react";
 import { useViewport } from "../hooks/useViewport.js";
 
 interface SyntaxPanelProps {
   onClose: () => void;
 }
+
+const baseStyle: CSSProperties = {
+  overflow: "auto",
+  background: "#131720",
+  padding: 18,
+  fontSize: 11,
+  lineHeight: 1.7,
+  fontFamily: "'IBM Plex Mono', monospace",
+  color: "#94a3b8",
+};
+
+const mobileStyle: CSSProperties = {
+  ...baseStyle,
+  position: "fixed",
+  inset: 0,
+  zIndex: 200,
+  WebkitOverflowScrolling: "touch",
+};
+
+const desktopStyle: CSSProperties = {
+  ...baseStyle,
+  position: "absolute",
+  top: 42,
+  right: 12,
+  width: 420,
+  maxHeight: "calc(100vh - 140px)",
+  border: "1px solid #2d3548",
+  borderRadius: 10,
+  zIndex: 50,
+  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+};
 
 export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
   const { isMobile } = useViewport();
@@ -10,36 +42,7 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
   return (
     <div
       className="syntax-card"
-      style={isMobile ? {
-        position: "fixed",
-        inset: 0,
-        overflow: "auto",
-        background: "#131720",
-        padding: 18,
-        zIndex: 200,
-        fontSize: 11,
-        lineHeight: 1.7,
-        fontFamily: "'IBM Plex Mono', monospace",
-        color: "#94a3b8",
-        WebkitOverflowScrolling: "touch",
-      } : {
-        position: "absolute",
-        top: 42,
-        right: 12,
-        width: 420,
-        maxHeight: "calc(100vh - 140px)",
-        overflow: "auto",
-        background: "#131720",
-        border: "1px solid #2d3548",
-        borderRadius: 10,
-        padding: 18,
-        zIndex: 50,
-        fontSize: 11,
-        lineHeight: 1.7,
-        fontFamily: "'IBM Plex Mono', monospace",
-        color: "#94a3b8",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-      }}
+      style={isMobile ? mobileStyle : desktopStyle}
     >
       <div style={{ fontWeight: 700, color: "#e2e8f0", marginBottom: 12, fontSize: 14 }}>
         構文リファレンス
@@ -77,7 +80,33 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
       </table>
 
       <div style={{ color: "#f97316", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>エッジ (edge)</div>
-      <div style={{ color: "#cbd5e1", marginBottom: 2 }}>{'edge <from> -> <to> { プロパティ }'}</div>
+      <div style={{ color: "#cbd5e1", marginBottom: 2 }}>{'edge <from> 演算子 <to> { プロパティ }'}</div>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 6, fontSize: 10.5 }}>
+        <thead>
+          <tr style={{ borderBottom: "1px solid #2d3548" }}>
+            <td style={{ padding: "3px 6px", color: "#64748b", fontWeight: 600 }}>演算子</td>
+            <td style={{ padding: "3px 6px", color: "#64748b", fontWeight: 600 }}>矢印</td>
+            <td style={{ padding: "3px 6px", color: "#64748b", fontWeight: 600 }}>線種</td>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            ["->", "順方向 →", "実線"],
+            ["<-", "逆方向 ←", "実線"],
+            ["<->", "双方向 ↔", "実線"],
+            ["-->", "順方向 →", "破線"],
+            ["<--", "逆方向 ←", "破線"],
+            ["<-->", "双方向 ↔", "破線"],
+            ["--", "なし", "実線"],
+          ].map(([op, arrow, style]) => (
+            <tr key={op} style={{ borderBottom: "1px solid #1e293b" }}>
+              <td style={{ padding: "3px 6px", color: "#f97316", fontFamily: "monospace" }}>{op}</td>
+              <td style={{ padding: "3px 6px", color: "#e2e8f0" }}>{arrow}</td>
+              <td style={{ padding: "3px 6px", color: "#e2e8f0" }}>{style}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12, fontSize: 10.5 }}>
         <thead>
           <tr style={{ borderBottom: "1px solid #2d3548" }}>
@@ -90,10 +119,8 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
           {[
             ["label", '"テキスト" — エッジラベル', "なし"],
             ["color", "#hex (例: #94a3b8)", "#94a3b8"],
-            ["style", "solid | dashed", "solid"],
             ["animate", "true | false — ダッシュアニメ", "false"],
             ["thickness", "数値 (px) — 線の太さ", "1.5"],
-            ["arrow", "end | both | none — 矢印の位置", "end"],
             ["curve", "smooth | straight — カーブの種類", "smooth"],
           ].map(([k, v, d]) => (
             <tr key={k} style={{ borderBottom: "1px solid #1e293b" }}>

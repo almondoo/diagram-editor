@@ -17,6 +17,15 @@ import { syncNotes } from "./syncNotes.js";
 const GROUP_PADDING = 12;
 const GROUP_LABEL_H = 26;
 
+/** 指定グループIDとその全子孫グループIDを再帰的に収集する */
+function collectDescendantGroups(
+  id: string,
+  groupStates: Record<string, DiagramGroup>,
+): string[] {
+  const children = Object.values(groupStates).filter((g) => g.parentGroup === id);
+  return [id, ...children.flatMap((c) => collectDescendantGroups(c.id, groupStates))];
+}
+
 export interface DiagramState {
   code: string;
   setCode: React.Dispatch<React.SetStateAction<string>>;
@@ -155,33 +164,24 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     [parsedRaw, displayNodes, displayGroups, displayNotes, routedEdges],
   );
 
-  const nodeById = useMemo(() => {
-    const map: Record<string, DiagramNode> = {};
-    displayNodes.forEach((n) => (map[n.id] = n));
-    return map;
-  }, [displayNodes]);
+  const nodeById = useMemo(
+    () => Object.fromEntries(displayNodes.map((n) => [n.id, n])),
+    [displayNodes],
+  );
 
-  const groupById = useMemo(() => {
-    const map: Record<string, DiagramGroup> = {};
-    displayGroups.forEach((g) => (map[g.id] = g));
-    return map;
-  }, [displayGroups]);
+  const groupById = useMemo(
+    () => Object.fromEntries(displayGroups.map((g) => [g.id, g])),
+    [displayGroups],
+  );
 
   // ドラッグ用: nodeStates の x/y を更新（グループを自動拡張）
   const setNodeLayout = useCallback((nodeId: string, x: number, y: number) => {
     const node = nodeStatesRef.current[nodeId];
     if (!node) return;
 
-    if (!node.group) {
-      setNodeStates((prev) => {
-        const n = prev[nodeId];
-        if (!n) return prev;
-        return { ...prev, [nodeId]: { ...n, x, y } };
-      });
-      return;
-    }
+    const group = node.group ? groupStatesRef.current[node.group] : undefined;
 
-    const group = groupStatesRef.current[node.group];
+    // グループに属さない、またはグループが見つからない場合は位置のみ更新
     if (!group) {
       setNodeStates((prev) => {
         const n = prev[nodeId];
@@ -253,15 +253,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
   // グループ移動: グループとその内包ノードを一括移動（子孫グループも再帰的に移動）
   const setGroupLayout = useCallback((groupId: string, dx: number, dy: number) => {
-    // 再帰的に全子孫グループIDを収集する
-    const collectDescendants = (id: string): string[] => {
-      const children = Object.values(groupStatesRef.current).filter(
-        (g) => g.parentGroup === id,
-      );
-      return [id, ...children.flatMap((c) => collectDescendants(c.id))];
-    };
-
-    const groupsToMove = collectDescendants(groupId);
+    const groupsToMove = new Set(collectDescendantGroups(groupId, groupStatesRef.current));
 
     setGroupStates((prev) => {
       const updates: Record<string, DiagramGroup> = {};
@@ -272,15 +264,13 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       return { ...prev, ...updates };
     });
     setNodeStates((prev) => {
-      let changed = false;
       const updates: Record<string, DiagramNode> = {};
       for (const [id, node] of Object.entries(prev)) {
-        if (groupsToMove.includes(node.group)) {
+        if (groupsToMove.has(node.group)) {
           updates[id] = { ...node, x: node.x + dx, y: node.y + dy };
-          changed = true;
         }
       }
-      return changed ? { ...prev, ...updates } : prev;
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
     });
   }, []);
 
@@ -313,14 +303,6 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
   // 複数要素の一括移動
   const multiMoveLayout = useCallback((selectedIds: Set<string>, dx: number, dy: number) => {
-    // 選択グループの子孫グループを収集
-    const collectDescendants = (id: string): string[] => {
-      const children = Object.values(groupStatesRef.current).filter(
-        (g) => g.parentGroup === id,
-      );
-      return [id, ...children.flatMap((c) => collectDescendants(c.id))];
-    };
-
     // トップレベルの選択グループのみ展開（親グループが選択済みの場合はスキップ）
     const groupsToMove = new Set<string>();
     for (const id of selectedIds) {
@@ -328,7 +310,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       if (group) {
         const parentSelected = group.parentGroup && selectedIds.has(group.parentGroup);
         if (!parentSelected) {
-          for (const gid of collectDescendants(id)) {
+          for (const gid of collectDescendantGroups(id, groupStatesRef.current)) {
             groupsToMove.add(gid);
           }
         }

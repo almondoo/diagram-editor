@@ -237,19 +237,30 @@ function parseSegment(
       return;
     }
 
-    // Edge: edge from -> to { ... }
-    const edgeMatch = firstLine.match(/^edge\s+(\S+)\s*->\s*(\S+)(?:\s*\{([^}]*)\})?/);
+    // Edge: edge from OP to { ... }
+    // 演算子: <--> <-> <-- --> <- -> --
+    const edgeMatch = firstLine.match(/^edge\s+(\S+)\s*(<-->|<->|<--|-->|<-|->|--)\s*(\S+)(?:\s*\{([^}]*)\})?/);
     if (edgeMatch) {
-      const props = parseProps(edgeMatch[3] || "");
+      const OP_MAP: Record<string, { arrow: string; style: string }> = {
+        "<-->": { arrow: "both",  style: "dashed" },
+        "<->":  { arrow: "both",  style: "solid" },
+        "<--":  { arrow: "start", style: "dashed" },
+        "-->":  { arrow: "end",   style: "dashed" },
+        "<-":   { arrow: "start", style: "solid" },
+        "->":   { arrow: "end",   style: "solid" },
+        "--":   { arrow: "none",  style: "solid" },
+      };
+      const op = OP_MAP[edgeMatch[2]];
+      const props = parseProps(edgeMatch[4] || "");
       ctx.edges.push({
         from: edgeMatch[1],
-        to: edgeMatch[2],
+        to: edgeMatch[3],
         label: props.label || "",
         color: props.color || "#94a3b8",
-        style: props.style || "solid",
+        style: op.style,
         animate: props.animate === "true",
         thickness: parseFloat(props.thickness) || 1.5,
-        arrow: props.arrow || "end",
+        arrow: op.arrow,
         curve: props.curve || "smooth",
       });
       return;

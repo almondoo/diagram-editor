@@ -1,12 +1,12 @@
 export function formatPropsString(str: string): string {
   if (!str.trim()) return "";
   const props: Record<string, string> = {};
-  const LAYOUT_PROPS = new Set(["x", "y", "w", "h"]);
+  const LAYOUT_PROPS = new Set(["x", "y", "w", "h", "arrow", "style"]);
   const regex = /(\w+)\s*=\s*(?:"([^"]*)"|(\S+))/g;
   const order = [
     "shape", "color", "text", "border", "borderWidth",
     "icon", "fontSize", "opacity", "dashed",
-    "label", "style", "animate", "thickness", "arrow", "curve",
+    "label", "animate", "thickness", "curve",
   ];
   let m: RegExpExecArray | null;
   while ((m = regex.exec(str)) !== null) {
@@ -115,42 +115,28 @@ function normalizeSpaces(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/** DSL行のヘッダーとプロパティブロックを整形する共通ヘルパー */
+function formatHeaderAndProps(match: RegExpMatchArray, emptyFallback?: string): string {
+  const header = normalizeSpaces(match[1]);
+  const props = formatPropsString(match[2] || "");
+  if (props) return `${header} { ${props} }`;
+  return emptyFallback !== undefined ? `${header} ${emptyFallback}` : header;
+}
+
+const LINE_PATTERNS: Array<{ regex: RegExp; emptyFallback?: string }> = [
+  { regex: /^(node\s+\S+\s+"[^"]*")(?:\s*\{([^}]*)\})?/ },
+  { regex: /^(edge\s+\S+\s*(?:<-->|<->|<--|-->|<-|->|--)\s*\S+)(?:\s*\{([^}]*)\})?/ },
+  { regex: /^(group\s+\S+\s+"[^"]*")(?:\s*\{([^}]*)\})?/ },
+  { regex: /^(note\s+\S+\s+"[^"]*")(?:\s*\{([^}]*)\})?/ },
+  { regex: /^(style\s+\S+)\s*\{([^}]*)\}/, emptyFallback: "{}" },
+];
+
 function formatSingleLine(line: string): string {
   if (!line || line.startsWith("//") || line.startsWith("#")) return line;
 
-  const nodeMatch = line.match(/^(node\s+\S+\s+"[^"]*")(?:\s*\{([^}]*)\})?/);
-  if (nodeMatch) {
-    const header = normalizeSpaces(nodeMatch[1]);
-    const props = formatPropsString(nodeMatch[2] || "");
-    return props ? `${header} { ${props} }` : header;
-  }
-
-  const edgeMatch = line.match(/^(edge\s+\S+\s*->\s*\S+)(?:\s*\{([^}]*)\})?/);
-  if (edgeMatch) {
-    const header = normalizeSpaces(edgeMatch[1]);
-    const props = formatPropsString(edgeMatch[2] || "");
-    return props ? `${header} { ${props} }` : header;
-  }
-
-  const groupMatch = line.match(/^(group\s+\S+\s+"[^"]*")(?:\s*\{([^}]*)\})?/);
-  if (groupMatch) {
-    const header = normalizeSpaces(groupMatch[1]);
-    const props = formatPropsString(groupMatch[2] || "");
-    return props ? `${header} { ${props} }` : header;
-  }
-
-  const noteMatch = line.match(/^(note\s+\S+\s+"[^"]*")(?:\s*\{([^}]*)\})?/);
-  if (noteMatch) {
-    const header = normalizeSpaces(noteMatch[1]);
-    const props = formatPropsString(noteMatch[2] || "");
-    return props ? `${header} { ${props} }` : header;
-  }
-
-  const styleMatch = line.match(/^(style\s+\S+)\s*\{([^}]*)\}/);
-  if (styleMatch) {
-    const header = normalizeSpaces(styleMatch[1]);
-    const props = formatPropsString(styleMatch[2] || "");
-    return props ? `${header} { ${props} }` : `${header} {}`;
+  for (const { regex, emptyFallback } of LINE_PATTERNS) {
+    const match = line.match(regex);
+    if (match) return formatHeaderAndProps(match, emptyFallback);
   }
 
   return line;

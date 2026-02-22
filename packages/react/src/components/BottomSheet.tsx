@@ -13,25 +13,20 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
   // 背景タップで閉じる
   useEffect(() => {
     if (!open) return;
-    const handleTouch = (e: TouchEvent) => {
-      if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    const handleMouse = (e: MouseEvent) => {
+    const handleOutsideInteraction = (e: Event) => {
       if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
     // 少し遅延して登録（開いた直後のタップで閉じないように）
     const timer = setTimeout(() => {
-      document.addEventListener("touchstart", handleTouch);
-      document.addEventListener("mousedown", handleMouse);
+      document.addEventListener("touchstart", handleOutsideInteraction);
+      document.addEventListener("mousedown", handleOutsideInteraction);
     }, 100);
     return () => {
       clearTimeout(timer);
-      document.removeEventListener("touchstart", handleTouch);
-      document.removeEventListener("mousedown", handleMouse);
+      document.removeEventListener("touchstart", handleOutsideInteraction);
+      document.removeEventListener("mousedown", handleOutsideInteraction);
     };
   }, [open, onClose]);
 

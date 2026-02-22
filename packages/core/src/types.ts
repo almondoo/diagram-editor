@@ -27,6 +27,7 @@ export interface DiagramEdge {
   style: string;
   animate: boolean;
   thickness: number;
+  /** "end" | "start" | "both" | "none" */
   arrow: string;
   curve: string;
   /** ランタイム専用: エッジ迂回ウェイポイント（DSLには保存しない） */

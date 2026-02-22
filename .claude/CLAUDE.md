@@ -1,76 +1,49 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-このファイルはリポジトリで作業する際のClaude Code (claude.ai/code) へのガイダンスを提供します。
-
-## 開発サーバー
-
-アプリは **http://localhost:5173** で動作する。動作確認はこのURLをブラウザで参照すること。
-
-## ブラウザ確認（Chrome）
-
-コード変更後にブラウザで動作確認する場合は以下のURLを使用する:
-
-- **開発サーバー**: http://localhost:5173（HMR あり、`make up` で自動起動）
-- **プレビューサーバー**: http://localhost:4173（本番ビルド確認用、`make preview` で起動）
-
-`make preview` はすべてのパッケージをビルドしてから Vite のプレビューサーバーを起動する。
-`packages/` を変更した場合は開発サーバー（5173）だとビルドが古い可能性があるため、`make preview`（4173）で確認するのが確実。
+このファイルはリポジトリで作業する際のClaude Code へのガイダンスを提供する。
 
 ## コマンド実行の原則
 
-**pnpm・node など、すべてのコマンドは必ず `docker compose exec app <コマンド>` を使ってDockerコンテナ内で実行すること。ローカルの pnpm / node を直接使ってはならない。**
+**すべてのコマンドは必ず `docker compose exec app <コマンド>` で実行。ローカルの pnpm / node を直接使わない。**
+
+### make コマンド
+
+| コマンド | 説明 |
+|---|---|
+| `make up` | コンテナ起動 (`pnpm install && pnpm -r build && dev`, http://localhost:5173) |
+| `make down` | コンテナ停止 |
+| `make clean` | 停止 + ボリューム削除 (pnpm 再インストール強制) |
+| `make logs` | 開発サーバーのログ追跡 |
+| `make build` | 全パッケージビルド |
+| `make typecheck` | 全パッケージ型チェック |
+| `make test` | diagram-dsl-core テスト |
+| `make preview` | 全ビルド + プレビューサーバー (http://localhost:4173) |
+
+### よく使う docker コマンド
 
 ```bash
-docker compose exec app pnpm -r typecheck           # 全パッケージの型チェック
-docker compose exec app pnpm -r lint                # 全パッケージのlint
-docker compose exec app pnpm -r build               # 全パッケージのビルド
-docker compose exec app pnpm --filter diagram-dsl-core test   # coreのテスト
-docker compose exec app pnpm install                # 依存関係インストール
-docker compose exec app sh                          # コンテナ内シェル
+docker compose exec app pnpm -r typecheck           # 型チェック
+docker compose exec app pnpm -r lint                # lint (ESLint v9 flat config)
+docker compose exec app pnpm -r build               # 全ビルド
+docker compose exec app pnpm --filter diagram-dsl-core test   # core テスト
+docker compose exec app pnpm --filter diagram-dsl-core build  # core ビルド
+docker compose exec app pnpm --filter diagram-dsl-react build # react ビルド
 ```
 
-コンテナの起動・停止には `make` コマンドを使用する:
+### コード変更後の必須チェック
 
-```bash
-make up        # コンテナ起動 (pnpm install && pnpm -r build && dev, http://localhost:5173)
-make down      # コンテナ停止
-make clean     # 停止 + ボリューム削除 (pnpm 再インストールを強制)
-make logs      # 開発サーバーのログを追跡
-make build     # 全パッケージをビルド
-make typecheck # 全パッケージの型チェック
-make test      # diagram-dsl-core のテスト
-make preview   # 全ビルド + プレビューサーバー起動 (http://localhost:4173)
-```
+変更後は必ず **typecheck → lint → build** を実行。core 変更時は test も実行。
 
-`make up` を初回実行すると `pnpm install && pnpm -r build && pnpm --filter diagram-editor-web dev --host` が自動的に実行される。
+### packages 変更後のビルド必須
 
-## コード変更後のチェック
+`packages/core` or `packages/react` を変更した場合、**必ずビルドすること**。`apps/web` はビルド済み `dist/` を参照するため、ソース変更だけではブラウザに反映されない。ビルド後はブラウザをリロード。
 
-**コードを変更した際は、必ず以下をDockerコンテナ内で実行して確認すること:**
+### サーバー確認
 
-```bash
-docker compose exec app pnpm -r typecheck   # 型チェック
-docker compose exec app pnpm -r lint        # lintチェック (ESLint)
-docker compose exec app pnpm -r build       # ビルド確認
-docker compose exec app pnpm --filter diagram-dsl-core test  # テスト (coreを変更した場合)
-```
+- **開発サーバー**: http://localhost:5173 (HMR, `make up`)
+- **プレビューサーバー**: http://localhost:4173 (`make preview`, 本番ビルド確認用)
 
-lintはルートの `eslint.config.mjs` で一元管理 (ESLint v9 flat config)。TypeScript + React + React Hooks の全ルールをカバー。
-
-## packages 変更後のビルド必須
-
-`packages/core` または `packages/react` を変更した場合、**必ずビルドを実行すること**。
-`apps/web` の開発サーバーはビルド済みの `dist/` を参照しているため、ソース変更だけではブラウザに反映されない。
-
-```bash
-docker compose exec app pnpm --filter diagram-dsl-core build    # core を変更した場合
-docker compose exec app pnpm --filter diagram-dsl-react build   # react を変更した場合
-docker compose exec app pnpm -r build                           # 両方変更した場合
-```
-
-ビルド後はブラウザをリロードすること。
+`packages/` 変更時は `make preview` (4173) で確認するのが確実。
 
 ## モノレポ構造
 
@@ -81,11 +54,11 @@ diagram-editor/
 │   │   └── src/       # types, parser, layout, formatter, syntax, geometry, svg-export
 │   └── react/         # diagram-dsl-react (ライブラリ本体)
 │       └── src/
-│           ├── components/  # SVGコンポーネント群 (ShapeNode, EdgeLine, GroupBox, NoteBox,
-│           │                #   CodeEditor, Toolbar, Minimap, SyntaxPanel)
+│           ├── components/  # ShapeNode, EdgeLine, GroupBox, NoteBox,
+│           │                # CodeEditor, Toolbar, Minimap, SyntaxPanel
 │           ├── hooks/       # useDiagramState, useNodeDrag, useGroupDrag,
-│           │                #   useCanvasInteraction, useSplitPane,
-│           │                #   syncNodes, syncGroups, syncNotes
+│           │                # useCanvasInteraction, useSplitPane,
+│           │                # syncNodes, syncGroups, syncNotes
 │           ├── DiagramEditor.tsx
 │           └── styles.ts
 ├── apps/
@@ -94,11 +67,8 @@ diagram-editor/
 │           ├── components/  # AppHeader.tsx, SaveModal.tsx
 │           ├── data/        # templates.ts
 │           ├── hooks/       # useLocalDiagrams.ts
-│           └── routes/home.tsx  # アプリのエントリポイント
-├── docker-compose.yml
-├── Dockerfile
-├── Makefile
-└── pnpm-workspace.yaml
+│           └── routes/home.tsx
+├── docker-compose.yml, Dockerfile, Makefile, pnpm-workspace.yaml
 ```
 
 ## アーキテクチャ
@@ -106,103 +76,62 @@ diagram-editor/
 ### データフロー
 
 ```
-code (文字列ステート)
-  → parseDSL()       → ParseResult { nodes, edges, groups, notes, errors }
-  → nodeStates / groupStates (ドラッグ位置を保持するミラーステート)
-  → autoLayout()     → 位置が割り当てられ、__RANDOM__ カラーが解決される
-  → parsed (useMemo) → SVG コンポーネントでレンダリング
+code (文字列) → parseDSL() → ParseResult { nodes, edges, groups, notes, errors }
+  → nodeStates/groupStates (ドラッグ位置ミラー) → autoLayout() → SVG レンダリング
 ```
 
-### 二層ステートモデル
-
-`useDiagramState` が管理する状態は DSL コードと位置ステートの2層：
+### 二層ステートモデル (`useDiagramState`)
 
 - **`code`**: DSL 文字列。パース・フォーマット・ドラッグ書き戻しのソース
-- **`nodeStates`** (`Record<string, DiagramNode>`): ドラッグ操作で変更されたノードの位置・サイズ
-- **`groupStates`** (`Record<string, DiagramGroup>`): ドラッグ/リサイズで変更されたグループの位置・サイズ
+- **`nodeStates`** / **`groupStates`**: ドラッグ/リサイズで変更された位置・サイズ
 
-`syncNodes.ts` / `syncGroups.ts` が `code` 変更時にステートを同期（新規追加は `_needsPosition: true` でマーク → `autoLayout` で配置）。
+`syncNodes.ts` / `syncGroups.ts` が `code` 変更時にステートを同期（新規は `_needsPosition: true` → `autoLayout` で配置）。
 
 ### ドラッグ→コード書き戻し
 
-`useNodeDrag` フックで管理。DSL コード文字列の `x=` と `y=` の値を正規表現で直接置換する:
-
-```ts
-line.replace(/x=\S+/, `x=${newX}`)
-```
-
-グループドラッグは `useGroupDrag` が担当し、グループと内包ノード（子孫グループ含む）を一括移動する。
+`useNodeDrag`: DSL の `x=`/`y=` を正規表現で直接置換 (`line.replace(/x=\S+/, ...)`)。
+`useGroupDrag`: グループと内包ノード（子孫グループ含む）を一括移動。
 
 ### localStorage 永続化
 
-`useLocalDiagrams` フック（`apps/web/app/hooks/useLocalDiagrams.ts`）が管理:
+`useLocalDiagrams` フック（`apps/web`）。キー: `diagramcraft_saved_diagrams`。
+`SavedDiagram { id, name, code, nodeStates, groupStates, savedAt }`。Cmd+S で保存。
 
-- **ストレージキー**: `diagramcraft_saved_diagrams`
-- **保存データ**: `SavedDiagram { id, name, code, nodeStates, groupStates, savedAt }`
-- `home.tsx` が `currentDiagramId: string | null` を追跡し、Command+S で上書き保存 / 未保存なら名前入力モーダルを開く
+### geometry.ts
 
-### geometry.ts の役割
-
-`packages/core/src/geometry.ts` が `getShapePath`, `getNodeCenter`, `getEdgePoints` を提供。
-`ShapeNode.tsx`、`EdgeLine.tsx`、`svg-export.ts` の3箇所が共通してこれをインポートする。
+`getShapePath`, `getNodeCenter`, `getEdgePoints` を提供。`ShapeNode.tsx`・`EdgeLine.tsx`・`svg-export.ts` が共通インポート。
 
 ## ライブラリとアプリの責務分離
 
-`packages/react`（ライブラリ）と `apps/web`（アプリ）の責務を明確に分離する。新機能を追加する際は、この基準に従って配置先を判断すること。
+判断基準: 「`diagram-dsl-react` を他アプリで使い回す時も必要か？」→ Yes: packages / No: apps/web
 
-### ライブラリ（packages/react・packages/core）に属するもの
+**ライブラリ (packages)**: SVG描画, コードエディタ, ドラッグ/ズーム/パン, ツールバー, ミニマップ, 構文パネル, ステート管理 (`useDiagramState`), DSLパース/フォーマット/レイアウト
 
-- **チャート描画**: ノード・エッジ・グループ・ノートの SVG レンダリング
-- **コードエディタ**: DSL 入力、シンタックスハイライト、エラー表示
-- **ダイアグラム操作**: ノード・グループ・ノートのドラッグ、ズーム・パン、選択矩形
-- **ツールバー**: ノード追加、SVG エクスポート、ズーム操作、レイアウトリセット
-- **ミニマップ**: キャンバス全体の俯瞰ビュー
-- **構文ヘルプパネル**: DSL 構文リファレンスの表示
-- **ステート管理フック**: `useDiagramState`（`DiagramState` 型を export し、アプリから `state` prop として受け取る）
-- **DSL パース・フォーマット・レイアウト計算**: `packages/core` に実装
-
-### アプリ（apps/web）に属するもの
-
-- **ブランディング・ヘッダー**: ロゴ、アプリ名、ナビゲーション（`AppHeader.tsx`）
-- **テンプレート**: テンプレートデータ定義とテンプレートボタン UI（`data/templates.ts`）
-- **保存・読込 UI**: 名前入力モーダル、マイ作品ドロップダウン（`SaveModal.tsx`）
-- **localStorage 永続化**: `useLocalDiagrams` フック、`SavedDiagram` 型
-- **Cmd+S キーバインド**: 保存トリガー
-- **トースト通知**: 保存完了フィードバック
-
-### API パターン（State object prop）
+**アプリ (apps/web)**: ヘッダー/ブランディング, テンプレート, 保存/読込UI, localStorage永続化, Cmd+Sキーバインド, トースト通知
 
 ```tsx
-// apps/web: ステートを生成してライブラリに渡す
+// API: State object prop パターン
 const state = useDiagramState(TEMPLATES.architecture);
 <DiagramEditor state={state} style={{ flex: 1 }} />
+// DiagramEditor は state: DiagramState を受け取るだけ。テンプレート・保存を知らない。
 ```
-
-ライブラリ側の `DiagramEditor` は `state: DiagramState` を受け取るだけで、
-テンプレート・保存・永続化を一切知らない。
-
-### 判断基準
-
-「この機能は `diagram-dsl-react` を他のアプリで使い回したときも必要か？」
-
-- **Yes** → ライブラリ（packages）に置く
-- **No / アプリ固有** → アプリ（apps/web）に置く
 
 ## 主な制約
 
-- **SSR なし**: `react-router.config.ts` に `ssr: false` が設定されている。純粋なクライアントサイド SPA。
-- **インラインスタイルのみ**: Tailwind クラスは使用しない。スタイルはすべて React のインライン `style={}` プロパティで記述する。
-- **pnpm ストア**: `.pnpm-store/` はプロジェクトディレクトリ内（Docker ボリューム）に配置される。
-- **esbuild スクリプトのブロック**: pnpm セキュリティが esbuild のインストールスクリプトをブロックするが、tsup/Vite はプリビルドされたバイナリを使用するため正常に動作する。
+- **SSR 有効**: `react-router.config.ts` に `ssr: true` + `vercelPreset()`。Vercel デプロイ。
+- **インラインスタイルのみ**: Tailwind クラス不使用。`style={}` で記述。
+- **pnpm ストア**: `.pnpm-store/` はプロジェクト内 Docker ボリューム。
+- **esbuild**: pnpm セキュリティがスクリプトをブロックするが tsup/Vite は正常動作。
 
 ## DSL シンタックス
 
 ```
 node <id> "ラベル" { shape=rect color=#6366f1 x=100 y=100 w=150 h=60 }
-edge <from> -> <to> { label="テキスト" color=#hex style=dashed|solid animate=true }
+edge <from> OP <to> { label="テキスト" color=#hex animate=true }
+# OP: -> <- <-> --> <-- <--> --
 group <id> "ラベル" { color=#hex x=0 y=0 w=300 h=200
-  group <child-id> "子グループ" { ... }   # ネストされたグループ
-  node <id> ...                            # グループ内ノード
+  group <child-id> "子グループ" { ... }
+  node <id> ...
 }
 note <id> "テキスト" { x=0 y=0 color=#hex }
 style <nodeId> { color=#hex shape=rect border=#hex text=#hex }
@@ -211,4 +140,18 @@ style <nodeId> { color=#hex shape=rect border=#hex text=#hex }
 
 シェイプ: `rect`, `stadium`, `diamond`, `ellipse`, `circle`, `cylinder`, `hexagon`, `parallelogram`, `trapezoid`
 
-グループはネスト可能。`DiagramGroup.parentGroup` フィールドで親子関係を表現する。
+グループはネスト可能。`DiagramGroup.parentGroup` で親子関係を表現。
+
+## Subagent の活用
+
+**独立した作業は並列で subagent に委譲し、待ち時間を最小化する。**
+
+| ユースケース | subagent_type | 備考 |
+|---|---|---|
+| コードベース調査 | `Explore` | 読み取り専用、高速 |
+| 実装計画 | `Plan` | 読み取り専用 |
+| コード変更 | `general-purpose` | フル権限 |
+| コードレビュー | `pr-review-toolkit:code-reviewer` | PR前品質チェック |
+| テスト分析 | `pr-review-toolkit:pr-test-analyzer` | カバレッジ確認 |
+
+注意: subagent と同じ調査をメインで重複しない / 結果はサマリーを報告 / 依存作業は順序を守る

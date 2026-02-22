@@ -42,45 +42,39 @@ export function useNodeDrag(
 
   useEffect(() => {
     if (!dragInfo) return;
-    const handleMove = (e: MouseEvent) => {
-      const dx = (e.clientX - dragInfo.startX) / zoom;
-      const dy = (e.clientY - dragInfo.startY) / zoom;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+    const applyDrag = (clientX: number, clientY: number, threshold: number): boolean => {
+      const dx = (clientX - dragInfo.startX) / zoom;
+      const dy = (clientY - dragInfo.startY) / zoom;
+      if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return false;
 
       if (dragInfo.type === "resize") {
         const node = nodeById[dragInfo.nodeId];
-        if (!node) return;
+        if (!node) return false;
         setNodeSize(dragInfo.nodeId, node.w + dx, node.h + dy);
       } else if (dragInfo.isMulti) {
         onMultiMove(dx, dy);
       } else {
         const node = nodeById[dragInfo.nodeId];
-        if (!node) return;
+        if (!node) return false;
         setNodeLayout(dragInfo.nodeId, Math.round(node.x + dx), Math.round(node.y + dy));
       }
-      setDragInfo((d) => (d ? { ...d, startX: e.clientX, startY: e.clientY } : null));
+      return true;
+    };
+
+    const handleMove = (e: MouseEvent) => {
+      if (applyDrag(e.clientX, e.clientY, 1)) {
+        setDragInfo((d) => (d ? { ...d, startX: e.clientX, startY: e.clientY } : null));
+      }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
       const touch = e.touches[0];
-      const dx = (touch.clientX - dragInfo.startX) / zoom;
-      const dy = (touch.clientY - dragInfo.startY) / zoom;
-      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
-
-      if (dragInfo.type === "resize") {
-        const node = nodeById[dragInfo.nodeId];
-        if (!node) return;
-        setNodeSize(dragInfo.nodeId, node.w + dx, node.h + dy);
-      } else if (dragInfo.isMulti) {
-        onMultiMove(dx, dy);
-      } else {
-        const node = nodeById[dragInfo.nodeId];
-        if (!node) return;
-        setNodeLayout(dragInfo.nodeId, Math.round(node.x + dx), Math.round(node.y + dy));
+      if (applyDrag(touch.clientX, touch.clientY, 3)) {
+        setDragInfo((d) => (d ? { ...d, startX: touch.clientX, startY: touch.clientY } : null));
       }
-      setDragInfo((d) => (d ? { ...d, startX: touch.clientX, startY: touch.clientY } : null));
     };
 
     const handleUp = () => setDragInfo(null);

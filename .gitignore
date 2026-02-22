@@ -17,5 +17,8 @@ packages/*/dist/
 .claude/settings.local.json
 ./CLAUDE.md
 
+# Vercel
+.vercel/
+
 # Git worktrees
 .worktrees/

@@ -20,7 +20,9 @@ function getInfo(w: number): ViewportInfo {
 }
 
 export function useViewport(): ViewportInfo {
-  const [info, setInfo] = useState<ViewportInfo>(() => getInfo(window.innerWidth));
+  const [info, setInfo] = useState<ViewportInfo>(() =>
+    typeof window !== "undefined" ? getInfo(window.innerWidth) : getInfo(DESKTOP_BREAKPOINT)
+  );
 
   useEffect(() => {
     let raf = 0;

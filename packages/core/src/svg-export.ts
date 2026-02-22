@@ -15,27 +15,20 @@ export function generateExportSVG(parsed: ParseResult): string | null {
   const { nodes, edges, groups, notes } = parsed;
   if (nodes.length === 0 && groups.length === 0 && notes.length === 0) return null;
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  nodes.forEach((n) => {
-    minX = Math.min(minX, n.x - 10);
-    minY = Math.min(minY, n.y - 10);
-    maxX = Math.max(maxX, n.x + n.w + 10);
-    maxY = Math.max(maxY, n.y + n.h + 10);
-  });
-  groups.forEach((g) => {
-    minX = Math.min(minX, g.x - 10);
-    minY = Math.min(minY, g.y - 10);
-    maxX = Math.max(maxX, g.x + g.w + 10);
-    maxY = Math.max(maxY, g.y + g.h + 10);
-  });
-  notes.forEach((n) => {
-    minX = Math.min(minX, n.x - 10);
-    minY = Math.min(minY, n.y - 10);
-    maxX = Math.max(maxX, n.x + n.text.length * 7 + 30);
-    maxY = Math.max(maxY, n.y + 40);
-  });
+  // 全要素のバウンディングボックスを集約
+  const rects = [
+    ...nodes.map((n) => ({ l: n.x - 10, t: n.y - 10, r: n.x + n.w + 10, b: n.y + n.h + 10 })),
+    ...groups.map((g) => ({ l: g.x - 10, t: g.y - 10, r: g.x + g.w + 10, b: g.y + g.h + 10 })),
+    ...notes.map((n) => ({ l: n.x - 10, t: n.y - 10, r: n.x + n.text.length * 7 + 30, b: n.y + 40 })),
+  ];
 
-  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 400; maxY = 300; }
+  let minX = 0, minY = 0, maxX = 400, maxY = 300;
+  if (rects.length > 0) {
+    minX = Math.min(...rects.map((r) => r.l));
+    minY = Math.min(...rects.map((r) => r.t));
+    maxX = Math.max(...rects.map((r) => r.r));
+    maxY = Math.max(...rects.map((r) => r.b));
+  }
 
   const padding = 40;
   const svgW = maxX - minX + padding * 2;
@@ -49,8 +42,12 @@ export function generateExportSVG(parsed: ParseResult): string | null {
 
   edges.forEach((edge, i) => {
     const mid = `ah-export-${i}`;
-    if (edge.arrow !== "none") {
+    const midStart = `ah-start-export-${i}`;
+    if (edge.arrow === "end" || edge.arrow === "both") {
       svgContent += `<defs><marker id="${mid}" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="${escapeXml(edge.color)}"/></marker></defs>\n`;
+    }
+    if (edge.arrow === "start" || edge.arrow === "both") {
+      svgContent += `<defs><marker id="${midStart}" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto"><polygon points="10 0, 0 3.5, 10 7" fill="${escapeXml(edge.color)}"/></marker></defs>\n`;
     }
   });
 
@@ -77,9 +74,11 @@ export function generateExportSVG(parsed: ParseResult): string | null {
     const { pathD, labelX, labelY } = buildEdgePath(from, to, edge.curve, edge._routePoints);
 
     const mid = `ah-export-${i}`;
+    const midStart = `ah-start-export-${i}`;
     const dashArr = edge.style === "dashed" ? ' stroke-dasharray="8,4"' : "";
-    const markerEnd = edge.arrow !== "none" ? ` marker-end="url(#${mid})"` : "";
-    svgContent += `<path d="${pathD}" fill="none" stroke="${escapeXml(edge.color)}" stroke-width="${edge.thickness}"${dashArr}${markerEnd}/>\n`;
+    const markerEnd = edge.arrow === "end" || edge.arrow === "both" ? ` marker-end="url(#${mid})"` : "";
+    const markerStart = edge.arrow === "start" || edge.arrow === "both" ? ` marker-start="url(#${midStart})"` : "";
+    svgContent += `<path d="${pathD}" fill="none" stroke="${escapeXml(edge.color)}" stroke-width="${edge.thickness}"${dashArr}${markerEnd}${markerStart}/>\n`;
 
     if (edge.label) {
       const lw = edge.label.length * 8 + 8;

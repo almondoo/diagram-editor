@@ -24,8 +24,8 @@ function makeNode(id: string, needsPos = true, group = ""): DiagramNode {
   };
 }
 
-function makeGroup(id: string, x = 0, y = 0, w = 300, h = 200): DiagramGroup {
-  return { id, label: id, x, y, w, h, color: "#6366f1" };
+function makeGroup(id: string, x = 0, y = 0, w = 300, h = 200, parentGroup?: string): DiagramGroup {
+  return { id, label: id, x, y, w, h, color: "#6366f1", parentGroup };
 }
 
 const EDGE = (from: string, to: string): DiagramEdge => ({
@@ -144,5 +144,69 @@ describe("autoLayout", () => {
     // g1 → g2 → g3 の順に x が増える (LR layout)
     expect(rg1.x).toBeLessThan(rg2.x);
     expect(rg2.x).toBeLessThan(rg3.x);
+  });
+
+  it("全ノードが既配置ならgroupUpdatesは空", () => {
+    const nodes = [makeNode("a", false), makeNode("b", false)];
+    const { groupUpdates } = autoLayout(nodes, []);
+    expect(groupUpdates).toEqual({});
+  });
+
+  it("単一ノードでもレイアウトが動作する", () => {
+    const nodes = [makeNode("a")];
+    const { nodes: result } = autoLayout(nodes, []);
+    expect(result[0].x).not.toBeNaN();
+    expect(result[0].y).not.toBeNaN();
+  });
+
+  it("グループに属しないフリーノードがグループの下に配置される", () => {
+    const group = makeGroup("g1", 0, 0, 300, 200);
+    const nodes = [
+      makeNode("a", true, "g1"),
+      makeNode("free", true, ""),
+    ];
+    const { nodes: result, groupUpdates } = autoLayout(nodes, [], [group]);
+    const g = groupUpdates["g1"] ?? group;
+    const freeNode = result.find(n => n.id === "free")!;
+    // フリーノードはグループの下に配置される
+    expect(freeNode.y).toBeGreaterThanOrEqual(g.y + g.h);
+  });
+
+  it("グループ内のエッジに基づいてノードを並べる", () => {
+    const group = makeGroup("g1", 0, 0, 500, 300);
+    const nodes = [
+      makeNode("a", true, "g1"),
+      makeNode("b", true, "g1"),
+      makeNode("c", true, "g1"),
+    ];
+    const edges = [EDGE("a", "b"), EDGE("b", "c")];
+    const { nodes: result } = autoLayout(nodes, edges, [group]);
+    const byId = Object.fromEntries(result.map(n => [n.id, n]));
+    // a -> b -> c の順に x が増える (LR layout)
+    expect(byId.a.x).toBeLessThan(byId.b.x);
+    expect(byId.b.x).toBeLessThan(byId.c.x);
+  });
+
+  it("複数の__RANDOM__カラーが全て解決される", () => {
+    const nodes = [
+      { ...makeNode("a"), color: "__RANDOM__" },
+      { ...makeNode("b"), color: "__RANDOM__" },
+      { ...makeNode("c"), color: "__RANDOM__" },
+    ];
+    const { nodes: result } = autoLayout(nodes, []);
+    for (const n of result) {
+      expect(n.color).not.toBe("__RANDOM__");
+      expect(n.color).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  it("parentGroupがあるグループはdagreの対象外", () => {
+    const parent = makeGroup("parent", 0, 0, 500, 400);
+    const child = makeGroup("child", 10, 10, 200, 150, "parent");
+    const nodes = [
+      makeNode("a", true, "parent"),
+      makeNode("b", true, "child"),
+    ];
+    expect(() => autoLayout(nodes, [], [parent, child])).not.toThrow();
   });
 });

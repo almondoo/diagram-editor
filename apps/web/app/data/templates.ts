@@ -13,7 +13,7 @@ edge input -> process
 edge process -> check
 edge check -> output { label="Yes" }
 edge check -> error { label="No" }
-edge error -> input { label="再入力" style=dashed }
+edge error --> input { label="再入力" }
 edge output -> end`,
 
   sequence: `// 📨 シーケンス図
@@ -33,7 +33,7 @@ edge server -> req2
 edge req2 -> db { label="SQL Query" }
 edge db -> res2 { label="Row Data" }
 edge res2 -> server
-edge server -> cache { label="Update" style=dashed }
+edge server --> cache { label="Update" }
 edge server -> res1
 edge res1 -> client { label="HTTP Response" }`,
 
@@ -70,11 +70,11 @@ group data "Data Layer" {
 
 edge react -> nginx { label="Proxy" }
 edge nginx -> api { label="REST" animate=true }
-edge api -> worker { label="Task" style=dashed }
+edge api --> worker { label="Task" }
 edge api -> pg { label="SQL" }
 edge api -> redis { label="Cache" }
-edge worker -> pg { label="Write" style=dashed }
-edge worker -> redis { label="Queue" style=dashed }`,
+edge worker --> pg { label="Write" }
+edge worker --> redis { label="Queue" }`,
 
   mindmap: `// 🧠 マインドマップ
 node center "プロジェクト計画" { shape=stadium fontSize=15 }
@@ -117,14 +117,14 @@ edge idle -> loading { label="fetch()" }
 edge loading -> success { label="200 OK" }
 edge loading -> error { label="Error" }
 edge error -> retry { label="retry?" }
-edge retry -> loading { label="Yes" style=dashed }
-edge retry -> idle { label="No / Max" style=dashed }
-edge success -> idle { label="reset()" style=dashed }`,
+edge retry --> loading { label="Yes" }
+edge retry --> idle { label="No / Max" }
+edge success --> idle { label="reset()" }`,
 
   empty: `// ✨ 新規ダイアグラム
 // 構文ガイド:
 //   node <id> "ラベル" { shape=rect color=#hex x=0 y=0 }
-//   edge <from> -> <to> { label="text" color=#hex style=dashed }
+//   edge <from> -> <to> { label="text" color=#hex }
 //   group <id> "ラベル" {
 //     node <id> "ラベル" { ... }
 //   }
@@ -133,8 +133,8 @@ edge success -> idle { label="reset()" style=dashed }`,
 // Shapes: rect, stadium, diamond, ellipse, cylinder,
 //         parallelogram, hexagon, trapezoid, circle
 //
-// Edge options: style=solid|dashed, animate=true,
-//               arrow=end|both|none, thickness=2
+// Operators: -> <- <-> --> <-- <--> --
+// Edge options: animate=true, thickness=2
 
 node a "ノードA" { shape=rect }
 node b "ノードB" { shape=rect }
