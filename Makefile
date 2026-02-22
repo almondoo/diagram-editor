@@ -1,4 +1,4 @@
-.PHONY: up down restart logs build typecheck lint test shell clean
+.PHONY: up down restart logs build typecheck lint test shell clean preview
 
 up:
 	docker compose up -d
@@ -32,6 +32,9 @@ test:
 
 app:
 	docker compose exec app bash
+
+preview:
+	docker compose exec app sh -c "pnpm -r build && pnpm --filter diagram-editor-web preview --host"
 
 clean:
 	docker compose down -v

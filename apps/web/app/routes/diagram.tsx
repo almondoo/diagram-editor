@@ -49,6 +49,19 @@ export default function Diagram() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // テンプレート選択: 同一ルート内で navigate した場合、コンポーネントが
+  // 再マウントされないため location.key の変化で loadTemplate を呼ぶ
+  const { loadTemplate } = state;
+  const prevLocationKeyRef = useRef(location.key);
+  useEffect(() => {
+    if (location.key === prevLocationKeyRef.current) return;
+    prevLocationKeyRef.current = location.key;
+    if (templateCode) {
+      loadTemplate(templateCode);
+      setCurrentDiagramId(null);
+    }
+  }, [location.key, templateCode, loadTemplate]);
+
   useEffect(() => {
     return () => clearTimeout(toastTimerRef.current);
   }, []);

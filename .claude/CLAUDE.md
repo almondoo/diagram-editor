@@ -8,6 +8,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 アプリは **http://localhost:5173** で動作する。動作確認はこのURLをブラウザで参照すること。
 
+## ブラウザ確認（Chrome）
+
+コード変更後にブラウザで動作確認する場合は以下のURLを使用する:
+
+- **開発サーバー**: http://localhost:5173（HMR あり、`make up` で自動起動）
+- **プレビューサーバー**: http://localhost:4173（本番ビルド確認用、`make preview` で起動）
+
+`make preview` はすべてのパッケージをビルドしてから Vite のプレビューサーバーを起動する。
+`packages/` を変更した場合は開発サーバー（5173）だとビルドが古い可能性があるため、`make preview`（4173）で確認するのが確実。
+
 ## コマンド実行の原則
 
 **pnpm・node など、すべてのコマンドは必ず `docker compose exec app <コマンド>` を使ってDockerコンテナ内で実行すること。ローカルの pnpm / node を直接使ってはならない。**
@@ -31,6 +41,7 @@ make logs      # 開発サーバーのログを追跡
 make build     # 全パッケージをビルド
 make typecheck # 全パッケージの型チェック
 make test      # diagram-dsl-core のテスト
+make preview   # 全ビルド + プレビューサーバー起動 (http://localhost:4173)
 ```
 
 `make up` を初回実行すると `pnpm install && pnpm -r build && pnpm --filter diagram-editor-web dev --host` が自動的に実行される。
