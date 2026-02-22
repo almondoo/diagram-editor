@@ -145,10 +145,120 @@ edge a -> b { color=#94a3b8 }
 node b "B" { shape=diamond x=200 y=0 color=#ff0000 }`;
     const result = formatDSLCode(input);
     const lines = result.split("\n");
-    expect(lines).toHaveLength(3);
+    // node > edge の順に並び替えられる
     expect(lines[0]).toBe('node a "A" { shape=rect color=#6366f1 }');
-    expect(lines[1]).toBe('edge a -> b { color=#94a3b8 }');
-    expect(lines[2]).toBe('node b "B" { shape=diamond color=#ff0000 }');
+    expect(lines[1]).toBe('node b "B" { shape=diamond color=#ff0000 }');
+    // edge はカテゴリ間の空行の後
+    expect(lines[2]).toBe('');
+    expect(lines[3]).toBe('edge a -> b { color=#94a3b8 }');
+  });
+});
+
+describe("category ordering (group > node > edge > note > style)", () => {
+  it("group > node > edge > note の順に並び替える", () => {
+    const input = `edge a -> b
+note n1 "メモ"
+node a "A"
+group g1 "G" { color=#6366f1 }`;
+    const result = formatDSLCode(input);
+    const lines = result.split("\n").filter((l) => l.trim());
+    expect(lines[0]).toBe('group g1 "G" { color=#6366f1 }');
+    expect(lines[1]).toBe('node a "A"');
+    expect(lines[2]).toBe("edge a -> b");
+    expect(lines[3]).toBe('note n1 "メモ"');
+  });
+
+  it("style は note の後に来る", () => {
+    const input = `style a { color=#ff0000 }
+note n1 "メモ"
+node a "A"`;
+    const result = formatDSLCode(input);
+    const lines = result.split("\n").filter((l) => l.trim());
+    expect(lines[0]).toBe('node a "A"');
+    expect(lines[1]).toBe('note n1 "メモ"');
+    expect(lines[2]).toBe("style a { color=#ff0000 }");
+  });
+
+  it("同カテゴリ内の相対順序は保持する", () => {
+    const input = `node b "B"
+node a "A"
+edge x -> y
+edge a -> b`;
+    const result = formatDSLCode(input);
+    const lines = result.split("\n").filter((l) => l.trim());
+    expect(lines[0]).toBe('node b "B"');
+    expect(lines[1]).toBe('node a "A"');
+    expect(lines[2]).toBe("edge x -> y");
+    expect(lines[3]).toBe("edge a -> b");
+  });
+
+  it("コメントは後続の要素に紐づいて移動する", () => {
+    const input = `// edge comment
+edge a -> b
+// node comment
+node a "A"`;
+    const result = formatDSLCode(input);
+    const lines = result.split("\n");
+    expect(lines[0]).toBe("// node comment");
+    expect(lines[1]).toBe('node a "A"');
+    // edge はコメント付きで後に来る
+    expect(result).toContain("// edge comment");
+    expect(result).toContain("edge a -> b");
+  });
+
+  it("カテゴリ間に空行が挿入される", () => {
+    const input = `node a "A"
+edge a -> b`;
+    const result = formatDSLCode(input);
+    expect(result).toBe('node a "A"\n\nedge a -> b');
+  });
+
+  it("グループブロック構文も並び替えの対象になる", () => {
+    const input = `node a "A"
+group g1 "G" { color=#6366f1
+  node x "X"
+}`;
+    const result = formatDSLCode(input);
+    const lines = result.split("\n");
+    expect(lines[0]).toMatch(/^group g1/);
+  });
+
+  it("ネストグループ内の子要素も並び替えられる", () => {
+    const input = `group g1 "G" {
+  edge a -> b
+  node a "A"
+  note n1 "メモ"
+  node b "B"
+}`;
+    const result = formatDSLCode(input);
+    const lines = result.split("\n");
+    // group > node > edge > note の順
+    expect(lines[0]).toMatch(/^group g1/);
+    expect(lines[1]).toMatch(/^\s+node a "A"/);
+    expect(lines[2]).toMatch(/^\s+node b "B"/);
+    expect(lines[3]).toBe("");
+    expect(lines[4]).toMatch(/^\s+edge a -> b/);
+    expect(lines[5]).toBe("");
+    expect(lines[6]).toMatch(/^\s+note n1 "メモ"/);
+    expect(lines[7]).toBe("}");
+  });
+
+  it("深いネストの子要素も並び替えられる", () => {
+    const input = `group outer "外" {
+  edge x -> y
+  group inner "内" {
+    edge a -> b
+    node a "A"
+  }
+  node x "X"
+}`;
+    const result = formatDSLCode(input);
+    const lines = result.split("\n");
+    // outer の子: group inner > node x > edge x->y
+    expect(lines[0]).toMatch(/^group outer/);
+    expect(lines[1]).toMatch(/^\s+group inner/);
+    // inner の子: node a > edge a->b
+    expect(lines[2]).toMatch(/^\s+node a "A"/);
   });
 });
 

@@ -10,9 +10,6 @@ export interface DiagramNode {
   h: number;
   icon: string;
   group: string;
-  fontSize: number;
-  borderColor: string;
-  borderWidth: number;
   opacity: number;
   dashed: boolean;
   _needsPosition?: boolean;

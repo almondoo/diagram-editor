@@ -88,31 +88,30 @@ export function generateExportSVG(parsed: ParseResult): string | null {
   });
 
   nodes.forEach((node) => {
-    const { x, y, w, h, shape, color, label, textColor, icon, fontSize, borderColor, borderWidth, dashed } = node;
-    const stroke = borderColor || color;
+    const { x, y, w, h, shape, color, label, textColor, icon, dashed } = node;
     const dashArr = dashed ? ' stroke-dasharray="6,3"' : "";
 
     if (shape === "ellipse" || shape === "circle") {
-      svgContent += `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" fill="${escapeXml(color)}" stroke="${escapeXml(stroke)}" stroke-width="${borderWidth}"${dashArr}/>\n`;
+      svgContent += `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" fill="${escapeXml(color)}" stroke="${escapeXml(color)}" stroke-width="2"${dashArr}/>\n`;
     } else if (shape === "cylinder") {
       const ry = 10;
-      svgContent += `<path d="M${x},${y + ry} L${x},${y + h - ry} A${w / 2},${ry} 0 0,0 ${x + w},${y + h - ry} L${x + w},${y + ry}" fill="${escapeXml(color)}" stroke="${escapeXml(stroke)}" stroke-width="${borderWidth}"${dashArr}/>\n`;
-      svgContent += `<ellipse cx="${x + w / 2}" cy="${y + ry}" rx="${w / 2}" ry="${ry}" fill="${escapeXml(color)}" stroke="${escapeXml(stroke)}" stroke-width="${borderWidth}"${dashArr}/>\n`;
+      svgContent += `<path d="M${x},${y + ry} L${x},${y + h - ry} A${w / 2},${ry} 0 0,0 ${x + w},${y + h - ry} L${x + w},${y + ry}" fill="${escapeXml(color)}" stroke="${escapeXml(color)}" stroke-width="2"${dashArr}/>\n`;
+      svgContent += `<ellipse cx="${x + w / 2}" cy="${y + ry}" rx="${w / 2}" ry="${ry}" fill="${escapeXml(color)}" stroke="${escapeXml(color)}" stroke-width="2"${dashArr}/>\n`;
     } else {
       const path = getShapePath(shape, x, y, w, h);
       if (path) {
-        svgContent += `<path d="${path}" fill="${escapeXml(color)}" stroke="${escapeXml(stroke)}" stroke-width="${borderWidth}"${dashArr}/>\n`;
+        svgContent += `<path d="${path}" fill="${escapeXml(color)}" stroke="${escapeXml(color)}" stroke-width="2"${dashArr}/>\n`;
       } else {
-        svgContent += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${escapeXml(color)}" stroke="${escapeXml(stroke)}" stroke-width="${borderWidth}"${dashArr}/>\n`;
+        svgContent += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${escapeXml(color)}" stroke="${escapeXml(color)}" stroke-width="2"${dashArr}/>\n`;
       }
     }
 
     const ty = y + h / 2;
     if (icon) {
-      svgContent += `<text x="${x + w / 2}" y="${ty - 4}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="${fontSize + 4}" font-family="system-ui, sans-serif">${escapeXml(icon)}</text>\n`;
-      svgContent += `<text x="${x + w / 2}" y="${ty + fontSize}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="${fontSize}" font-family="system-ui, sans-serif" font-weight="500">${escapeXml(label.length > 18 ? `${label.slice(0, 17)  }…` : label)}</text>\n`;
+      svgContent += `<text x="${x + w / 2}" y="${ty - 4}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="17" font-family="system-ui, sans-serif">${escapeXml(icon)}</text>\n`;
+      svgContent += `<text x="${x + w / 2}" y="${ty + 13}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="13" font-family="system-ui, sans-serif" font-weight="500">${escapeXml(label.length > 18 ? `${label.slice(0, 17)  }…` : label)}</text>\n`;
     } else {
-      svgContent += `<text x="${x + w / 2}" y="${ty + 1}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="${fontSize}" font-family="system-ui, sans-serif" font-weight="500">${escapeXml(label.length > 18 ? `${label.slice(0, 17)  }…` : label)}</text>\n`;
+      svgContent += `<text x="${x + w / 2}" y="${ty + 1}" text-anchor="middle" dominant-baseline="middle" fill="${escapeXml(textColor)}" font-size="13" font-family="system-ui, sans-serif" font-weight="500">${escapeXml(label.length > 18 ? `${label.slice(0, 17)  }…` : label)}</text>\n`;
     }
   });
 

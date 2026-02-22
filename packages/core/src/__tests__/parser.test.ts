@@ -48,9 +48,9 @@ describe("parseProps", () => {
   });
 
   it("数値を文字列として解析する", () => {
-    expect(parseProps("thickness=2.5 fontSize=16")).toEqual({
+    expect(parseProps("thickness=2.5 opacity=0.8")).toEqual({
       thickness: "2.5",
-      fontSize: "16",
+      opacity: "0.8",
     });
   });
 });
@@ -142,8 +142,6 @@ describe("parseDSL", () => {
     expect(node.textColor).toBe("#ffffff");
     expect(node.w).toBe(150);
     expect(node.h).toBe(60);
-    expect(node.fontSize).toBe(13);
-    expect(node.borderWidth).toBe(2);
     expect(node.opacity).toBe(1);
     expect(node.dashed).toBe(false);
   });
@@ -216,7 +214,7 @@ edge b -> c`;
   });
 
   it("nodeのプロパティを全て解析する", () => {
-    const result = parseDSL('node a "A" { shape=diamond color=#ff0000 text=#000000 x=10 y=20 w=200 h=80 icon=🎨 fontSize=16 border=#333 borderWidth=3 opacity=0.5 dashed=true }');
+    const result = parseDSL('node a "A" { shape=diamond color=#ff0000 text=#000000 x=10 y=20 w=200 h=80 icon=🎨 opacity=0.5 dashed=true }');
     const node = result.nodes[0]!;
     expect(node.shape).toBe("diamond");
     expect(node.color).toBe("#ff0000");
@@ -226,17 +224,13 @@ edge b -> c`;
     expect(node.w).toBe(200);
     expect(node.h).toBe(80);
     expect(node.icon).toBe("🎨");
-    expect(node.fontSize).toBe(16);
-    expect(node.borderColor).toBe("#333");
-    expect(node.borderWidth).toBe(3);
     expect(node.opacity).toBe(0.5);
     expect(node.dashed).toBe(true);
   });
 
-  it("styleでborderとtextColorを変更する", () => {
-    const code = `node a "A" { x=0 y=0 }\nstyle a { border=#ff0000 text=#00ff00 }`;
+  it("styleでtextColorを変更する", () => {
+    const code = `node a "A" { x=0 y=0 }\nstyle a { text=#00ff00 }`;
     const result = parseDSL(code);
-    expect(result.nodes[0]!.borderColor).toBe("#ff0000");
     expect(result.nodes[0]!.textColor).toBe("#00ff00");
   });
 
@@ -305,12 +299,12 @@ describe("_explicitProps tracking", () => {
   });
 
   it("tracks all explicitly set props", () => {
-    const result = parseDSL('node a "A" { shape=diamond color=#fff icon=🎨 fontSize=16 }');
+    const result = parseDSL('node a "A" { shape=diamond color=#fff icon=🎨 opacity=0.8 }');
     const props = result.nodes[0]!._explicitProps!;
     expect(props.has("shape")).toBe(true);
     expect(props.has("color")).toBe(true);
     expect(props.has("icon")).toBe(true);
-    expect(props.has("fontSize")).toBe(true);
+    expect(props.has("opacity")).toBe(true);
   });
 });
 

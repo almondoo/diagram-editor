@@ -10,8 +10,7 @@ function makeNode(overrides: Partial<DiagramNode> = {}): DiagramNode {
     color: "#6366f1",
     textColor: "#ffffff",
     x: 100, y: 100, w: 150, h: 60,
-    icon: "", group: "", fontSize: 13,
-    borderColor: "", borderWidth: 2,
+    icon: "", group: "",
     opacity: 1, dashed: false,
     ...overrides,
   };
@@ -250,13 +249,6 @@ describe("generateExportSVG", () => {
       nodes: [makeNode({ icon: "🎨" })],
     }));
     expect(svg).toContain("🎨");
-  });
-
-  it("borderColorが設定されたノードのSVG", () => {
-    const svg = generateExportSVG(makeResult({
-      nodes: [makeNode({ borderColor: "#ff0000" })],
-    }));
-    expect(svg).toContain("#ff0000");
   });
 
   it("グループのSVGにラベルが含まれる", () => {

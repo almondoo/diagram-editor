@@ -63,11 +63,7 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
             ["shape", "rect | stadium | diamond | ellipse | circle | cylinder | hexagon | parallelogram | trapezoid", "rect"],
             ["color", "#hex (例: #6366f1) — 未指定時ランダム", "ランダム"],
             ["text", "#hex — テキスト色", "#ffffff"],
-            ["border", "#hex — 枠線色", "colorと同じ"],
-            ["borderWidth", "数値 (px)", "2"],
             ["icon", "絵文字 (例: ⚙️ ⚡ 🔄)", "なし"],
-            ["group", "グループID — 所属グループ", "なし"],
-            ["fontSize", "数値 (px)", "13"],
             ["dashed", "true | false — 枠線を破線に", "false"],
           ].map(([k, v, d]) => (
             <tr key={k} style={{ borderBottom: "1px solid #1e293b" }}>
@@ -179,7 +175,7 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
       </table>
 
       <div style={{ color: "#f472b6", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>スタイル上書き (style)</div>
-      <div style={{ color: "#cbd5e1", marginBottom: 2 }}>{'style <nodeId> { color=#hex shape=rect border=#hex text=#hex }'}</div>
+      <div style={{ color: "#cbd5e1", marginBottom: 2 }}>{'style <nodeId> { color=#hex shape=rect text=#hex }'}</div>
       <div style={{ color: "#64748b", marginBottom: 12 }}>既存ノードのプロパティを後から上書きします</div>
 
       <div style={{ color: "#6b7280", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>コメント</div>

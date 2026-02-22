@@ -18,11 +18,11 @@ const KEYWORDS = ["node", "edge", "group", "note", "style"];
 const EDGE_OPERATORS = ["->", "<-", "<->", "-->", "<--", "<-->", "--"];
 
 const PROPERTY_MAP: Record<string, string[]> = {
-  node: ["shape", "color", "text", "border", "borderWidth", "icon", "fontSize", "opacity", "dashed", "x", "y", "w", "h"],
+  node: ["shape", "color", "text", "icon", "opacity", "dashed", "x", "y", "w", "h"],
   edge: ["label", "color", "animate", "thickness", "curve"],
   group: ["color", "x", "y", "w", "h"],
   note: ["color", "x", "y"],
-  style: ["color", "shape", "border", "text"],
+  style: ["color", "shape", "text"],
 };
 
 const SHAPES = ["rect", "stadium", "diamond", "ellipse", "circle", "cylinder", "hexagon", "parallelogram", "trapezoid"];
@@ -43,7 +43,6 @@ const VALUE_MAP: Record<string, string[]> = {
   curve: CURVES,
   color: COLOR_PRESETS,
   text: COLOR_PRESETS,
-  border: COLOR_PRESETS,
 };
 
 const EDGE_OP_RE = /^<-->|^<->|^<--|^-->|^<-|^->|^--/;

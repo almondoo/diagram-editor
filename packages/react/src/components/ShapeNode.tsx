@@ -6,8 +6,8 @@ import { getShapePath } from "diagram-dsl-core";
  * ノード幅に合わせて label を複数行に折り返す。
  * charWidth は "IBM Plex Sans" の近似値 (fontSize × 0.55)。
  */
-function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
-  const charWidth = fontSize * 0.55;
+function wrapText(text: string, maxWidth: number): string[] {
+  const charWidth = 13 * 0.55;
   const maxChars = Math.max(1, Math.floor((maxWidth - 16) / charWidth));
   if (text.length <= maxChars) return [text];
 
@@ -84,10 +84,10 @@ export const ShapeNode = memo(
       touchStartPos.current = null;
     }, []);
 
-    const { x, y, w, h, shape, color, label, textColor, icon, fontSize, borderColor, borderWidth, opacity, dashed } = node;
-    const stroke = borderColor || color;
+    const { x, y, w, h, shape, color, label, textColor, icon, opacity, dashed } = node;
     const dashArr = dashed ? "6,3" : "none";
 
+    const fontSize = 13;
     const lineHeight = Math.ceil(fontSize * 1.35);
 
     let textEl: React.ReactElement;
@@ -121,7 +121,7 @@ export const ShapeNode = memo(
       );
     } else {
       // アイコンなし: ノード幅に合わせて折り返し表示
-      const lines = wrapText(label, w, fontSize);
+      const lines = wrapText(label, w);
       const textBlockH = lines.length * lineHeight;
       const startY = y + h / 2 - (textBlockH - lineHeight) / 2;
       textEl = (
@@ -209,8 +209,8 @@ export const ShapeNode = memo(
             rx={w / 2}
             ry={h / 2}
             fill={color}
-            stroke={stroke}
-            strokeWidth={borderWidth}
+            stroke={color}
+            strokeWidth={2}
             strokeDasharray={dashArr}
           />
           {textEl}
@@ -227,8 +227,8 @@ export const ShapeNode = memo(
           <path
             d={`M${x},${y + ry} L${x},${y + h - ry} A${w / 2},${ry} 0 0,0 ${x + w},${y + h - ry} L${x + w},${y + ry}`}
             fill={color}
-            stroke={stroke}
-            strokeWidth={borderWidth}
+            stroke={color}
+            strokeWidth={2}
             strokeDasharray={dashArr}
           />
           <ellipse
@@ -237,8 +237,8 @@ export const ShapeNode = memo(
             rx={w / 2}
             ry={ry}
             fill={color}
-            stroke={stroke}
-            strokeWidth={borderWidth}
+            stroke={color}
+            strokeWidth={2}
             strokeDasharray={dashArr}
           />
           <ellipse
@@ -262,8 +262,8 @@ export const ShapeNode = memo(
           <path
             d={path}
             fill={color}
-            stroke={stroke}
-            strokeWidth={borderWidth}
+            stroke={color}
+            strokeWidth={2}
             strokeDasharray={dashArr}
           />
           {textEl}
@@ -282,8 +282,8 @@ export const ShapeNode = memo(
           height={h}
           rx={8}
           fill={color}
-          stroke={stroke}
-          strokeWidth={borderWidth}
+          stroke={color}
+          strokeWidth={2}
           strokeDasharray={dashArr}
         />
         {textEl}

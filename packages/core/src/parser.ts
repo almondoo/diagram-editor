@@ -224,9 +224,6 @@ function parseSegment(
         h: parseFloat(props.h!) || 60,
         icon: props.icon || "",
         group: groupId,
-        fontSize: parseFloat(props.fontSize!) || 13,
-        borderColor: props.border || "",
-        borderWidth: parseFloat(props.borderWidth!) || 2,
         opacity: parseFloat(props.opacity!) || 1,
         dashed: props.dashed === "true",
         _needsPosition: !hasX || !hasY,
@@ -275,7 +272,6 @@ function parseSegment(
         Object.assign(ctx.nodeMap[id]!, {
           ...(props.color && { color: props.color }),
           ...(props.shape && { shape: props.shape }),
-          ...(props.border && { borderColor: props.border }),
           ...(props.text && { textColor: props.text }),
         });
       }
