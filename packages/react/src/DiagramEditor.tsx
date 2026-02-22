@@ -12,6 +12,7 @@ import { useNodeDrag } from "./hooks/useNodeDrag.js";
 import { useGroupDrag } from "./hooks/useGroupDrag.js";
 import { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
 import { useMultiSelect } from "./hooks/useMultiSelect.js";
+import { useEdgeDrag } from "./hooks/useEdgeDrag.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { useViewport } from "./hooks/useViewport.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
@@ -55,7 +56,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const {
     code, setCode, parsed, nodeById, groupById, noteStates,
     setNodeLayout, setNodeSize, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
-    addNode, addNote, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, exportSVG, formatCode, resetLayout,
+    addNode, addNote, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, reconnectEdge, exportSVG, formatCode, resetLayout,
   } = state;
 
   const { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
@@ -164,6 +165,9 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   const { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown, handleGroupResizeTouchStart } =
     useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove);
+
+  const { edgeDragInfo, handleEdgeMoveMouseDown, handleEdgeEndpointMouseDown } =
+    useEdgeDrag(nodeById, zoom, setNodeLayout, reconnectEdge, svgRef, panRef);
 
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
 
@@ -332,8 +336,29 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               edge={edge}
               fromNode={nodeById[edge.from]}
               toNode={nodeById[edge.to]}
+              onMoveMouseDown={handleEdgeMoveMouseDown}
+              onEndpointMouseDown={handleEdgeEndpointMouseDown}
             />
           ))}
+          {/* 接続付け替え中の仮エッジ線 */}
+          {edgeDragInfo?.type === "reconnect" && (() => {
+            const anchorNode = nodeById[edgeDragInfo.anchorId];
+            if (!anchorNode) return null;
+            const ac = { x: anchorNode.x + anchorNode.w / 2, y: anchorNode.y + anchorNode.h / 2 };
+            const cursor = { x: edgeDragInfo.cursorX, y: edgeDragInfo.cursorY };
+            const from = edgeDragInfo.end === "from" ? cursor : ac;
+            const to = edgeDragInfo.end === "from" ? ac : cursor;
+            return (
+              <line
+                x1={from.x} y1={from.y}
+                x2={to.x} y2={to.y}
+                stroke="#6366f1"
+                strokeWidth={2}
+                strokeDasharray="6,3"
+                style={{ pointerEvents: "none" }}
+              />
+            );
+          })()}
           {parsed.nodes.map((node) => (
             <ShapeNode
               key={node.id}
