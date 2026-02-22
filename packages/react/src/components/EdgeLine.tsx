@@ -12,10 +12,10 @@ export const EdgeLine = memo(
   function EdgeLine({ edge, fromNode, toNode }: EdgeLineProps) {
     if (!fromNode || !toNode) return null;
     const { from, to } = getEdgePoints(fromNode, toNode);
-    const { label, color, style, animate, thickness, arrow, curve, _routePoints } = edge;
+    const { label, color, style, animate, thickness, arrow, curve } = edge;
     const id = `edge-${edge.from}-${edge.to}`;
 
-    const { pathD, labelX, labelY } = buildEdgePath(from, to, curve, _routePoints);
+    const { pathD, labelX, labelY } = buildEdgePath(from, to, curve);
 
     const hasEndMarker = arrow === "end" || arrow === "both";
     const hasStartMarker = arrow === "start" || arrow === "both";

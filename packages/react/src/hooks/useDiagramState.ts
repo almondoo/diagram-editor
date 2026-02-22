@@ -5,8 +5,6 @@ import {
   formatDSLCode,
   generateExportSVG,
   randomColor,
-  getEdgePoints,
-  computeEdgeRoute,
 } from "diagram-dsl-core";
 import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
 import { syncNodes } from "./syncNodes.js";
@@ -142,26 +140,10 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setNoteStates((prev) => ({ ...prev, ...noteUpdates }));
   }, [displayNotes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // エッジルーティング: 各エッジに迂回ウェイポイントを計算
-  const routedEdges = useMemo(() => {
-    const nodeMap: Record<string, DiagramNode> = {};
-    for (const n of displayNodes) nodeMap[n.id] = n;
-    return parsedRaw.edges.map((edge) => {
-      const fromNode = nodeMap[edge.from];
-      const toNode = nodeMap[edge.to];
-      if (!fromNode || !toNode) return edge;
-      const { from, to } = getEdgePoints(fromNode, toNode);
-      const obstacles = displayNodes.filter((n) => n.id !== edge.from && n.id !== edge.to);
-      const routePoints = computeEdgeRoute(from, to, obstacles);
-      if (!routePoints) return edge;
-      return { ...edge, _routePoints: routePoints };
-    });
-  }, [parsedRaw.edges, displayNodes]);
-
   // 最終的な parsed（consumers はこれを使う）
   const parsed: ParseResult = useMemo(
-    () => ({ ...parsedRaw, nodes: displayNodes, groups: displayGroups, notes: displayNotes, edges: routedEdges }),
-    [parsedRaw, displayNodes, displayGroups, displayNotes, routedEdges],
+    () => ({ ...parsedRaw, nodes: displayNodes, groups: displayGroups, notes: displayNotes }),
+    [parsedRaw, displayNodes, displayGroups, displayNotes],
   );
 
   const nodeById = useMemo(
