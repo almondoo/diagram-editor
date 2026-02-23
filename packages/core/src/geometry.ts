@@ -51,7 +51,6 @@ export function getShapePath(
     }
     case "ellipse":
     case "circle":
-      return null;
     case "cylinder":
       return null;
     case "parallelogram": {
