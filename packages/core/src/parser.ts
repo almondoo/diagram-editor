@@ -1,6 +1,16 @@
 import type { ParseResult, DiagramNode, DiagramGroup } from "./types.js";
 import { colorForId } from "./colors.js";
 
+const EDGE_OP_MAP: Record<string, { arrow: string; style: string }> = {
+  "<-->": { arrow: "both",  style: "dashed" },
+  "<->":  { arrow: "both",  style: "solid" },
+  "<--":  { arrow: "start", style: "dashed" },
+  "-->":  { arrow: "end",   style: "dashed" },
+  "<-":   { arrow: "start", style: "solid" },
+  "->":   { arrow: "end",   style: "solid" },
+  "--":   { arrow: "none",  style: "solid" },
+};
+
 export function parseProps(str: string): Record<string, string> {
   const props: Record<string, string> = {};
   const regex = /(\w+)\s*=\s*(?:"([^"]*)"|(\S+))/g;
@@ -119,31 +129,24 @@ function parseSegment(
     // Group: group id "label" { ... }
     const groupHeaderMatch = firstLine.match(/^group\s+(\S+)\s+"([^"]*)"(?:\s*\{(.*))?/);
     if (groupHeaderMatch) {
-      const isMultiLine = text.includes("\n");
+      const props = parseProps(groupHeaderMatch[3] ?? "");
+      const absX = offsetX + (parseFloat(props.x!) || 0);
+      const absY = offsetY + (parseFloat(props.y!) || 0);
 
-      if (isMultiLine) {
-        // ブロック構文: ヘッダー行のプロパティを取得
-        const headerPropsStr = groupHeaderMatch[3] ?? "";
-        const props = parseProps(headerPropsStr);
+      const group: DiagramGroup = {
+        id: groupHeaderMatch[1]!,
+        label: groupHeaderMatch[2]!,
+        color: props.color || colorForId(groupHeaderMatch[1]!),
+        x: absX,
+        y: absY,
+        w: parseFloat(props.w!) || 300,
+        h: parseFloat(props.h!) || 200,
+        parentGroup: parentGroupId ?? undefined,
+      };
+      ctx.groups.push(group);
 
-        const relX = parseFloat(props.x!) || 0;
-        const relY = parseFloat(props.y!) || 0;
-        const absX = offsetX + relX;
-        const absY = offsetY + relY;
-
-        const group: DiagramGroup = {
-          id: groupHeaderMatch[1]!,
-          label: groupHeaderMatch[2]!,
-          color: props.color || colorForId(groupHeaderMatch[1]!),
-          x: absX,
-          y: absY,
-          w: parseFloat(props.w!) || 300,
-          h: parseFloat(props.h!) || 200,
-          parentGroup: parentGroupId ?? undefined,
-        };
-        ctx.groups.push(group);
-
-        // ブロックボディを再帰的に解析
+      // ブロック構文: ボディを再帰的に解析
+      if (text.includes("\n")) {
         const body = extractMultilineBlockBody(text);
         const bodySegments = extractSegments(body, ctx.errors);
         for (const bodySeg of bodySegments) {
@@ -156,20 +159,6 @@ function parseSegment(
             ctx,
           );
         }
-      } else {
-        // フラット構文: offsetを加算して絶対座標を計算
-        const props = parseProps(groupHeaderMatch[3] || "");
-        const group: DiagramGroup = {
-          id: groupHeaderMatch[1]!,
-          label: groupHeaderMatch[2]!,
-          color: props.color || colorForId(groupHeaderMatch[1]!),
-          x: offsetX + (parseFloat(props.x!) || 0),
-          y: offsetY + (parseFloat(props.y!) || 0),
-          w: parseFloat(props.w!) || 300,
-          h: parseFloat(props.h!) || 200,
-          parentGroup: parentGroupId ?? undefined,
-        };
-        ctx.groups.push(group);
       }
       return;
     }
@@ -238,16 +227,7 @@ function parseSegment(
     // 演算子: <--> <-> <-- --> <- -> --
     const edgeMatch = firstLine.match(/^edge\s+(\S+)\s*(<-->|<->|<--|-->|<-|->|--)\s*(\S+)(?:\s*\{([^}]*)\})?/);
     if (edgeMatch) {
-      const OP_MAP: Record<string, { arrow: string; style: string }> = {
-        "<-->": { arrow: "both",  style: "dashed" },
-        "<->":  { arrow: "both",  style: "solid" },
-        "<--":  { arrow: "start", style: "dashed" },
-        "-->":  { arrow: "end",   style: "dashed" },
-        "<-":   { arrow: "start", style: "solid" },
-        "->":   { arrow: "end",   style: "solid" },
-        "--":   { arrow: "none",  style: "solid" },
-      };
-      const op = OP_MAP[edgeMatch[2]!]!;
+      const op = EDGE_OP_MAP[edgeMatch[2]!]!;
       const props = parseProps(edgeMatch[4] || "");
       ctx.edges.push({
         from: edgeMatch[1]!,

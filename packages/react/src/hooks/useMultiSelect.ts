@@ -80,8 +80,6 @@ export function useMultiSelect() {
     [selectedIds],
   );
 
-  const hasSelection = selectedIds.size > 0;
-
   return {
     selectedIds,
     selectionRect,
@@ -91,6 +89,5 @@ export function useMultiSelect() {
     clearSelection,
     selectSingle,
     isSelected,
-    hasSelection,
   };
 }

@@ -292,7 +292,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     if (e.key === "Tab") {
       e.preventDefault();
       pushUndo(code);
-      const newCode = `${code.slice(0, start)  }  ${  code.slice(end)}`;
+      const newCode = `${code.slice(0, start)}  ${code.slice(end)}`;
       onChange(newCode);
       requestAnimationFrame(() => {
         textarea.selectionStart = start + 2;
@@ -305,7 +305,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
       e.preventDefault();
       setCompletionItems([]);
       pushUndo(code);
-      const newCode = `${code.slice(0, start)  }{}${  code.slice(end)}`;
+      const newCode = `${code.slice(0, start)}{}${code.slice(end)}`;
       onChange(newCode);
       requestAnimationFrame(() => {
         textarea.selectionStart = start + 1;
@@ -317,7 +317,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     if (e.key === '"') {
       e.preventDefault();
       pushUndo(code);
-      const newCode = `${code.slice(0, start)  }""${  code.slice(end)}`;
+      const newCode = `${code.slice(0, start)}""${code.slice(end)}`;
       onChange(newCode);
       requestAnimationFrame(() => {
         textarea.selectionStart = start + 1;
@@ -338,8 +338,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
 
       if (charBefore === "{" && charAfter === "}") {
         // { } の間で改行 → インデント付きで展開し、} も下へ
-        const newCode =
-          `${code.slice(0, start)  }\n${  indent  }  ` + `\n${  indent  }${code.slice(end)}`;
+        const newCode = `${code.slice(0, start)}\n${indent}  \n${indent}${code.slice(end)}`;
         onChange(newCode);
         requestAnimationFrame(() => {
           const newPos = start + 1 + indent.length + 2;
@@ -348,7 +347,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
         });
       } else if (currentLineContent.trimEnd().endsWith("{")) {
         // 行末が { → 次行はインデント + 2スペース
-        const newCode = `${code.slice(0, start)  }\n${  indent  }  ${  code.slice(end)}`;
+        const newCode = `${code.slice(0, start)}\n${indent}  ${code.slice(end)}`;
         onChange(newCode);
         requestAnimationFrame(() => {
           const newPos = start + 1 + indent.length + 2;
@@ -357,7 +356,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
         });
       } else {
         // 通常の改行 → 現在行のインデントを引き継ぐ
-        const newCode = `${code.slice(0, start)  }\n${  indent  }${code.slice(end)}`;
+        const newCode = `${code.slice(0, start)}\n${indent}${code.slice(end)}`;
         onChange(newCode);
         requestAnimationFrame(() => {
           const newPos = start + 1 + indent.length;
@@ -379,9 +378,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     }
   };
 
-  const highlighted = useMemo(() => {
-    return code.split("\n").map((line) => highlightLine(line));
-  }, [code]);
+  const highlighted = useMemo(() => code.split("\n").map(highlightLine), [code]);
 
   return (
     <div style={{ display: "flex", height: "100%", position: "relative" }}>

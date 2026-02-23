@@ -204,7 +204,6 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   const displayNodes = layoutResult.nodes;
 
   // autoLayout が割り当てた位置を nodeStates に保存（_needsPosition のノードのみ）
-  const prevDisplayNodesRef = useRef<DiagramNode[]>([]);
   useEffect(() => {
     // _needsPosition をクリア
     const nodeUpdates: Record<string, DiagramNode> = {};
@@ -222,8 +221,6 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     if (Object.keys(groupUpdates).length > 0) {
       setGroupStates((prev) => ({ ...prev, ...groupUpdates }));
     }
-
-    prevDisplayNodesRef.current = displayNodes;
   }, [displayNodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // _needsPosition なノートを自動配置（全コンテンツの下に並べる）
@@ -463,7 +460,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   // ノート追加（ノード追加と同様にコードに追記するだけ、位置は自動レイアウトで決定）
   const addNote = () => {
     const id = `note${Date.now().toString(36)}`;
-    setCode((c) => `${c  }\nnote ${id} "メモ" { color=#fbbf24 }`);
+    setCode((c) => `${c}\nnote ${id} "メモ" { color=#fbbf24 }`);
   };
 
   // グループ追加（parentGroupId があれば親グループ内にネスト）
@@ -525,7 +522,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
   // エッジ追加
   const addEdge = useCallback((fromId: string, toId: string) => {
-    setCode((c) => `${c  }\nedge ${fromId} -> ${toId}`);
+    setCode((c) => `${c}\nedge ${fromId} -> ${toId}`);
   }, []);
 
   // ノードのプロパティをDSLコード内で更新

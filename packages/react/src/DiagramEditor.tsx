@@ -518,13 +518,11 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     </div>
   );
 
-  const existingIds = useMemo(() => {
-    return [
-      ...parsed.nodes.map((n) => n.id),
-      ...parsed.groups.map((g) => g.id),
-      ...parsed.notes.map((n) => n.id),
-    ];
-  }, [parsed.nodes, parsed.groups, parsed.notes]);
+  const existingIds = useMemo(() => [
+    ...parsed.nodes.map((n) => n.id),
+    ...parsed.groups.map((g) => g.id),
+    ...parsed.notes.map((n) => n.id),
+  ], [parsed.nodes, parsed.groups, parsed.notes]);
 
   // コードパネル描画
   const renderCodePanel = () => (
