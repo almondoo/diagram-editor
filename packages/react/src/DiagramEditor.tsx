@@ -13,6 +13,7 @@ import { useGroupDrag } from "./hooks/useGroupDrag.js";
 import { useCanvasInteraction } from "./hooks/useCanvasInteraction.js";
 import { useMultiSelect } from "./hooks/useMultiSelect.js";
 import { useEdgeDrag } from "./hooks/useEdgeDrag.js";
+import { useEdgeCreation } from "./hooks/useEdgeCreation.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { useViewport } from "./hooks/useViewport.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
@@ -193,6 +194,9 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   const { edgeDragInfo, handleEdgeMoveMouseDown, handleEdgeEndpointMouseDown } =
     useEdgeDrag(nodeById, parsed.edges, zoom, updateEdgeBend, reconnectEdge, svgRef, panRef);
+
+  const { edgeCreationDragInfo, handleConnectionPointMouseDown } =
+    useEdgeCreation(nodeById, zoom, addEdge, svgRef, panRef);
 
   const { splitPos, isResizing, setIsResizing } = useSplitPane(containerRef);
 
@@ -410,6 +414,21 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               />
             );
           })()}
+          {edgeCreationDragInfo && (() => {
+            const fromNode = nodeById[edgeCreationDragInfo.fromNodeId];
+            if (!fromNode) return null;
+            const fromCenter = { x: fromNode.x + fromNode.w / 2, y: fromNode.y + fromNode.h / 2 };
+            return (
+              <line
+                x1={fromCenter.x} y1={fromCenter.y}
+                x2={edgeCreationDragInfo.cursorX} y2={edgeCreationDragInfo.cursorY}
+                stroke="#6366f1"
+                strokeWidth={2}
+                strokeDasharray="6,3"
+                style={{ pointerEvents: "none" }}
+              />
+            );
+          })()}
           {parsed.nodes.map((node) => (
             <ShapeNode
               key={node.id}
@@ -429,6 +448,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 const line = findCodeLine("node", node.id);
                 if (line) setFocusLine(line);
               }}
+              onConnectionPointMouseDown={handleConnectionPointMouseDown}
+              edgeCreationActive={edgeCreationDragInfo !== null && edgeCreationDragInfo.fromNodeId !== node.id}
             />
           ))}
           {/* グループラベルをノードの上に再描画（ノードに隠れないようにする） */}
