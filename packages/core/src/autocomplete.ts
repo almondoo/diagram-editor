@@ -18,10 +18,10 @@ const KEYWORDS = ["node", "edge", "group", "note", "style"];
 const EDGE_OPERATORS = ["->", "<-", "<->", "-->", "<--", "<-->", "--"];
 
 const PROPERTY_MAP: Record<string, string[]> = {
-  node: ["shape", "color", "text", "icon", "opacity", "dashed", "x", "y", "w", "h"],
-  edge: ["label", "color", "animate", "thickness", "curve"],
-  group: ["color", "x", "y", "w", "h"],
-  note: ["color", "x", "y"],
+  node: ["shape", "color", "text", "icon", "dashed"],
+  edge: ["label", "color", "animate", "curve"],
+  group: ["color"],
+  note: ["color"],
   style: ["color", "shape", "text"],
 };
 
@@ -102,6 +102,32 @@ export function getCompletionContext(
     return null;
   }
 
+  // インラインブロック内（node id "label" { ... | ... } のような）
+  const inlineBlockMatch = trimmedBefore.match(/^(node|edge|group|note|style)\b.*\{/);
+  if (inlineBlockMatch) {
+    const bracePos = trimmedBefore.indexOf("{");
+    const afterBrace = trimmedBefore.slice(bracePos + 1);
+
+    // 閉じブレースの後ならブロック外
+    if (afterBrace.includes("}")) return null;
+
+    const inlineBlockType = inlineBlockMatch[1]!;
+
+    // プロパティ=値 の値部分
+    const valueMatch = afterBrace.match(/(\w+)=(\S*)$/);
+    if (valueMatch) {
+      return { type: "value", prefix: valueMatch[2]!, property: valueMatch[1]!, blockType: inlineBlockType };
+    }
+
+    // プロパティ名の途中
+    const propMatch = afterBrace.match(/(?:^|\s)(\w*)$/);
+    if (propMatch) {
+      return { type: "property", prefix: propMatch[1]!, blockType: inlineBlockType };
+    }
+
+    return null;
+  }
+
   // トップレベル: edge行の解析
   const edgeLineMatch = trimmedBefore.match(/^edge\s+/);
   if (edgeLineMatch) {
@@ -150,10 +176,6 @@ export function getCompletionContext(
     }
     return null;
   }
-
-  // 完成済みの行（node id "label" { ... のような）→ 補完なし
-  const completedLineMatch = trimmedBefore.match(/^(node|edge|group|note|style)\b.*\{/);
-  if (completedLineMatch) return null;
 
   // トップレベルのキーワード入力
   const partialKw = trimmedBefore.match(/^([a-z]+)$/);

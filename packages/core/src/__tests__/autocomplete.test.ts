@@ -52,9 +52,39 @@ describe("getCompletionContext", () => {
     expect(ctx).toBeNull();
   });
 
-  it("node id \"label\" の後に { を入力済みはnullを返す", () => {
-    const ctx = getCompletionContext('node a1 "test" {', 17, "", []);
+  it("インラインブロック内のプロパティ入力はpropertyコンテキスト", () => {
+    const ctx = getCompletionContext('node a1 "test" { sh', 19, "", []);
+    expect(ctx).toEqual({ type: "property", prefix: "sh", blockType: "node" });
+  });
+
+  it("インラインブロック内のプロパティ=値はvalueコンテキスト", () => {
+    const ctx = getCompletionContext('node a1 "test" { shape=st', 25, "", []);
+    expect(ctx).toEqual({ type: "value", prefix: "st", property: "shape", blockType: "node" });
+  });
+
+  it("インラインブロック内の空プレフィックスはpropertyコンテキスト", () => {
+    const ctx = getCompletionContext('node a1 "test" { ', 18, "", []);
+    expect(ctx).toEqual({ type: "property", prefix: "", blockType: "node" });
+  });
+
+  it("インラインブロック内で2つ目のプロパティ入力", () => {
+    const ctx = getCompletionContext('node a1 "test" { shape=rect co', 30, "", []);
+    expect(ctx).toEqual({ type: "property", prefix: "co", blockType: "node" });
+  });
+
+  it("インラインブロックの閉じブレース後は補完なし", () => {
+    const ctx = getCompletionContext('node a1 "test" { shape=rect } ', 31, "", []);
     expect(ctx).toBeNull();
+  });
+
+  it("edgeインラインブロック内のプロパティ入力", () => {
+    const ctx = getCompletionContext('edge a1 -> b1 { la', 19, "", []);
+    expect(ctx).toEqual({ type: "property", prefix: "la", blockType: "edge" });
+  });
+
+  it("noteインラインブロック内のプロパティ入力", () => {
+    const ctx = getCompletionContext('note n1 "メモ" { co', 19, "", []);
+    expect(ctx).toEqual({ type: "property", prefix: "co", blockType: "note" });
   });
 
   it("groupブロック内のnode行頭はkeywordコンテキスト", () => {

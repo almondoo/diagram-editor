@@ -6,6 +6,7 @@ import type { ResizeHandle } from "../hooks/useGroupDrag.js";
 interface GroupBoxProps {
   group: DiagramGroup;
   isSelected?: boolean;
+  isNested?: boolean;
   onMoveMouseDown: (e: MouseEvent) => void;
   onMoveTouchStart?: (e: RTouchEvent) => void;
   onResizeMouseDown: (e: MouseEvent, handle: ResizeHandle) => void;
@@ -14,9 +15,11 @@ interface GroupBoxProps {
 
 const HANDLE = 8;
 const TOUCH_HANDLE = 28;
+const HEADER_H = 26;
+const FRAME_W = 12;
 
 export const GroupBox = memo(
-  function GroupBox({ group, isSelected, onMoveMouseDown, onMoveTouchStart, onResizeMouseDown, onResizeTouchStart }: GroupBoxProps) {
+  function GroupBox({ group, isSelected, isNested, onMoveMouseDown, onMoveTouchStart, onResizeMouseDown, onResizeTouchStart }: GroupBoxProps) {
     const onMoveRef = useRef(onMoveMouseDown);
     onMoveRef.current = onMoveMouseDown;
     const onMoveTouchRef = useRef(onMoveTouchStart);
@@ -53,17 +56,20 @@ export const GroupBox = memo(
           style={{ pointerEvents: "none" }}
         />
 
-        <rect
-          x={x}
-          y={y}
-          width={w}
-          height={h}
-          rx={12}
-          fill="transparent"
-          style={{ cursor: "grab" }}
-          onMouseDown={handleMove}
-          onTouchStart={handleMoveTouch}
-        />
+        {isNested ? (
+          <>
+            {/* Header strip */}
+            <rect x={x} y={y} width={w} height={HEADER_H} rx={12} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+            {/* Left border */}
+            <rect x={x} y={y + HEADER_H} width={FRAME_W} height={Math.max(0, h - HEADER_H)} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+            {/* Right border */}
+            <rect x={x + w - FRAME_W} y={y + HEADER_H} width={FRAME_W} height={Math.max(0, h - HEADER_H)} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+            {/* Bottom border */}
+            <rect x={x} y={y + h - FRAME_W} width={w} height={FRAME_W} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+          </>
+        ) : (
+          <rect x={x} y={y} width={w} height={h} rx={12} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+        )}
 
         <text
           x={x + 14}
@@ -152,5 +158,5 @@ export const GroupBox = memo(
       </g>
     );
   },
-  (prev, next) => prev.group === next.group && prev.isSelected === next.isSelected,
+  (prev, next) => prev.group === next.group && prev.isSelected === next.isSelected && prev.isNested === next.isNested,
 );

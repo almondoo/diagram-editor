@@ -232,6 +232,17 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     addGroup(selectedGroup);
   }, [selectedIds, groupById, addGroup]);
 
+  const nestedGroupIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const g of parsed.groups) {
+      if (g.parentGroup) {
+        ids.add(g.id);
+        ids.add(g.parentGroup);
+      }
+    }
+    return ids;
+  }, [parsed.groups]);
+
   const canvasW = 1200;
   const canvasH = 800;
 
@@ -334,6 +345,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 key={g.id}
                 group={g}
                 isSelected={isSelected(g.id)}
+                isNested={nestedGroupIds.has(g.id)}
                 onMoveMouseDown={(e) => {
                   if (!isSelected(g.id)) selectSingle(g.id);
                   handleGroupMoveMouseDown(e, g.id);
