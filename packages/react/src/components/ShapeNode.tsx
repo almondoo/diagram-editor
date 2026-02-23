@@ -42,10 +42,12 @@ interface ShapeNodeProps {
   onTouchStart?: (e: React.TouchEvent) => void;
   onTap?: () => void;
   onDoubleClick?: () => void;
+  onConnectionPointMouseDown?: (e: React.MouseEvent, nodeId: string) => void;
+  edgeCreationActive?: boolean;
 }
 
 export const ShapeNode = memo(
-  function ShapeNode({ node, isSelected, onMouseDown, onResizeMouseDown, onTouchStart, onTap, onDoubleClick }: ShapeNodeProps) {
+  function ShapeNode({ node, isSelected, onMouseDown, onResizeMouseDown, onTouchStart, onTap, onDoubleClick, onConnectionPointMouseDown, edgeCreationActive }: ShapeNodeProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
     const onTouchStartRef = useRef(onTouchStart);
@@ -54,6 +56,8 @@ export const ShapeNode = memo(
     onTapRef.current = onTap;
     const onDoubleClickRef = useRef(onDoubleClick);
     onDoubleClickRef.current = onDoubleClick;
+    const onConnectionPointMouseDownRef = useRef(onConnectionPointMouseDown);
+    onConnectionPointMouseDownRef.current = onConnectionPointMouseDown;
 
     // タッチでタップ検出用
     const touchStartPos = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -166,6 +170,40 @@ export const ShapeNode = memo(
       />
     ) : null;
 
+    const connectionPoints = onConnectionPointMouseDown ? (
+      <g className="connection-points" style={{ opacity: 0 }}>
+        {[
+          { cx: x + w / 2, cy: y },
+          { cx: x + w / 2, cy: y + h },
+          { cx: x, cy: y + h / 2 },
+          { cx: x + w, cy: y + h / 2 },
+        ].map((pt, i) => (
+          <circle
+            key={i}
+            cx={pt.cx}
+            cy={pt.cy}
+            r={6}
+            fill="#6366f1"
+            stroke="#fff"
+            strokeWidth={2}
+            style={{ cursor: "crosshair", pointerEvents: "all" }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              onConnectionPointMouseDownRef.current?.(e, node.id);
+            }}
+          />
+        ))}
+      </g>
+    ) : null;
+
+    const dropTarget = edgeCreationActive ? (
+      <rect
+        x={x - 4} y={y - 4} width={w + 8} height={h + 8} rx={8}
+        fill="none" stroke="#6366f1" strokeWidth={2} strokeDasharray="5,3" opacity={0.5}
+        style={{ pointerEvents: "none" }}
+      />
+    ) : null;
+
     const selOutline = isSelected ? (
       <rect
         x={x - 4}
@@ -201,6 +239,8 @@ export const ShapeNode = memo(
           <rect x={x} y={y} width={w} height={h} fill="transparent" stroke="none" />
           {textEl}
           {resizeHandle}
+          {connectionPoints}
+          {dropTarget}
         </g>
       );
     }
@@ -223,6 +263,8 @@ export const ShapeNode = memo(
           />
           {textEl}
           {resizeHandle}
+          {connectionPoints}
+          {dropTarget}
         </g>
       );
     }
@@ -259,6 +301,8 @@ export const ShapeNode = memo(
           />
           {textEl}
           {resizeHandle}
+          {connectionPoints}
+          {dropTarget}
         </g>
       );
     }
@@ -276,6 +320,8 @@ export const ShapeNode = memo(
           />
           {textEl}
           {resizeHandle}
+          {connectionPoints}
+          {dropTarget}
         </g>
       );
     }
@@ -296,9 +342,11 @@ export const ShapeNode = memo(
         />
         {textEl}
         {resizeHandle}
+        {connectionPoints}
+        {dropTarget}
       </g>
     );
   },
   // node と isSelected だけ比較。ハンドラは ref で最新を参照するため除外
-  (prev, next) => prev.node === next.node && prev.isSelected === next.isSelected,
+  (prev, next) => prev.node === next.node && prev.isSelected === next.isSelected && prev.edgeCreationActive === next.edgeCreationActive,
 );
