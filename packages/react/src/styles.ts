@@ -16,6 +16,8 @@ export const DIAGRAM_EDITOR_STYLES = `
   @keyframes bottomSheetSlideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
   .connection-points { transition: opacity 0.15s; }
   g:hover > .connection-points { opacity: 1 !important; }
+  .edge-endpoints { transition: opacity 0.15s; }
+  .edge-group:hover .edge-endpoints { opacity: 1 !important; }
   @media (hover: none) {
     .tb-btn:active { background: #2d3548 !important; color: #e2e8f0 !important; }
   }

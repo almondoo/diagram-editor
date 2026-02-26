@@ -18,13 +18,7 @@ import { useSplitPane } from "./hooks/useSplitPane.js";
 import { useViewport } from "./hooks/useViewport.js";
 import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
 import type { DiagramState } from "./hooks/useDiagramState.js";
-import type { DiagramGroup } from "diagram-dsl-core";
-
-function getGroupDepth(groupId: string, groups: DiagramGroup[]): number {
-  const group = groups.find((g) => g.id === groupId);
-  if (!group?.parentGroup) return 0;
-  return 1 + getGroupDepth(group.parentGroup, groups);
-}
+import { getGroupDepth } from "diagram-dsl-core";
 
 interface DiagramEditorProps {
   state: DiagramState;
@@ -125,6 +119,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   useEffect(() => {
     if (!noteDragInfo) return;
+    let rafId = 0;
+
     const applyMove = (clientX: number, clientY: number) => {
       const dx = (clientX - noteDragInfo.startX) / zoom;
       const dy = (clientY - noteDragInfo.startY) / zoom;
@@ -139,11 +135,15 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       setNoteDragInfo((d) => d ? { ...d, startX: clientX, startY: clientY } : null);
     };
 
-    const handleMove = (e: MouseEvent) => applyMove(e.clientX, e.clientY);
+    const handleMove = (e: MouseEvent) => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => applyMove(e.clientX, e.clientY));
+    };
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
-      applyMove(e.touches[0]!.clientX, e.touches[0]!.clientY);
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => applyMove(e.touches[0]!.clientX, e.touches[0]!.clientY));
     };
     const handleUp = () => setNoteDragInfo(null);
 
@@ -153,6 +153,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     window.addEventListener("touchend", handleUp);
     window.addEventListener("touchcancel", handleUp);
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
       window.removeEventListener("touchmove", handleTouchMove);
@@ -247,6 +248,13 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     return ids;
   }, [parsed.groups]);
 
+  // エッジカラー別マーカーを一括定義するためのユニーク色リスト
+  const edgeMarkerColors = useMemo(() => {
+    const colors = new Set<string>();
+    for (const e of parsed.edges) colors.add(e.color);
+    return [...colors];
+  }, [parsed.edges]);
+
   const canvasW = 1200;
   const canvasH = 800;
 
@@ -338,12 +346,24 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
             <line x1="0" y1="0" x2="120" y2="0" stroke="#1e293b" strokeWidth="0.5" />
             <line x1="0" y1="0" x2="0" y2="120" stroke="#1e293b" strokeWidth="0.5" />
           </pattern>
+          {/* エッジカラー別矢印マーカー */}
+          {edgeMarkerColors.flatMap((color) => {
+            const s = color.replace("#", "");
+            return [
+              <marker key={`end-${s}`} id={`ah-end-${s}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill={color} />
+              </marker>,
+              <marker key={`start-${s}`} id={`ah-start-${s}`} markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto">
+                <polygon points="10 0, 0 3.5, 10 7" fill={color} />
+              </marker>,
+            ];
+          })}
         </defs>
         <rect width="100%" height="100%" fill="url(#gridLarge)" data-bg="true" />
 
         <g ref={svgGroupRef} transform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}>
           {[...parsed.groups]
-            .sort((a, b) => getGroupDepth(a.id, parsed.groups) - getGroupDepth(b.id, parsed.groups))
+            .sort((a, b) => getGroupDepth(a.id, groupById) - getGroupDepth(b.id, groupById))
             .map((g) => (
               <GroupBox
                 key={g.id}
@@ -433,7 +453,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
             <ShapeNode
               key={node.id}
               node={node}
-              isSelected={isSelected(node.id) || edgeFromId === node.id}
+              isSelected={isSelected(node.id)}
+              isEdgeSource={edgeFromId === node.id}
               onMouseDown={(e) => {
                 if (!isSelected(node.id)) selectSingle(node.id);
                 handleNodeMouseDown(e, node.id);

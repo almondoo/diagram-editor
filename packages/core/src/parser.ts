@@ -1,5 +1,6 @@
 import type { ParseResult, DiagramNode, DiagramGroup } from "./types.js";
 import { colorForId } from "./colors.js";
+import { extractSegments } from "./segments.js";
 
 const EDGE_OP_MAP: Record<string, { arrow: string; style: string }> = {
   "<-->": { arrow: "both",  style: "dashed" },
@@ -29,55 +30,6 @@ interface ParseContext {
   errors: ParseResult["errors"];
   nodeMap: Record<string, DiagramNode>;
   noteIdSet: Set<string>;
-}
-
-/**
- * コードをセグメントに分割する。
- * セグメントは単一行 or マルチラインブロック（{...} が複数行にまたがる場合）。
- */
-function extractSegments(
-  code: string,
-  errors?: ParseResult["errors"],
-): Array<{ text: string; startLine: number }> {
-  const segments: Array<{ text: string; startLine: number }> = [];
-  const lines = code.split("\n");
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i]!.trim();
-    if (!line || line.startsWith("//") || line.startsWith("#")) {
-      i++;
-      continue;
-    }
-
-    const opens = (line.match(/\{/g) ?? []).length;
-    const closes = (line.match(/\}/g) ?? []).length;
-
-    if (opens > closes) {
-      // マルチラインブロックの開始
-      const startLine = i + 1;
-      let depth = opens - closes;
-      const blockLines = [line];
-      i++;
-      while (i < lines.length && depth > 0) {
-        const bLine = lines[i]!.trim();
-        const bo = (bLine.match(/\{/g) ?? []).length;
-        const bc = (bLine.match(/\}/g) ?? []).length;
-        depth += bo - bc;
-        blockLines.push(bLine);
-        i++;
-      }
-      if (depth > 0 && errors) {
-        errors.push({ line: startLine, message: "構文エラー: ブロックが閉じられていません" });
-      }
-      segments.push({ text: blockLines.join("\n"), startLine });
-    } else {
-      segments.push({ text: line, startLine: i + 1 });
-      i++;
-    }
-  }
-
-  return segments;
 }
 
 /**

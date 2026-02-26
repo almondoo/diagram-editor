@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import type { DiagramNode, DiagramEdge } from "diagram-dsl-core";
 import { getEdgePoints, buildEdgePath } from "diagram-dsl-core";
 
@@ -13,11 +13,10 @@ interface EdgeLineProps {
 
 export const EdgeLine = memo(
   function EdgeLine({ edge, fromNode, toNode, onMoveMouseDown, onEndpointMouseDown, onDoubleClick }: EdgeLineProps) {
-    const [hovered, setHovered] = useState(false);
     if (!fromNode || !toNode) return null;
     const { from, to } = getEdgePoints(fromNode, toNode);
     const { label, color, style, animate, thickness, arrow, curve, bendX, bendY } = edge;
-    const id = `edge-${edge.from}-${edge.to}`;
+    const safeColor = color.replace("#", "");
 
     const { pathD, labelX, labelY } = buildEdgePath(from, to, curve, bendX, bendY);
 
@@ -25,37 +24,7 @@ export const EdgeLine = memo(
     const hasStartMarker = arrow === "start" || arrow === "both";
 
     return (
-      <g
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        <defs>
-          {hasEndMarker && (
-            <marker
-              id={`ah-${id}`}
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
-              orient="auto"
-            >
-              <polygon points="0 0, 10 3.5, 0 7" fill={color} />
-            </marker>
-          )}
-          {hasStartMarker && (
-            <marker
-              id={`ah-start-${id}`}
-              markerWidth="10"
-              markerHeight="7"
-              refX="1"
-              refY="3.5"
-              orient="auto"
-            >
-              <polygon points="10 0, 0 3.5, 10 7" fill={color} />
-            </marker>
-          )}
-        </defs>
-
+      <g className="edge-group">
         {/* 透明なヒットエリア(太いパスで掴みやすくする) */}
         <path
           d={pathD}
@@ -74,8 +43,8 @@ export const EdgeLine = memo(
           stroke={color}
           strokeWidth={thickness}
           strokeDasharray={style === "dashed" ? "8,4" : "none"}
-          markerEnd={hasEndMarker ? `url(#ah-${id})` : undefined}
-          markerStart={hasStartMarker ? `url(#ah-start-${id})` : undefined}
+          markerEnd={hasEndMarker ? `url(#ah-end-${safeColor})` : undefined}
+          markerStart={hasStartMarker ? `url(#ah-start-${safeColor})` : undefined}
           className={animate ? "edge-animate" : ""}
           style={{ pointerEvents: "none" }}
         />
@@ -107,31 +76,29 @@ export const EdgeLine = memo(
           </g>
         )}
 
-        {/* 端点ドラッグハンドル(ホバー時のみ表示) */}
-        {hovered && (
-          <>
-            <circle
-              cx={from.x}
-              cy={from.y}
-              r={5}
-              fill="#6366f1"
-              stroke="#fff"
-              strokeWidth={1.5}
-              style={{ cursor: "crosshair" }}
-              onMouseDown={(e) => onEndpointMouseDown?.(e, edge.from, edge.to, "from")}
-            />
-            <circle
-              cx={to.x}
-              cy={to.y}
-              r={5}
-              fill="#6366f1"
-              stroke="#fff"
-              strokeWidth={1.5}
-              style={{ cursor: "crosshair" }}
-              onMouseDown={(e) => onEndpointMouseDown?.(e, edge.from, edge.to, "to")}
-            />
-          </>
-        )}
+        {/* 端点ドラッグハンドル(CSS :hover で表示) */}
+        <g className="edge-endpoints" style={{ opacity: 0 }}>
+          <circle
+            cx={from.x}
+            cy={from.y}
+            r={5}
+            fill="#6366f1"
+            stroke="#fff"
+            strokeWidth={1.5}
+            style={{ cursor: "crosshair" }}
+            onMouseDown={(e) => onEndpointMouseDown?.(e, edge.from, edge.to, "from")}
+          />
+          <circle
+            cx={to.x}
+            cy={to.y}
+            r={5}
+            fill="#6366f1"
+            stroke="#fff"
+            strokeWidth={1.5}
+            style={{ cursor: "crosshair" }}
+            onMouseDown={(e) => onEndpointMouseDown?.(e, edge.from, edge.to, "to")}
+          />
+        </g>
       </g>
     );
   },

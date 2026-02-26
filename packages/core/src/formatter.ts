@@ -1,3 +1,5 @@
+import { extractFormatterSegments } from "./segments.js";
+
 export function formatPropsString(str: string): string {
   if (!str.trim()) return "";
   const props: Record<string, string> = {};
@@ -21,52 +23,6 @@ export function formatPropsString(str: string): string {
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
   return keys.map((k) => `${k}=${props[k]}`).join(" ");
-}
-
-interface FormatterSegment {
-  type: "line" | "block";
-  text: string;
-}
-
-function extractFormatterSegments(code: string): FormatterSegment[] {
-  const segments: FormatterSegment[] = [];
-  const lines = code.split("\n");
-  let i = 0;
-
-  while (i < lines.length) {
-    const raw = lines[i]!;
-    const line = raw.trim();
-
-    if (!line) {
-      segments.push({ type: "line", text: "" });
-      i++;
-      continue;
-    }
-
-    const opens = (line.match(/\{/g) ?? []).length;
-    const closes = (line.match(/\}/g) ?? []).length;
-
-    if (opens > closes) {
-      // マルチラインブロック
-      let depth = opens - closes;
-      const blockLines = [line];
-      i++;
-      while (i < lines.length && depth > 0) {
-        const bLine = lines[i]!.trim();
-        const bo = (bLine.match(/\{/g) ?? []).length;
-        const bc = (bLine.match(/\}/g) ?? []).length;
-        depth += bo - bc;
-        blockLines.push(bLine);
-        i++;
-      }
-      segments.push({ type: "block", text: blockLines.join("\n") });
-    } else {
-      segments.push({ type: "line", text: line });
-      i++;
-    }
-  }
-
-  return segments;
 }
 
 const CATEGORY_ORDER: Record<string, number> = {

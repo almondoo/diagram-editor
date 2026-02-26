@@ -74,19 +74,27 @@ export function useNodeDrag(
       return true;
     };
 
+    let rafId = 0;
+
     const handleMove = (e: MouseEvent) => {
-      if (applyDrag(e.clientX, e.clientY, 1)) {
-        setDragInfo((d) => (d ? { ...d, startX: e.clientX, startY: e.clientY } : null));
-      }
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (applyDrag(e.clientX, e.clientY, 1)) {
+          setDragInfo((d) => (d ? { ...d, startX: e.clientX, startY: e.clientY } : null));
+        }
+      });
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
       const touch = e.touches[0]!;
-      if (applyDrag(touch.clientX, touch.clientY, 3)) {
-        setDragInfo((d) => (d ? { ...d, startX: touch.clientX, startY: touch.clientY } : null));
-      }
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (applyDrag(touch.clientX, touch.clientY, 3)) {
+          setDragInfo((d) => (d ? { ...d, startX: touch.clientX, startY: touch.clientY } : null));
+        }
+      });
     };
 
     const handleUp = () => setDragInfo(null);
@@ -97,6 +105,7 @@ export function useNodeDrag(
     window.addEventListener("touchend", handleUp);
     window.addEventListener("touchcancel", handleUp);
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
       window.removeEventListener("touchmove", handleTouchMove);

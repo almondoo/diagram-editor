@@ -9,9 +9,9 @@ export type {
   ViewBox,
 } from "./types.js";
 
-export { VIBRANT_COLORS, randomColor, randomPosition } from "./colors.js";
+export { VIBRANT_COLORS, randomColor, randomPosition, colorForId } from "./colors.js";
 export { parseProps, parseDSL } from "./parser.js";
-export { autoLayout } from "./layout.js";
+export { autoLayout, GROUP_LABEL_HEIGHT, GROUP_PADDING, getGroupDepth } from "./layout.js";
 export { formatPropsString, formatDSLCode } from "./formatter.js";
 export { highlightLine } from "./syntax.js";
 export { getShapePath, getNodeCenter, getEdgePoints, buildEdgePath } from "./geometry.js";

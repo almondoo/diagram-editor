@@ -42,7 +42,7 @@ export const GroupBox = memo(
     const handleResizeTouchS = useCallback((e: RTouchEvent) => { onResizeTouchRef.current?.(e, "s"); }, []);
     const handleResizeTouchSE = useCallback((e: RTouchEvent) => { onResizeTouchRef.current?.(e, "se"); }, []);
 
-    const { x, y, w, h, color, label } = group;
+    const { x, y, w, h, color } = group;
 
     return (
       <g>
@@ -74,22 +74,6 @@ export const GroupBox = memo(
         ) : (
           <rect x={x} y={y} width={w} height={h} rx={12} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
         )}
-
-        <text
-          x={x + 14}
-          y={y + 20}
-          fill={color}
-          fontSize={12}
-          fontFamily="'IBM Plex Mono', monospace"
-          fontWeight="600"
-          opacity={0.8}
-          stroke="#0a0c12"
-          strokeWidth={4}
-          paintOrder="stroke"
-          style={{ pointerEvents: "none", userSelect: "none" }}
-        >
-          {label}
-        </text>
 
         {/* N handle - visible */}
         <rect

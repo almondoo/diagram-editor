@@ -15,5 +15,12 @@ export { Toolbar } from "./components/Toolbar.js";
 export { Minimap } from "./components/Minimap.js";
 export { SyntaxPanel } from "./components/SyntaxPanel.js";
 
-// Re-export core for convenience
-export * from "diagram-dsl-core";
+// Re-export commonly used core types for convenience
+export type {
+  DiagramNode,
+  DiagramEdge,
+  DiagramGroup,
+  DiagramNote,
+  ParseResult,
+} from "diagram-dsl-core";
+export { parseDSL, formatDSLCode, autoLayout } from "diagram-dsl-core";

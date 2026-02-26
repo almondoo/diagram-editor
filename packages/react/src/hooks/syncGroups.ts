@@ -1,8 +1,7 @@
 import type { DiagramGroup } from "diagram-dsl-core";
+import { GROUP_PADDING, GROUP_LABEL_HEIGHT } from "diagram-dsl-core";
 
-// グループ内レイアウト用定数（useDiagramState.ts と合わせる）
-const GROUP_PADDING = 12;
-const GROUP_LABEL_H = 26;
+const GROUP_LABEL_H = GROUP_LABEL_HEIGHT;
 
 /**
  * コード変更時に groupStates を更新する純粋関数。

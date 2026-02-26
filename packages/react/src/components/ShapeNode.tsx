@@ -38,6 +38,7 @@ function wrapText(text: string, maxWidth: number): string[] {
 interface ShapeNodeProps {
   node: DiagramNode;
   isSelected: boolean;
+  isEdgeSource?: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
   onResizeMouseDown?: (e: React.MouseEvent, handle: NodeResizeHandle) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
@@ -48,7 +49,7 @@ interface ShapeNodeProps {
 }
 
 export const ShapeNode = memo(
-  function ShapeNode({ node, isSelected, onMouseDown, onResizeMouseDown, onTouchStart, onTap, onDoubleClick, onConnectionPointMouseDown, edgeCreationActive }: ShapeNodeProps) {
+  function ShapeNode({ node, isSelected, isEdgeSource, onMouseDown, onResizeMouseDown, onTouchStart, onTap, onDoubleClick, onConnectionPointMouseDown, edgeCreationActive }: ShapeNodeProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
     const onTouchStartRef = useRef(onTouchStart);
@@ -219,7 +220,8 @@ export const ShapeNode = memo(
       />
     ) : null;
 
-    const selOutline = isSelected ? (
+    const highlighted = isSelected || isEdgeSource;
+    const selOutline = highlighted ? (
       <rect
         x={x - 4}
         y={y - 4}
@@ -362,6 +364,6 @@ export const ShapeNode = memo(
       </g>
     );
   },
-  // node と isSelected だけ比較。ハンドラは ref で最新を参照するため除外
-  (prev, next) => prev.node === next.node && prev.isSelected === next.isSelected && prev.edgeCreationActive === next.edgeCreationActive,
+  // node と isSelected/isEdgeSource だけ比較。ハンドラは ref で最新を参照するため除外
+  (prev, next) => prev.node === next.node && prev.isSelected === next.isSelected && prev.isEdgeSource === next.isEdgeSource && prev.edgeCreationActive === next.edgeCreationActive,
 );

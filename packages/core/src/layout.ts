@@ -2,8 +2,10 @@ import dagre from "@dagrejs/dagre";
 import type { DiagramNode, DiagramEdge, DiagramGroup } from "./types.js";
 import { colorForId } from "./colors.js";
 
-const LABEL_HEIGHT = 26; // グループラベルの高さ
-const PADDING = 12;      // グループ内パディング
+export const GROUP_LABEL_HEIGHT = 26; // グループラベルの高さ
+export const GROUP_PADDING = 12;      // グループ内パディング
+const LABEL_HEIGHT = GROUP_LABEL_HEIGHT;
+const PADDING = GROUP_PADDING;
 const NODE_SEP = 40;     // dagre: 同一レイヤー内ノード間隔
 const RANK_SEP = 80;     // dagre: レイヤー間隔
 
@@ -185,6 +187,13 @@ function layoutFreeNodesDagre(
   }
 }
 
+/** グループの深さを返す（ルート=0） */
+export function getGroupDepth(gid: string, groupById: Record<string, DiagramGroup>): number {
+  const g = groupById[gid];
+  if (!g?.parentGroup || !groupById[g.parentGroup]) return 0;
+  return getGroupDepth(g.parentGroup, groupById) + 1;
+}
+
 export function autoLayout(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
@@ -224,11 +233,7 @@ export function autoLayout(
   });
 
   // グループをボトムアップ順にソート（リーフが先）
-  const getDepth = (gid: string): number => {
-    const g = groupById[gid];
-    if (!g?.parentGroup || !groupById[g.parentGroup]) return 0;
-    return getDepth(g.parentGroup) + 1;
-  };
+  const getDepth = (gid: string): number => getGroupDepth(gid, groupById);
   const sortedGroups = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
 
   // グループ内ノードをレイアウト → 子グループ配置 → グループ自動フィット（ボトムアップ）

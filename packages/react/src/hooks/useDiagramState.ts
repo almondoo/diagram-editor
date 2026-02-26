@@ -5,15 +5,17 @@ import {
   formatDSLCode,
   generateExportSVG,
   randomColor,
+  colorForId,
+  GROUP_PADDING,
+  GROUP_LABEL_HEIGHT,
+  getGroupDepth,
 } from "diagram-dsl-core";
 import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
 import { syncNodes } from "./syncNodes.js";
 import { syncGroups } from "./syncGroups.js";
 import { syncNotes } from "./syncNotes.js";
 
-// グループ内ノードの境界クランプ用定数（layout.ts と合わせる）
-const GROUP_PADDING = 12;
-const GROUP_LABEL_H = 26;
+const GROUP_LABEL_H = GROUP_LABEL_HEIGHT;
 
 /** 2つの矩形が重なっているか判定 */
 function rectsOverlap(
@@ -47,12 +49,8 @@ function enforceGroupContainment(
   }
 
   // ボトムアップ（深い子から先に処理）
-  const getDepth = (gid: string): number => {
-    const g = result.get(gid);
-    if (!g?.parentGroup || !result.has(g.parentGroup)) return 0;
-    return getDepth(g.parentGroup) + 1;
-  };
-  const sorted = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
+  const groupLookup: Record<string, DiagramGroup> = Object.fromEntries(result);
+  const sorted = [...groups].sort((a, b) => getGroupDepth(b.id, groupLookup) - getGroupDepth(a.id, groupLookup));
 
   // Step 1: 親と完全に重なっていない子グループのみ再配置
   // 部分的なはみ出しは Step 2 の親グループ拡張で対応する
@@ -208,17 +206,28 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     return parsedRaw.notes.map((n) => noteStates[n.id] ?? n);
   }, [parsedRaw.notes, noteStates]);
 
+  // _needsPosition ノードが存在する場合のみ autoLayout を実行
+  const needsLayout = useMemo(
+    () => parsedRaw.nodes.some((n) => nodeStates[n.id]?._needsPosition),
+    [parsedRaw.nodes, nodeStates],
+  );
+
   // displayNodes: nodeStates に autoLayout を適用（displayGroups を渡す）
   const layoutResult = useMemo(() => {
     const nodes = parsedRaw.nodes
       .filter((n) => nodeStates[n.id] !== undefined)
       .map((n) => ({ ...nodeStates[n.id] as DiagramNode }));
+    // __RANDOM__ カラーを解決（autoLayout スキップ時のため）
+    nodes.forEach((n) => {
+      if (n.color === "__RANDOM__") n.color = colorForId(n.id);
+    });
+    if (!needsLayout) return { nodes, groupUpdates: {} };
     return autoLayout(nodes, parsedRaw.edges, displayGroups);
-  }, [parsedRaw, nodeStates, displayGroups]);
+  }, [parsedRaw, nodeStates, needsLayout, displayGroups]);
 
   const displayNodes = layoutResult.nodes;
 
-  // autoLayout が割り当てた位置を nodeStates に保存（_needsPosition のノードのみ）
+  // autoLayout 結果とノート自動配置を1つの effect で処理
   useEffect(() => {
     // _needsPosition をクリア
     const nodeUpdates: Record<string, DiagramNode> = {};
@@ -236,24 +245,22 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     if (Object.keys(groupUpdates).length > 0) {
       setGroupStates((prev) => ({ ...prev, ...groupUpdates }));
     }
-  }, [displayNodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // _needsPosition なノートを自動配置（全コンテンツの下に並べる）
-  useEffect(() => {
+    // _needsPosition なノートを自動配置（全コンテンツの下に並べる）
     const toPlace = displayNotes.filter((n) => n._needsPosition);
-    if (toPlace.length === 0) return;
+    if (toPlace.length > 0) {
+      const allGroups = Object.values(groupStatesRef.current);
+      let contentBottom = 40;
+      for (const n of displayNodes) contentBottom = Math.max(contentBottom, n.y + n.h);
+      for (const g of allGroups) contentBottom = Math.max(contentBottom, g.y + g.h);
 
-    const allGroups = Object.values(groupStatesRef.current);
-    let contentBottom = 40;
-    for (const n of displayNodes) contentBottom = Math.max(contentBottom, n.y + n.h);
-    for (const g of allGroups) contentBottom = Math.max(contentBottom, g.y + g.h);
-
-    const noteUpdates: Record<string, DiagramNote> = {};
-    toPlace.forEach((n, i) => {
-      noteUpdates[n.id] = { ...n, x: 60 + i * 190, y: contentBottom + 40, _needsPosition: false };
-    });
-    setNoteStates((prev) => ({ ...prev, ...noteUpdates }));
-  }, [displayNotes]); // eslint-disable-line react-hooks/exhaustive-deps
+      const noteUpdates: Record<string, DiagramNote> = {};
+      toPlace.forEach((n, i) => {
+        noteUpdates[n.id] = { ...n, x: 60 + i * 190, y: contentBottom + 40, _needsPosition: false };
+      });
+      setNoteStates((prev) => ({ ...prev, ...noteUpdates }));
+    }
+  }, [displayNodes, displayNotes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // displayEdges: bendStates のベンド値を優先（ドラッグベンドを反映）
   const displayEdges = useMemo(() => {
