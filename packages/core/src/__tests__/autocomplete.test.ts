@@ -138,4 +138,18 @@ describe("getCompletionItems", () => {
     const items = getCompletionItems({ type: "keyword", prefix: "xyz" }, []);
     expect(items).toEqual([]);
   });
+
+  it("icon=の値コンテキストでaws.で始まる候補が返る", () => {
+    const items = getCompletionItems({ type: "value", prefix: "aws.", property: "icon", blockType: "node" }, []);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((i) => i.text.startsWith("aws."))).toBe(true);
+  });
+
+  it("icon=aws.service.s でフィルタされた候補が返る", () => {
+    const items = getCompletionItems({ type: "value", prefix: "aws.service.s", property: "icon", blockType: "node" }, []);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((i) => i.text.startsWith("aws.service.s"))).toBe(true);
+    expect(items.map((i) => i.text)).toContain("aws.service.s3");
+    expect(items.map((i) => i.text)).toContain("aws.service.sqs");
+  });
 });

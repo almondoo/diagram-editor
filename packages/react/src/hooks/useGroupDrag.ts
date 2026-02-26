@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { DiagramGroup } from "diagram-dsl-core";
 
-export type ResizeHandle = "se" | "s" | "e";
+export type ResizeHandle = "n" | "s" | "w" | "e" | "se";
 
 interface GroupDragInfo {
   groupId: string;
@@ -17,7 +17,7 @@ export function useGroupDrag(
   zoom: number,
   selectedIds: Set<string>,
   setGroupLayout: (groupId: string, dx: number, dy: number) => void,
-  setGroupSize: (groupId: string, newW: number, newH: number) => void,
+  setGroupSize: (groupId: string, newW: number, newH: number, newX?: number, newY?: number) => void,
   onMultiMove: (dx: number, dy: number) => void,
 ) {
   const [dragInfo, setDragInfo] = useState<GroupDragInfo | null>(null);
@@ -79,9 +79,15 @@ export function useGroupDrag(
         const g = groupByIdRef.current[dragInfo.groupId];
         if (!g) return false;
         const handle = dragInfo.handle ?? "se";
-        const newW = handle === "s" ? g.w : Math.max(120, g.w + dx);
-        const newH = handle === "e" ? g.h : Math.max(80, g.h + dy);
-        setGroupSize(dragInfo.groupId, newW, newH);
+        const adjustX = handle === "w";
+        const adjustY = handle === "n";
+        const adjustW = handle === "e" || handle === "w" || handle === "se";
+        const adjustH = handle === "n" || handle === "s" || handle === "se";
+        const newW = adjustW ? Math.max(120, adjustX ? g.w - dx : g.w + dx) : g.w;
+        const newH = adjustH ? Math.max(80, adjustY ? g.h - dy : g.h + dy) : g.h;
+        const newX = adjustX && newW > 120 ? g.x + dx : undefined;
+        const newY = adjustY && newH > 80 ? g.y + dy : undefined;
+        setGroupSize(dragInfo.groupId, newW, newH, newX, newY);
       }
       return true;
     };

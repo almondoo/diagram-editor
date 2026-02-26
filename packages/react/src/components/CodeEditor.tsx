@@ -170,7 +170,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     const currentLine = linesBeforeCursor[linesBeforeCursor.length - 1]!;
 
     // プレフィックスの長さを計算
-    const prefixMatch = currentLine.match(/[\w#<>-]*$/);
+    const prefixMatch = currentLine.match(/[\w#<>.-]*$/);
     const prefixLen = prefixMatch ? prefixMatch[0].length : 0;
 
     pushUndo(code);
@@ -462,6 +462,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
         <textarea
           ref={textareaRef}
           value={code}
+          wrap="off"
           onChange={(e) => {
             pushUndo(code);
             onChange(e.target.value);

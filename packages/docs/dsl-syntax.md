@@ -33,7 +33,7 @@ node <id> "ラベル" { プロパティ }
 | `text` | #hex | `#ffffff` | テキスト色 |
 | `border` | #hex | color と同じ | 枠線色 |
 | `borderWidth` | number | `2` | 枠線の太さ (px) |
-| `icon` | string | なし | 絵文字アイコン（例: ⚙️ ⚡ 🔄） |
+| `icon` | string | なし | アイコン名（例: aws.service.s3, aws.service.lambda） |
 | `fontSize` | number | `13` | フォントサイズ (px) |
 | `opacity` | number | `1` | 不透明度 (0〜1) |
 | `dashed` | boolean | `false` | 枠線を破線にする |
@@ -49,7 +49,7 @@ node <id> "ラベル" { プロパティ }
 ### 例
 
 ```
-node api "API Server" { shape=rect color=#6366f1 icon=⚡ }
+node api "API Server" { shape=rect color=#6366f1 icon=aws.service.api-gateway }
 node db "Database" { shape=cylinder color=#10b981 }
 node check "有効？" { shape=diamond }
 ```
@@ -205,16 +205,16 @@ style a { color=#ef4444 shape=diamond }
 ```
 // システムアーキテクチャ
 group frontend "Frontend" {
-  node react "React App" { shape=rect icon=⚛️ }
+  node react "React App" { shape=rect }
   node nginx "Nginx" { shape=hexagon }
 }
 group backend "Backend" {
-  node api "FastAPI" { shape=rect icon=⚡ }
-  node worker "Celery Worker" { shape=rect icon=🔄 }
+  node api "FastAPI" { shape=rect icon=aws.service.api-gateway }
+  node worker "Celery Worker" { shape=rect icon=aws.service.lambda }
 }
 group data "Data Layer" {
   node pg "PostgreSQL" { shape=cylinder }
-  node redis "Redis" { shape=hexagon icon=🗄️ }
+  node redis "Redis" { shape=hexagon icon=aws.service.elasticache }
 }
 
 edge react -> nginx { label="Proxy" }

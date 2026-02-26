@@ -31,9 +31,13 @@ export const GroupBox = memo(
 
     const handleMove = useCallback((e: MouseEvent) => { onMoveRef.current(e); }, []);
     const handleMoveTouch = useCallback((e: RTouchEvent) => { onMoveTouchRef.current?.(e); }, []);
+    const handleResizeN = useCallback((e: MouseEvent) => { onResizeRef.current(e, "n"); }, []);
+    const handleResizeW = useCallback((e: MouseEvent) => { onResizeRef.current(e, "w"); }, []);
     const handleResizeE = useCallback((e: MouseEvent) => { onResizeRef.current(e, "e"); }, []);
     const handleResizeS = useCallback((e: MouseEvent) => { onResizeRef.current(e, "s"); }, []);
     const handleResizeSE = useCallback((e: MouseEvent) => { onResizeRef.current(e, "se"); }, []);
+    const handleResizeTouchN = useCallback((e: RTouchEvent) => { onResizeTouchRef.current?.(e, "n"); }, []);
+    const handleResizeTouchW = useCallback((e: RTouchEvent) => { onResizeTouchRef.current?.(e, "w"); }, []);
     const handleResizeTouchE = useCallback((e: RTouchEvent) => { onResizeTouchRef.current?.(e, "e"); }, []);
     const handleResizeTouchS = useCallback((e: RTouchEvent) => { onResizeTouchRef.current?.(e, "s"); }, []);
     const handleResizeTouchSE = useCallback((e: RTouchEvent) => { onResizeTouchRef.current?.(e, "se"); }, []);
@@ -87,6 +91,52 @@ export const GroupBox = memo(
           {label}
         </text>
 
+        {/* N handle - visible */}
+        <rect
+          x={x + w / 2 - HANDLE / 2}
+          y={y - HANDLE / 2}
+          width={HANDLE}
+          height={HANDLE}
+          rx={2}
+          fill={color}
+          fillOpacity={0.5}
+          style={{ cursor: "n-resize", pointerEvents: "none" }}
+        />
+        {/* N handle - touch target */}
+        <rect
+          x={x + TOUCH_HANDLE}
+          y={y - TOUCH_HANDLE / 2}
+          width={w - TOUCH_HANDLE * 2}
+          height={TOUCH_HANDLE}
+          fill="transparent"
+          style={{ cursor: "n-resize" }}
+          onMouseDown={handleResizeN}
+          onTouchStart={handleResizeTouchN}
+        />
+
+        {/* W handle - visible */}
+        <rect
+          x={x - HANDLE / 2}
+          y={y + h / 2 - HANDLE / 2}
+          width={HANDLE}
+          height={HANDLE}
+          rx={2}
+          fill={color}
+          fillOpacity={0.5}
+          style={{ cursor: "w-resize", pointerEvents: "none" }}
+        />
+        {/* W handle - touch target */}
+        <rect
+          x={x - TOUCH_HANDLE / 2}
+          y={y + TOUCH_HANDLE}
+          width={TOUCH_HANDLE}
+          height={h - TOUCH_HANDLE * 2}
+          fill="transparent"
+          style={{ cursor: "w-resize" }}
+          onMouseDown={handleResizeW}
+          onTouchStart={handleResizeTouchW}
+        />
+
         {/* E handle - visible */}
         <rect
           x={x + w - HANDLE / 2}
@@ -101,9 +151,9 @@ export const GroupBox = memo(
         {/* E handle - touch target */}
         <rect
           x={x + w - TOUCH_HANDLE / 2}
-          y={y + h / 2 - TOUCH_HANDLE / 2}
+          y={y + TOUCH_HANDLE}
           width={TOUCH_HANDLE}
-          height={TOUCH_HANDLE}
+          height={h - TOUCH_HANDLE * 2}
           fill="transparent"
           style={{ cursor: "e-resize" }}
           onMouseDown={handleResizeE}
@@ -123,9 +173,9 @@ export const GroupBox = memo(
         />
         {/* S handle - touch target */}
         <rect
-          x={x + w / 2 - TOUCH_HANDLE / 2}
+          x={x + TOUCH_HANDLE}
           y={y + h - TOUCH_HANDLE / 2}
-          width={TOUCH_HANDLE}
+          width={w - TOUCH_HANDLE * 2}
           height={TOUCH_HANDLE}
           fill="transparent"
           style={{ cursor: "s-resize" }}

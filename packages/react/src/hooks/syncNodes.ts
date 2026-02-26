@@ -45,6 +45,13 @@ export function syncNodes(
       explicit.forEach((key: string) => {
         (updates as Record<string, unknown>)[key] = (parsed as unknown as Record<string, unknown>)[key];
       });
+      // icon 追加/削除時にデフォルトサイズを更新（w/h 未指定の場合）
+      const parsedHasIcon = !!parsed.icon;
+      const prevHadIcon = !!prev.icon;
+      if (parsedHasIcon !== prevHadIcon) {
+        if (!explicit.has("w")) updates.w = parsedHasIcon ? 80 : 150;
+        if (!explicit.has("h")) updates.h = parsedHasIcon ? 68 : 60;
+      }
       // group は明示的・暗黙的（ブロック構文）どちらの変更も常に反映する
       if (parsed.group !== prev.group) {
         updates.group = parsed.group;

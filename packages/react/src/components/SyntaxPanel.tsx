@@ -63,7 +63,7 @@ export function SyntaxPanel({ onClose }: SyntaxPanelProps) {
             ["shape", "rect | stadium | diamond | ellipse | circle | cylinder | hexagon | parallelogram | trapezoid", "rect"],
             ["color", "#hex (例: #6366f1) — 未指定時ランダム", "ランダム"],
             ["text", "#hex — テキスト色", "#ffffff"],
-            ["icon", "絵文字 (例: ⚙️ ⚡ 🔄)", "なし"],
+            ["icon", "アイコン名 (例: aws.service.s3, aws.service.lambda)", "なし"],
             ["dashed", "true | false — 枠線を破線に", "false"],
           ].map(([k, v, d]) => (
             <tr key={k} style={{ borderBottom: "1px solid #1e293b" }}>

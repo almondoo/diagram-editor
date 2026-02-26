@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import type { DiagramNode } from "diagram-dsl-core";
 
+export type NodeResizeHandle = "n" | "s" | "w" | "e" | "se";
+
 interface DragInfo {
   nodeId: string;
   startX: number;
   startY: number;
   type: "move" | "resize";
+  handle?: NodeResizeHandle;
   isMulti: boolean;
 }
 
@@ -14,7 +17,7 @@ export function useNodeDrag(
   zoom: number,
   selectedIds: Set<string>,
   setNodeLayout: (nodeId: string, x: number, y: number) => void,
-  setNodeSize: (nodeId: string, w: number, h: number) => void,
+  setNodeSize: (nodeId: string, w: number, h: number, x?: number, y?: number) => void,
   onMultiMove: (dx: number, dy: number) => void,
 ) {
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
@@ -26,10 +29,10 @@ export function useNodeDrag(
     setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY, type: "move", isMulti });
   };
 
-  const handleNodeResizeMouseDown = (e: React.MouseEvent, nodeId: string) => {
+  const handleNodeResizeMouseDown = (e: React.MouseEvent, nodeId: string, handle: NodeResizeHandle = "se") => {
     e.stopPropagation();
     if (e.button !== 0) return;
-    setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY, type: "resize", isMulti: false });
+    setDragInfo({ nodeId, startX: e.clientX, startY: e.clientY, type: "resize", handle, isMulti: false });
   };
 
   const handleNodeTouchStart = useCallback((e: React.TouchEvent, nodeId: string) => {
@@ -51,7 +54,16 @@ export function useNodeDrag(
       if (dragInfo.type === "resize") {
         const node = nodeById[dragInfo.nodeId];
         if (!node) return false;
-        setNodeSize(dragInfo.nodeId, node.w + dx, node.h + dy);
+        const h = dragInfo.handle ?? "se";
+        const adjustX = h === "w";
+        const adjustY = h === "n";
+        const adjustW = h === "e" || h === "w" || h === "se";
+        const adjustH = h === "n" || h === "s" || h === "se";
+        const newW = adjustW ? (adjustX ? node.w - dx : node.w + dx) : node.w;
+        const newH = adjustH ? (adjustY ? node.h - dy : node.h + dy) : node.h;
+        const newX = adjustX ? node.x + dx : undefined;
+        const newY = adjustY ? node.y + dy : undefined;
+        setNodeSize(dragInfo.nodeId, newW, newH, newX, newY);
       } else if (dragInfo.isMulti) {
         onMultiMove(dx, dy);
       } else {

@@ -15,6 +15,14 @@ import { syncNotes } from "./syncNotes.js";
 const GROUP_PADDING = 12;
 const GROUP_LABEL_H = 26;
 
+/** 2つの矩形が重なっているか判定 */
+function rectsOverlap(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number,
+): boolean {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
 /** 親グループが子グループ・メンバーノードを必ず包含するように補正する */
 function enforceGroupContainment(
   groups: DiagramGroup[],
@@ -46,24 +54,31 @@ function enforceGroupContainment(
   };
   const sorted = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
 
-  // Step 1: 子グループが親の外にある場合、親の内部に再配置
+  // Step 1: 親と完全に重なっていない子グループのみ再配置
+  // 部分的なはみ出しは Step 2 の親グループ拡張で対応する
   for (const { id: gid } of sorted) {
     const g = result.get(gid)!;
     if (!g.parentGroup) continue;
     const parent = result.get(g.parentGroup);
     if (!parent) continue;
 
-    const insideParent =
-      g.x >= parent.x && g.y >= parent.y &&
-      g.x + g.w <= parent.x + parent.w && g.y + g.h <= parent.y + parent.h;
+    const hasOverlap = rectsOverlap(g.x, g.y, g.w, g.h, parent.x, parent.y, parent.w, parent.h);
 
-    if (!insideParent) {
-      const siblings = memberNodeMap[g.parentGroup] ?? [];
-      const contentBottom = siblings.length > 0
-        ? Math.max(...siblings.map((n) => n.y + n.h))
-        : parent.y;
-      const targetY = contentBottom + GROUP_LABEL_H + GROUP_PADDING;
-      result.set(g.id, { ...g, x: parent.x + GROUP_PADDING, y: targetY });
+    if (!hasOverlap) {
+      // 完全に外にいる → 親の内部に横並びで配置
+      const siblingIds = (childGroupMap[g.parentGroup] ?? []).filter((id) => id !== gid);
+      let curX = parent.x + GROUP_PADDING;
+      const targetY = parent.y + GROUP_LABEL_H + GROUP_PADDING;
+
+      // 親内にいる兄弟グループの右端を基準に横に並べる
+      for (const sid of siblingIds) {
+        const sib = result.get(sid)!;
+        if (rectsOverlap(sib.x, sib.y, sib.w, sib.h, parent.x, parent.y, parent.w, parent.h)) {
+          curX = Math.max(curX, sib.x + sib.w + GROUP_PADDING);
+        }
+      }
+
+      result.set(g.id, { ...g, x: curX, y: targetY });
     }
   }
 
@@ -129,9 +144,9 @@ export interface DiagramState {
   noteStates: Record<string, DiagramNote>;
   bendStates: Record<string, { bendX: number; bendY: number }>;
   setNodeLayout: (nodeId: string, x: number, y: number) => void;
-  setNodeSize: (nodeId: string, w: number, h: number) => void;
+  setNodeSize: (nodeId: string, w: number, h: number, x?: number, y?: number) => void;
   setGroupLayout: (groupId: string, dx: number, dy: number) => void;
-  setGroupSize: (groupId: string, newW: number, newH: number) => void;
+  setGroupSize: (groupId: string, newW: number, newH: number, newX?: number, newY?: number) => void;
   setNoteLayout: (noteId: string, x: number, y: number) => void;
   multiMoveLayout: (selectedIds: Set<string>, dx: number, dy: number) => void;
   addNode: (shape: string) => void;
@@ -248,11 +263,40 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     });
   }, [parsedRaw.edges, bendStates]);
 
+  // autoLayout の groupUpdates を displayGroups に即時反映（useEffect 前の render でも正しい位置を使う）
+  const displayGroupsAfterLayout = useMemo(() => {
+    const { groupUpdates } = layoutResult;
+    if (Object.keys(groupUpdates).length === 0) return displayGroups;
+    return displayGroups.map((g) => groupUpdates[g.id] ?? g);
+  }, [displayGroups, layoutResult]);
+
   // 親グループが子グループ・ノードを必ず包含するように補正
   const adjustedGroups = useMemo(
-    () => enforceGroupContainment(displayGroups, displayNodes),
-    [displayGroups, displayNodes],
+    () => enforceGroupContainment(displayGroupsAfterLayout, displayNodes),
+    [displayGroupsAfterLayout, displayNodes],
   );
+
+  // enforceGroupContainment で拡張された親グループのサイズを groupStates に保存
+  // これにより、子グループが縮小しても親グループは縮小しない
+  useEffect(() => {
+    const updates: Record<string, DiagramGroup> = {};
+    for (let i = 0; i < adjustedGroups.length; i++) {
+      const adjusted = adjustedGroups[i]!;
+      const before = displayGroupsAfterLayout[i];
+      if (!before || adjusted.id !== before.id) continue;
+      if (
+        adjusted.x !== before.x ||
+        adjusted.y !== before.y ||
+        adjusted.w !== before.w ||
+        adjusted.h !== before.h
+      ) {
+        updates[adjusted.id] = adjusted;
+      }
+    }
+    if (Object.keys(updates).length > 0) {
+      setGroupStates((prev) => ({ ...prev, ...updates }));
+    }
+  }, [adjustedGroups, displayGroupsAfterLayout]);
 
   // 最終的な parsed（consumers はこれを使う）
   const parsed: ParseResult = useMemo(
@@ -370,21 +414,27 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     });
   }, []);
 
-  // グループリサイズ: グループの w/h を更新
-  const setGroupSize = useCallback((groupId: string, newW: number, newH: number) => {
+  // グループリサイズ: グループの w/h を更新（x/y は上/左リサイズ時のみ指定）
+  const setGroupSize = useCallback((groupId: string, newW: number, newH: number, newX?: number, newY?: number) => {
     setGroupStates((prev) => {
       const g = prev[groupId];
       if (!g) return prev;
-      return { ...prev, [groupId]: { ...g, w: newW, h: newH } };
+      const updated = { ...g, w: newW, h: newH };
+      if (newX !== undefined) updated.x = newX;
+      if (newY !== undefined) updated.y = newY;
+      return { ...prev, [groupId]: updated };
     });
   }, []);
 
-  // ノードサイズ更新
-  const setNodeSize = useCallback((nodeId: string, w: number, h: number) => {
+  // ノードサイズ更新（x/y は上/左リサイズ時のみ指定）
+  const setNodeSize = useCallback((nodeId: string, w: number, h: number, x?: number, y?: number) => {
     setNodeStates((prev) => {
       const n = prev[nodeId];
       if (!n) return prev;
-      return { ...prev, [nodeId]: { ...n, w: Math.max(60, w), h: Math.max(30, h) } };
+      const clamped = { ...n, w: Math.max(60, w), h: Math.max(30, h) };
+      if (x !== undefined) clamped.x = x;
+      if (y !== undefined) clamped.y = y;
+      return { ...prev, [nodeId]: clamped };
     });
   }, []);
 

@@ -1,3 +1,5 @@
+import { AWS_ICON_NAMES } from "./icon-list.js";
+
 /** 補完コンテキストの型 */
 export type CompletionContext =
   | { type: "keyword"; prefix: string }
@@ -43,6 +45,7 @@ const VALUE_MAP: Record<string, string[]> = {
   curve: CURVES,
   color: COLOR_PRESETS,
   text: COLOR_PRESETS,
+  icon: AWS_ICON_NAMES,
 };
 
 const EDGE_OP_RE = /^<-->|^<->|^<--|^-->|^<-|^->|^--/;

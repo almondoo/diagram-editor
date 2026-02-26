@@ -443,7 +443,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 handleNodeTouchStart(e, node.id);
               }}
               onTap={() => handleNodeTap(node.id)}
-              onResizeMouseDown={(e) => handleNodeResizeMouseDown(e, node.id)}
+              onResizeMouseDown={(e, handle) => handleNodeResizeMouseDown(e, node.id, handle)}
               onDoubleClick={() => {
                 const line = findCodeLine("node", node.id);
                 if (line) setFocusLine(line);

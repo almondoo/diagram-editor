@@ -18,3 +18,4 @@ export { getShapePath, getNodeCenter, getEdgePoints, buildEdgePath } from "./geo
 export { escapeXml, generateExportSVG } from "./svg-export.js";
 export { getCompletionContext, getCompletionItems } from "./autocomplete.js";
 export type { CompletionContext, CompletionItem } from "./autocomplete.js";
+export { AWS_ICON_NAMES } from "./icon-list.js";

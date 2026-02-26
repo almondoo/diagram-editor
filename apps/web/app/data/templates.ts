@@ -37,44 +37,70 @@ edge server --> cache { label="Update" }
 edge server -> res1
 edge res1 -> client { label="HTTP Response" }`,
 
-  er: `// 🗃️ ER図
-node users "Users" { shape=rect }
-node posts "Posts" { shape=rect }
-node comments "Comments" { shape=rect }
-node tags "Tags" { shape=rect }
-node post_tags "PostTags" { shape=diamond }
-
-note n1 "id, name, email, created_at"
-note n2 "id, user_id, title, body"
-note n3 "id, post_id, user_id, body"
-
-edge users -> posts { label="1:N" thickness=2 }
-edge users -> comments { label="1:N" thickness=2 }
-edge posts -> comments { label="1:N" thickness=2 }
-edge posts -> post_tags { label="M" }
-edge tags -> post_tags { label="N" }`,
-
-  architecture: `// 🏗️ システムアーキテクチャ
-group frontend "Frontend" {
-  node react "React App" { shape=rect icon=⚛️ }
-  node nginx "Nginx" { shape=hexagon }
+  architecture: `// 🏗️ AWS アーキテクチャ
+group vpc "VPC" { color=#8b5cf6
+  group public "Public Subnet" { color=#22c55e
+    node alb "ALB" { icon=aws.service.elb }
+    node nat "NAT Gateway" { icon=aws.resource.vpc.nat-gateway }
+  }
+  group private "Private Subnet" { color=#3b82f6
+    node ecs "ECS Service" { icon=aws.service.ecs }
+    node rds "Aurora" { icon=aws.service.aurora }
+    node cache "ElastiCache" { icon=aws.service.elasticache }
+  }
 }
-group backend "Backend" {
-  node api "FastAPI" { shape=rect icon=⚡ }
-  node worker "Celery Worker" { shape=rect icon=🔄 }
-}
-group data "Data Layer" {
-  node pg "PostgreSQL" { shape=cylinder }
-  node redis "Redis" { shape=hexagon icon=🗄️ }
-}
+node cf "CloudFront" { icon=aws.service.cloudfront }
+node s3 "S3 Bucket" { icon=aws.service.s3 }
 
-edge react -> nginx { label="Proxy" }
-edge nginx -> api { label="REST" animate=true }
-edge api --> worker { label="Task" }
-edge api -> pg { label="SQL" }
-edge api -> redis { label="Cache" }
-edge worker --> pg { label="Write" }
-edge worker --> redis { label="Queue" }`,
+edge cf -> alb { label="HTTPS" animate=true }
+edge alb -> ecs { label="HTTP" }
+edge ecs -> rds { label="SQL" }
+edge ecs -> cache { label="Redis" }
+edge cf -> s3 { label="Static" }
+edge ecs --> s3 { label="Upload" }`,
+
+  serverless: `// ⚡ サーバーレスアーキテクチャ
+node apigw "API Gateway" { icon=aws.service.api-gateway }
+node lambda1 "Auth Function" { icon=aws.service.lambda }
+node lambda2 "API Function" { icon=aws.service.lambda }
+node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+node s3 "S3 Bucket" { icon=aws.service.s3 }
+node cognito "Cognito" { icon=aws.service.cognito }
+node cf "CloudFront" { icon=aws.service.cloudfront }
+node sqs "SQS Queue" { icon=aws.service.sqs }
+node lambda3 "Worker" { icon=aws.service.lambda }
+
+edge cf -> s3 { label="Static" }
+edge cf -> apigw { label="API" }
+edge apigw -> lambda1 { label="Auth" }
+edge apigw -> lambda2 { label="Request" }
+edge lambda1 -> cognito { label="Verify" }
+edge lambda2 -> dynamo { label="CRUD" }
+edge lambda2 --> sqs { label="Enqueue" }
+edge sqs -> lambda3 { label="Process" animate=true }
+edge lambda3 --> s3 { label="Store" }`,
+
+  "data-pipeline": `// 📊 データパイプライン
+node source "Data Source" { shape=cylinder }
+node firehose "Firehose" { icon=aws.service.data-firehose }
+node s3raw "Raw Data" { icon=aws.service.s3 }
+node glue "Glue ETL" { icon=aws.service.glue }
+node s3proc "Processed" { icon=aws.service.s3 }
+node athena "Athena" { icon=aws.service.athena }
+node quicksight "QuickSight" { icon=aws.service.quicksight }
+node redshift "Redshift" { icon=aws.service.redshift }
+node lambda "Transform" { icon=aws.service.lambda }
+
+edge source -> firehose { label="Stream" animate=true }
+edge firehose -> s3raw { label="Store" }
+edge firehose -> lambda { label="Transform" }
+edge lambda -> s3raw
+edge s3raw -> glue { label="ETL" }
+edge glue -> s3proc { label="Parquet" }
+edge s3proc -> athena { label="Query" }
+edge s3proc -> redshift { label="Load" }
+edge athena -> quicksight { label="BI" }
+edge redshift -> quicksight { label="BI" }`,
 
   mindmap: `// 🧠 マインドマップ
 node center "プロジェクト計画" { shape=stadium fontSize=15 }

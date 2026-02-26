@@ -1,6 +1,7 @@
 import { useRef, useCallback, memo } from "react";
 import type { DiagramNode } from "diagram-dsl-core";
 import { getShapePath } from "diagram-dsl-core";
+import type { NodeResizeHandle } from "../hooks/useNodeDrag.js";
 
 /**
  * ノード幅に合わせて label を複数行に折り返す。
@@ -38,7 +39,7 @@ interface ShapeNodeProps {
   node: DiagramNode;
   isSelected: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
-  onResizeMouseDown?: (e: React.MouseEvent) => void;
+  onResizeMouseDown?: (e: React.MouseEvent, handle: NodeResizeHandle) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
   onTap?: () => void;
   onDoubleClick?: () => void;
@@ -99,32 +100,37 @@ export const ShapeNode = memo(
 
     let textEl: React.ReactElement;
     if (icon) {
-      // アイコン + ラベルを縦に並べる（折り返しなし）
-      const iconFS = Math.round(fontSize * 2.5);
-      const iconLineH = Math.ceil(iconFS * 1.2);
-      const gap = 2;
-      const totalH = iconLineH + gap + lineHeight;
-      const iconCenterY = y + h / 2 - totalH / 2 + iconLineH / 2;
-      const labelDy = iconLineH / 2 + gap + lineHeight / 2;
+      // SVG ファイルアイコン + ラベル
+      const iconSize = 36;
+      const gap = 4;
+      const totalH = iconSize + gap + lineHeight;
+      const iconY = y + h / 2 - totalH / 2;
+      const labelCenterY = iconY + iconSize + gap + lineHeight / 2;
+      const iconDir = icon.split(".")[0];
       textEl = (
-        <text
-          x={x + w / 2}
-          y={iconCenterY}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill={textColor}
-          fontSize={fontSize}
-          fontFamily="'IBM Plex Sans', 'Noto Sans JP', system-ui, sans-serif"
-          fontWeight="500"
-          style={{ pointerEvents: "none", userSelect: "none" }}
-        >
-          <tspan x={x + w / 2} fontSize={iconFS}>
-            {icon}
-          </tspan>
-          <tspan x={x + w / 2} dy={labelDy}>
+        <>
+          <image
+            href={`/icons/${iconDir}/${icon}.svg`}
+            x={x + w / 2 - iconSize / 2}
+            y={iconY}
+            width={iconSize}
+            height={iconSize}
+            style={{ pointerEvents: "none" }}
+          />
+          <text
+            x={x + w / 2}
+            y={labelCenterY}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill={textColor}
+            fontSize={fontSize}
+            fontFamily="'IBM Plex Sans', 'Noto Sans JP', system-ui, sans-serif"
+            fontWeight="500"
+            style={{ pointerEvents: "none", userSelect: "none" }}
+          >
             {label}
-          </tspan>
-        </text>
+          </text>
+        </>
       );
     } else {
       // アイコンなし: ノード幅に合わせて折り返し表示
@@ -152,22 +158,31 @@ export const ShapeNode = memo(
       );
     }
 
-    const resizeHandle = isSelected && onResizeMouseDown ? (
-      <rect
-        x={x + w - 5}
-        y={y + h - 5}
-        width={10}
-        height={10}
-        rx={2}
-        fill="#818cf8"
-        stroke="#1e1b4b"
-        strokeWidth={1}
-        style={{ cursor: "se-resize", pointerEvents: "all" }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onResizeMouseDown(e);
-        }}
-      />
+    const HS = 6; // handle visible size
+    const HT = 20; // handle touch target size
+    const resizeHandles = isSelected && onResizeMouseDown ? (
+      <g>
+        {/* N (top edge) */}
+        <rect x={x + w / 2 - HS / 2} y={y - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
+        <rect x={x + HT} y={y - HT / 2} width={w - HT * 2} height={HT} fill="transparent" style={{ cursor: "n-resize" }}
+          onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "n"); }} />
+        {/* S (bottom edge) */}
+        <rect x={x + w / 2 - HS / 2} y={y + h - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
+        <rect x={x + HT} y={y + h - HT / 2} width={w - HT * 2} height={HT} fill="transparent" style={{ cursor: "s-resize" }}
+          onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "s"); }} />
+        {/* W (left edge) */}
+        <rect x={x - HS / 2} y={y + h / 2 - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
+        <rect x={x - HT / 2} y={y + HT} width={HT} height={h - HT * 2} fill="transparent" style={{ cursor: "w-resize" }}
+          onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "w"); }} />
+        {/* E (right edge) */}
+        <rect x={x + w - HS / 2} y={y + h / 2 - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
+        <rect x={x + w - HT / 2} y={y + HT} width={HT} height={h - HT * 2} fill="transparent" style={{ cursor: "e-resize" }}
+          onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "e"); }} />
+        {/* SE (bottom-right corner) */}
+        <rect x={x + w - HS} y={y + h - HS} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
+        <rect x={x + w - HT} y={y + h - HT} width={HT} height={HT} fill="transparent" style={{ cursor: "se-resize" }}
+          onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "se"); }} />
+      </g>
     ) : null;
 
     const connectionPoints = onConnectionPointMouseDown ? (
@@ -238,7 +253,7 @@ export const ShapeNode = memo(
           {selOutline}
           <rect x={x} y={y} width={w} height={h} fill="transparent" stroke="none" />
           {textEl}
-          {resizeHandle}
+          {resizeHandles}
           {connectionPoints}
           {dropTarget}
         </g>
@@ -262,7 +277,7 @@ export const ShapeNode = memo(
             strokeDasharray={dashArr}
           />
           {textEl}
-          {resizeHandle}
+          {resizeHandles}
           {connectionPoints}
           {dropTarget}
         </g>
@@ -300,7 +315,7 @@ export const ShapeNode = memo(
             stroke="none"
           />
           {textEl}
-          {resizeHandle}
+          {resizeHandles}
           {connectionPoints}
           {dropTarget}
         </g>
@@ -319,7 +334,7 @@ export const ShapeNode = memo(
             strokeDasharray={dashArr}
           />
           {textEl}
-          {resizeHandle}
+          {resizeHandles}
           {connectionPoints}
           {dropTarget}
         </g>
@@ -341,7 +356,7 @@ export const ShapeNode = memo(
           strokeDasharray={dashArr}
         />
         {textEl}
-        {resizeHandle}
+        {resizeHandles}
         {connectionPoints}
         {dropTarget}
       </g>

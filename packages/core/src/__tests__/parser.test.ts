@@ -214,7 +214,7 @@ edge b -> c`;
   });
 
   it("nodeのプロパティを全て解析する", () => {
-    const result = parseDSL('node a "A" { shape=diamond color=#ff0000 text=#000000 x=10 y=20 w=200 h=80 icon=🎨 opacity=0.5 dashed=true }');
+    const result = parseDSL('node a "A" { shape=diamond color=#ff0000 text=#000000 x=10 y=20 w=200 h=80 icon=aws.service.s3 opacity=0.5 dashed=true }');
     const node = result.nodes[0]!;
     expect(node.shape).toBe("diamond");
     expect(node.color).toBe("#ff0000");
@@ -223,7 +223,7 @@ edge b -> c`;
     expect(node.y).toBe(20);
     expect(node.w).toBe(200);
     expect(node.h).toBe(80);
-    expect(node.icon).toBe("🎨");
+    expect(node.icon).toBe("aws.service.s3");
     expect(node.opacity).toBe(0.5);
     expect(node.dashed).toBe(true);
   });
@@ -299,7 +299,7 @@ describe("_explicitProps tracking", () => {
   });
 
   it("tracks all explicitly set props", () => {
-    const result = parseDSL('node a "A" { shape=diamond color=#fff icon=🎨 opacity=0.8 }');
+    const result = parseDSL('node a "A" { shape=diamond color=#fff icon=aws.service.s3 opacity=0.8 }');
     const props = result.nodes[0]!._explicitProps!;
     expect(props.has("shape")).toBe(true);
     expect(props.has("color")).toBe(true);
