@@ -17,18 +17,22 @@ export const links: Route.LinksFunction = () => [
     href: "https://fonts.gstatic.com",
     crossOrigin: "anonymous",
   },
+  {
+    rel: "stylesheet",
+    href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap",
+  },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" style={{ height: "100%" }}>
+    <html lang="ja" className="h-full">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
-      <body style={{ height: "100%", margin: 0, padding: 0, overflow: "hidden" }}>
+      <body className="h-full m-0 p-0 overflow-hidden">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -58,11 +62,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main style={{ padding: "64px 16px", fontFamily: "system-ui", color: "#e2e8f0", background: "#0a0c12", minHeight: "100vh" }}>
-      <h1 style={{ fontSize: 24, marginBottom: 8 }}>{message}</h1>
-      <p style={{ color: "#94a3b8" }}>{details}</p>
+    <main className="px-4 pt-16 font-sans text-text-primary bg-bg-base min-h-screen">
+      <h1 className="text-2xl mb-2">{message}</h1>
+      <p className="text-text-muted">{details}</p>
       {stack && (
-        <pre style={{ padding: 16, overflow: "auto", fontSize: 12, color: "#64748b" }}>
+        <pre className="p-4 overflow-auto text-xs text-text-faint">
           <code>{stack}</code>
         </pre>
       )}

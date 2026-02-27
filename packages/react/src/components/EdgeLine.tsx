@@ -31,7 +31,7 @@ export const EdgeLine = memo(
           fill="none"
           stroke="transparent"
           strokeWidth={14}
-          style={{ cursor: "move" }}
+          className="cursor-move"
           onMouseDown={(e) => onMoveMouseDown?.(e, edge.from, edge.to)}
           onDoubleClick={onDoubleClick}
         />
@@ -45,13 +45,12 @@ export const EdgeLine = memo(
           strokeDasharray={style === "dashed" ? "8,4" : "none"}
           markerEnd={hasEndMarker ? `url(#ah-end-${safeColor})` : undefined}
           markerStart={hasStartMarker ? `url(#ah-start-${safeColor})` : undefined}
-          className={animate ? "edge-animate" : ""}
-          style={{ pointerEvents: "none" }}
+          className={animate ? "edge-animate pointer-events-none" : "pointer-events-none"}
         />
 
         {/* ラベル */}
         {label && (
-          <g style={{ pointerEvents: "none" }}>
+          <g className="pointer-events-none">
             <rect
               x={labelX - label.length * 4 - 4}
               y={labelY - 10}
@@ -85,7 +84,7 @@ export const EdgeLine = memo(
             fill="#6366f1"
             stroke="#fff"
             strokeWidth={1.5}
-            style={{ cursor: "crosshair" }}
+            className="cursor-crosshair"
             onMouseDown={(e) => onEndpointMouseDown?.(e, edge.from, edge.to, "from")}
           />
           <circle
@@ -95,7 +94,7 @@ export const EdgeLine = memo(
             fill="#6366f1"
             stroke="#fff"
             strokeWidth={1.5}
-            style={{ cursor: "crosshair" }}
+            className="cursor-crosshair"
             onMouseDown={(e) => onEndpointMouseDown?.(e, edge.from, edge.to, "to")}
           />
         </g>

@@ -33,30 +33,13 @@ export function SaveModal({ existingNames, onSave, onClose }: SaveModalProps) {
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[1000]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        style={{
-          background: "#0f1219",
-          border: "1px solid #2d3548",
-          borderRadius: 10,
-          padding: "24px 28px",
-          minWidth: 320,
-          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0", marginBottom: 16 }}>
+      <div className="bg-bg-panel border border-border rounded-[10px] px-7 py-6 min-w-80 shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+        <div className="text-sm font-semibold text-text-primary mb-4">
           ダイアグラムを保存
         </div>
         <input
@@ -68,50 +51,28 @@ export function SaveModal({ existingNames, onSave, onClose }: SaveModalProps) {
           }}
           onKeyDown={handleKeyDown}
           placeholder="名前を入力"
-          style={{
-            width: "100%",
-            background: "#131720",
-            border: "1px solid #2d3548",
-            borderRadius: 6,
-            padding: "8px 12px",
-            color: "#e2e8f0",
-            fontSize: 13,
-            outline: "none",
-            boxSizing: "border-box",
-          }}
+          className="w-full bg-bg-overlay border border-border rounded-md px-3 py-2 text-text-primary text-[13px] outline-none box-border"
         />
         {showOverwriteWarning && (
-          <div style={{ fontSize: 11, color: "#f87171", marginTop: 8 }}>
+          <div className="text-[11px] text-error mt-2">
             「{name}」はすでに存在します。上書きしますか？
           </div>
         )}
-        <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
+        <div className="flex gap-2 mt-4 justify-end">
           <button
             onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "1px solid #2d3548",
-              color: "#64748b",
-              padding: "6px 14px",
-              borderRadius: 5,
-              cursor: "pointer",
-              fontSize: 12,
-            }}
+            className="bg-transparent border border-border text-text-faint px-3.5 py-1.5 rounded-[5px] cursor-pointer text-xs"
           >
             キャンセル
           </button>
           <button
             onClick={handleSubmit}
             disabled={!name.trim()}
+            className="border-none px-3.5 py-1.5 rounded-[5px] text-xs font-semibold"
             style={{
               background: name.trim() ? "#4338ca" : "#1e293b",
-              border: "none",
               color: name.trim() ? "#e0e7ff" : "#475569",
-              padding: "6px 14px",
-              borderRadius: 5,
               cursor: name.trim() ? "pointer" : "default",
-              fontSize: 12,
-              fontWeight: 600,
             }}
           >
             {showOverwriteWarning ? "上書き保存" : "保存"}

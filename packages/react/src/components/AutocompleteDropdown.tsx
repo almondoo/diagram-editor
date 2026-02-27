@@ -38,22 +38,8 @@ export function AutocompleteDropdown({ items, selectedIndex, position, onSelect 
 
   return (
     <div
-      style={{
-        position: "absolute",
-        top: position.top,
-        left: position.left,
-        zIndex: 100,
-        background: "#1e293b",
-        border: "1px solid #334155",
-        borderRadius: 6,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-        maxHeight: 8 * 28 + 8,
-        overflowY: "auto",
-        padding: "4px 0",
-        minWidth: 160,
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 12,
-      }}
+      className="absolute z-[100] bg-surface-alt border border-border-faint rounded-md shadow-[0_4px_16px_rgba(0,0,0,0.4)] max-h-[232px] overflow-y-auto py-1 min-w-40 font-mono text-xs"
+      style={{ top: position.top, left: position.left }}
       ref={listRef}
     >
       {items.map((item, i) => (
@@ -63,27 +49,15 @@ export function AutocompleteDropdown({ items, selectedIndex, position, onSelect 
             e.preventDefault();
             onSelect(item);
           }}
+          className="px-2.5 py-1 cursor-pointer flex items-center gap-2"
           style={{
-            padding: "4px 10px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
             background: i === selectedIndex ? "#334155" : "transparent",
             color: i === selectedIndex ? "#f1f5f9" : "#cbd5e1",
           }}
         >
           <span
-            style={{
-              fontSize: 9,
-              fontWeight: 600,
-              color: kindColor[item.kind] ?? "#94a3b8",
-              background: "rgba(0,0,0,0.3)",
-              padding: "1px 4px",
-              borderRadius: 3,
-              minWidth: 20,
-              textAlign: "center",
-            }}
+            className="text-[9px] font-semibold bg-black/30 px-1 py-px rounded-[3px] min-w-5 text-center"
+            style={{ color: kindColor[item.kind] ?? "#94a3b8" }}
           >
             {kindLabel[item.kind] ?? ""}
           </span>

@@ -45,61 +45,23 @@ export function AppHeader({
 
   return (
     <header
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: isMobile ? "0 12px" : "0 20px",
-        height: 48,
-        background: "#0c0e14",
-        borderBottom: "1px solid #1e293b",
-        flexShrink: 0,
-        fontFamily: "'IBM Plex Sans', 'Noto Sans JP', system-ui",
-        color: "#e2e8f0",
-      }}
+      className="flex items-center h-12 bg-bg-raised border-b border-border-subtle shrink-0 font-sans text-text-primary"
+      style={{ padding: isMobile ? "0 12px" : "0 20px" }}
     >
       {/* ブランディング（ホームリンク） */}
       <Link
         to="/"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          textDecoration: "none",
-          color: "inherit",
-        }}
+        className="flex items-center gap-2.5 no-underline text-inherit"
       >
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 7,
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
-            fontWeight: 700,
-          }}
-        >
+        <div className="w-7 h-7 rounded-[7px] bg-gradient-to-br from-primary to-purple flex items-center justify-center text-sm font-bold">
           ◈
         </div>
         {!isMobile && (
           <>
-            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>
+            <span className="text-[15px] font-bold tracking-tight">
               DiagramCraft
             </span>
-            <span
-              style={{
-                fontSize: 9,
-                background: "#312e81",
-                color: "#a5b4fc",
-                padding: "2px 6px",
-                borderRadius: 4,
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-              }}
-            >
+            <span className="text-[9px] bg-primary-darker text-primary-pale px-1.5 py-0.5 rounded-[4px] font-semibold tracking-[0.05em] uppercase">
               Code → Diagram
             </span>
           </>
@@ -109,7 +71,8 @@ export function AppHeader({
       {/* テンプレートドロップダウン */}
       <div
         data-template-dropdown=""
-        style={{ position: "relative", marginLeft: isMobile ? 10 : 24 }}
+        className="relative"
+        style={{ marginLeft: isMobile ? 10 : 24 }}
       >
         <button
           onClick={() => setShowTemplates((v) => !v)}
@@ -131,20 +94,7 @@ export function AppHeader({
           <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
         </button>
         {showTemplates && (
-          <div
-            style={{
-              position: "absolute",
-              top: "calc(100% + 4px)",
-              left: 0,
-              background: "#0f1219",
-              border: "1px solid #2d3548",
-              borderRadius: 8,
-              minWidth: 160,
-              zIndex: 100,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-              overflow: "hidden",
-            }}
-          >
+          <div className="absolute top-[calc(100%+4px)] left-0 bg-bg-panel border border-border rounded-lg min-w-40 z-[100] shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden">
             {Object.entries(TEMPLATES)
               .filter(([k]) => k !== "empty")
               .map(([key, val]) => (
@@ -154,27 +104,7 @@ export function AppHeader({
                     onCreateFromTemplate(val);
                     setShowTemplates(false);
                   }}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    background: "transparent",
-                    border: "none",
-                    borderBottom: "1px solid #1e293b",
-                    color: "#94a3b8",
-                    padding: "8px 14px",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontFamily: "'IBM Plex Sans', 'Noto Sans JP', system-ui",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "#1e293b";
-                    (e.currentTarget as HTMLButtonElement).style.color = "#e2e8f0";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                    (e.currentTarget as HTMLButtonElement).style.color = "#94a3b8";
-                  }}
+                  className="block w-full text-left bg-transparent border-none border-b border-border-subtle text-text-muted px-3.5 py-2 cursor-pointer text-xs font-sans hover:bg-surface-alt hover:text-text-primary"
                 >
                   {TEMPLATE_LABELS[key] ?? key}
                 </button>
@@ -186,24 +116,14 @@ export function AppHeader({
       {/* 保存ボタン */}
       <button
         onClick={onSave}
-        style={{
-          background: "#312e81",
-          border: "1px solid #4338ca",
-          color: "#c7d2fe",
-          padding: "3px 12px",
-          borderRadius: 5,
-          cursor: "pointer",
-          fontSize: 11,
-          fontWeight: 600,
-          marginLeft: 8,
-        }}
+        className="bg-primary-darker border border-primary-dark text-primary-lighter px-3 py-[3px] rounded-[5px] cursor-pointer text-[11px] font-semibold ml-2"
       >
         {saveLabel}
       </button>
 
       {/* ダイアグラム名 */}
       {currentDiagramName !== undefined && (
-        <div style={{ marginLeft: isMobile ? 8 : 16, display: "flex", alignItems: "center", minWidth: 0, flex: isMobile ? 1 : undefined }}>
+        <div className="flex items-center min-w-0" style={{ marginLeft: isMobile ? 8 : 16, flex: isMobile ? 1 : undefined }}>
           {editingName ? (
             <input
               ref={nameInputRef}
@@ -227,17 +147,7 @@ export function AppHeader({
                 if (e.key === "Escape") setEditingName(false);
               }}
               autoFocus
-              style={{
-                background: "#131720",
-                border: "1px solid #4338ca",
-                borderRadius: 4,
-                padding: "2px 8px",
-                color: "#e2e8f0",
-                fontSize: 12,
-                outline: "none",
-                minWidth: 120,
-                maxWidth: 240,
-              }}
+              className="bg-bg-overlay border border-primary-dark rounded-[4px] px-2 py-0.5 text-text-primary text-xs outline-none min-w-30 max-w-60"
             />
           ) : (
             <span
@@ -246,26 +156,7 @@ export function AppHeader({
                 setEditingName(true);
               }}
               title="クリックで名前変更"
-              style={{
-                fontSize: 12,
-                color: "#94a3b8",
-                cursor: "pointer",
-                padding: "2px 6px",
-                borderRadius: 4,
-                maxWidth: 240,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                display: "inline-block",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLSpanElement).style.color = "#e2e8f0";
-                (e.currentTarget as HTMLSpanElement).style.background = "#1e293b";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLSpanElement).style.color = "#94a3b8";
-                (e.currentTarget as HTMLSpanElement).style.background = "transparent";
-              }}
+              className="text-xs text-text-muted cursor-pointer px-1.5 py-0.5 rounded-[4px] max-w-60 overflow-hidden text-ellipsis whitespace-nowrap inline-block hover:text-text-primary hover:bg-surface-alt"
             >
               {currentDiagramName}
             </span>
@@ -273,7 +164,7 @@ export function AppHeader({
         </div>
       )}
 
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
     </header>
   );
 }

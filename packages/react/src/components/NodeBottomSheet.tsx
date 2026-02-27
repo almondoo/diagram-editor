@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { VIBRANT_COLORS } from "diagram-dsl-core";
 import type { DiagramNode, DiagramEdge } from "diagram-dsl-core";
 import { BottomSheet } from "./BottomSheet.js";
@@ -34,28 +34,6 @@ interface NodeBottomSheetProps {
   onStartEdge: (fromId: string) => void;
 }
 
-const sectionTitle: CSSProperties = {
-  fontSize: 11,
-  color: "#64748b",
-  textTransform: "uppercase",
-  letterSpacing: "0.1em",
-  marginBottom: 8,
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const inputStyle: CSSProperties = {
-  width: "100%",
-  background: "#131720",
-  border: "1px solid #2d3548",
-  borderRadius: 6,
-  padding: "8px 12px",
-  color: "#e2e8f0",
-  fontSize: 14,
-  outline: "none",
-  fontFamily: "'IBM Plex Sans', 'Noto Sans JP', system-ui",
-  boxSizing: "border-box",
-};
-
 function EdgeLabelInput({
   edge,
   onUpdate,
@@ -88,12 +66,7 @@ function EdgeLabelInput({
       onKeyDown={(e) => {
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
       }}
-      style={{
-        ...inputStyle,
-        padding: "6px 10px",
-        fontSize: 13,
-        flex: 1,
-      }}
+      className="w-full bg-bg-overlay border border-border rounded-md px-2.5 py-1.5 text-text-primary text-[13px] outline-none font-sans box-border flex-1"
       placeholder="ラベルなし"
     />
   );
@@ -142,54 +115,45 @@ export function NodeBottomSheet({
   return (
     <BottomSheet open={open} onClose={onClose} title="ノード編集">
       {/* ラベル */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={sectionTitle}>ラベル</div>
+      <div className="mb-4">
+        <div className="text-[11px] text-text-faint uppercase tracking-[0.1em] mb-2 font-mono">ラベル</div>
         <input
           value={isEditingLabel ? localLabel : node.label}
           onChange={(e) => setLocalLabel(e.target.value)}
           onFocus={handleLabelFocus}
           onBlur={handleLabelBlur}
           onKeyDown={handleLabelKeyDown}
-          style={inputStyle}
+          className="w-full bg-bg-overlay border border-border rounded-md px-3 py-2 text-text-primary text-sm outline-none font-sans box-border"
           placeholder="ノード名を入力"
         />
       </div>
 
       {/* シェイプ */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={sectionTitle}>シェイプ</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      <div className="mb-4">
+        <div className="text-[11px] text-text-faint uppercase tracking-[0.1em] mb-2 font-mono">シェイプ</div>
+        <div className="flex flex-wrap gap-1.5">
           {SHAPES.map((s) => (
             <button
               key={s.value}
               onClick={() => onUpdateProp(node.id, "shape", s.value)}
+              className="w-12 h-11 flex flex-col items-center justify-center gap-0.5 rounded-lg cursor-pointer text-base"
               style={{
-                width: 48,
-                height: 44,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 2,
                 background: node.shape === s.value ? "#312e81" : "#1a1f2e",
                 border: `1px solid ${node.shape === s.value ? "#6366f1" : "#2d3548"}`,
-                borderRadius: 8,
                 color: node.shape === s.value ? "#c7d2fe" : "#94a3b8",
-                cursor: "pointer",
-                fontSize: 16,
               }}
             >
               <span>{s.icon}</span>
-              <span style={{ fontSize: 8, lineHeight: 1 }}>{s.label}</span>
+              <span className="text-[8px] leading-none">{s.label}</span>
             </button>
           ))}
         </div>
       </div>
 
       {/* カラー */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={sectionTitle}>カラー</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      <div className="mb-4">
+        <div className="text-[11px] text-text-faint uppercase tracking-[0.1em] mb-2 font-mono">カラー</div>
+        <div className="flex flex-wrap gap-1.5">
           {VIBRANT_COLORS.map((color) => (
             <button
               key={color}
@@ -213,27 +177,15 @@ export function NodeBottomSheet({
 
       {/* エッジ一覧 */}
       {edges.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={sectionTitle}>エッジ ({edges.length})</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="mb-4">
+          <div className="text-[11px] text-text-faint uppercase tracking-[0.1em] mb-2 font-mono">エッジ ({edges.length})</div>
+          <div className="flex flex-col gap-2">
             {edges.map((ce, i) => (
               <div
                 key={`${ce.edge.from}-${ce.edge.to}-${i}`}
-                style={{
-                  background: "#131720",
-                  border: "1px solid #2d3548",
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                }}
+                className="bg-bg-overlay border border-border rounded-lg px-3 py-2.5"
               >
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginBottom: 8,
-                  fontSize: 12,
-                  color: "#94a3b8",
-                }}>
+                <div className="flex items-center gap-1.5 mb-2 text-xs text-text-muted">
                   <span style={{
                     background: ce.direction === "outgoing" ? "#1e3a5f" : "#3a1e5f",
                     color: ce.direction === "outgoing" ? "#7dd3fc" : "#c4b5fd",
@@ -244,24 +196,15 @@ export function NodeBottomSheet({
                   }}>
                     {ce.direction === "outgoing" ? "OUT" : "IN"}
                   </span>
-                  <span style={{ color: "#64748b" }}>
+                  <span className="text-text-faint">
                     {ce.direction === "outgoing" ? `→ ${ce.targetLabel}` : `${ce.targetLabel} →`}
                   </span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="flex items-center gap-2">
                   <EdgeLabelInput edge={ce.edge} onUpdate={onUpdateEdgeProp} />
                   <button
                     onClick={() => onDeleteEdge(ce.edge.from, ce.edge.to)}
-                    style={{
-                      background: "#1a0a0a",
-                      border: "1px solid #7f1d1d",
-                      borderRadius: 6,
-                      color: "#fca5a5",
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      flexShrink: 0,
-                    }}
+                    className="bg-error-surface border border-error-bg rounded-md text-error-light px-2.5 py-1.5 cursor-pointer text-xs shrink-0"
                   >
                     ✕
                   </button>
@@ -273,23 +216,13 @@ export function NodeBottomSheet({
       )}
 
       {/* アクション */}
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+      <div className="flex gap-2 mt-2">
         <button
           onClick={() => {
             onStartEdge(node.id);
             onClose();
           }}
-          style={{
-            flex: 1,
-            padding: "10px 0",
-            background: "#312e81",
-            border: "1px solid #4338ca",
-            borderRadius: 8,
-            color: "#c7d2fe",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className="flex-1 py-2.5 bg-primary-darker border border-primary-dark rounded-lg text-primary-lighter text-[13px] font-semibold cursor-pointer"
         >
           → エッジ追加
         </button>
@@ -298,16 +231,7 @@ export function NodeBottomSheet({
             onDelete(node.id);
             onClose();
           }}
-          style={{
-            padding: "10px 16px",
-            background: "#1a0a0a",
-            border: "1px solid #7f1d1d",
-            borderRadius: 8,
-            color: "#fca5a5",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className="px-4 py-2.5 bg-error-surface border border-error-bg rounded-lg text-error-light text-[13px] font-semibold cursor-pointer"
         >
           削除
         </button>

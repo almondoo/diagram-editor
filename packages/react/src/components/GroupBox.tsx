@@ -57,22 +57,22 @@ export const GroupBox = memo(
           stroke={color}
           strokeWidth={isSelected ? 2.5 : 1.5}
           strokeDasharray="8,4"
-          style={{ pointerEvents: "none" }}
+          className="pointer-events-none"
         />
 
         {isNested ? (
           <>
             {/* Header strip */}
-            <rect x={x} y={y} width={w} height={HEADER_H} rx={12} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+            <rect x={x} y={y} width={w} height={HEADER_H} rx={12} fill="transparent" className="cursor-grab" onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
             {/* Left border */}
-            <rect x={x} y={y + HEADER_H} width={FRAME_W} height={Math.max(0, h - HEADER_H)} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+            <rect x={x} y={y + HEADER_H} width={FRAME_W} height={Math.max(0, h - HEADER_H)} fill="transparent" className="cursor-grab" onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
             {/* Right border */}
-            <rect x={x + w - FRAME_W} y={y + HEADER_H} width={FRAME_W} height={Math.max(0, h - HEADER_H)} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+            <rect x={x + w - FRAME_W} y={y + HEADER_H} width={FRAME_W} height={Math.max(0, h - HEADER_H)} fill="transparent" className="cursor-grab" onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
             {/* Bottom border */}
-            <rect x={x} y={y + h - FRAME_W} width={w} height={FRAME_W} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+            <rect x={x} y={y + h - FRAME_W} width={w} height={FRAME_W} fill="transparent" className="cursor-grab" onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
           </>
         ) : (
-          <rect x={x} y={y} width={w} height={h} rx={12} fill="transparent" style={{ cursor: "grab" }} onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
+          <rect x={x} y={y} width={w} height={h} rx={12} fill="transparent" className="cursor-grab" onMouseDown={handleMove} onTouchStart={handleMoveTouch} />
         )}
 
         {/* N handle - visible */}
@@ -84,7 +84,7 @@ export const GroupBox = memo(
           rx={2}
           fill={color}
           fillOpacity={0.5}
-          style={{ cursor: "n-resize", pointerEvents: "none" }}
+          className="pointer-events-none"
         />
         {/* N handle - touch target */}
         <rect
@@ -93,7 +93,7 @@ export const GroupBox = memo(
           width={w - TOUCH_HANDLE * 2}
           height={TOUCH_HANDLE}
           fill="transparent"
-          style={{ cursor: "n-resize" }}
+          className="cursor-n-resize"
           onMouseDown={handleResizeN}
           onTouchStart={handleResizeTouchN}
         />
@@ -107,7 +107,7 @@ export const GroupBox = memo(
           rx={2}
           fill={color}
           fillOpacity={0.5}
-          style={{ cursor: "w-resize", pointerEvents: "none" }}
+          className="pointer-events-none"
         />
         {/* W handle - touch target */}
         <rect
@@ -116,7 +116,7 @@ export const GroupBox = memo(
           width={TOUCH_HANDLE}
           height={h - TOUCH_HANDLE * 2}
           fill="transparent"
-          style={{ cursor: "w-resize" }}
+          className="cursor-w-resize"
           onMouseDown={handleResizeW}
           onTouchStart={handleResizeTouchW}
         />
@@ -130,7 +130,7 @@ export const GroupBox = memo(
           rx={2}
           fill={color}
           fillOpacity={0.5}
-          style={{ cursor: "e-resize", pointerEvents: "none" }}
+          className="pointer-events-none"
         />
         {/* E handle - touch target */}
         <rect
@@ -139,7 +139,7 @@ export const GroupBox = memo(
           width={TOUCH_HANDLE}
           height={h - TOUCH_HANDLE * 2}
           fill="transparent"
-          style={{ cursor: "e-resize" }}
+          className="cursor-e-resize"
           onMouseDown={handleResizeE}
           onTouchStart={handleResizeTouchE}
         />
@@ -153,7 +153,7 @@ export const GroupBox = memo(
           rx={2}
           fill={color}
           fillOpacity={0.5}
-          style={{ cursor: "s-resize", pointerEvents: "none" }}
+          className="pointer-events-none"
         />
         {/* S handle - touch target */}
         <rect
@@ -162,7 +162,7 @@ export const GroupBox = memo(
           width={w - TOUCH_HANDLE * 2}
           height={TOUCH_HANDLE}
           fill="transparent"
-          style={{ cursor: "s-resize" }}
+          className="cursor-s-resize"
           onMouseDown={handleResizeS}
           onTouchStart={handleResizeTouchS}
         />
@@ -176,7 +176,7 @@ export const GroupBox = memo(
           rx={2}
           fill={color}
           fillOpacity={0.8}
-          style={{ cursor: "se-resize", pointerEvents: "none" }}
+          className="pointer-events-none"
         />
         {/* SE handle - touch target */}
         <rect
@@ -185,7 +185,7 @@ export const GroupBox = memo(
           width={TOUCH_HANDLE}
           height={TOUCH_HANDLE}
           fill="transparent"
-          style={{ cursor: "se-resize" }}
+          className="cursor-se-resize"
           onMouseDown={handleResizeSE}
           onTouchStart={handleResizeTouchSE}
         />

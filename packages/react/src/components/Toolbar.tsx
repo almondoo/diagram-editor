@@ -1,15 +1,3 @@
-import type { CSSProperties, MouseEvent } from "react";
-
-const tbHover = (e: MouseEvent<HTMLButtonElement>) => {
-  e.currentTarget.style.background = "#2d3548";
-  e.currentTarget.style.color = "#e2e8f0";
-};
-
-const tbLeave = (e: MouseEvent<HTMLButtonElement>) => {
-  e.currentTarget.style.background = "#1a1f2e";
-  e.currentTarget.style.color = "#94a3b8";
-};
-
 interface ToolbarProps {
   onAddNode: (shape: string) => void;
   onAddNote: () => void;
@@ -35,51 +23,18 @@ export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomI
   const btnW = isMobile ? 40 : 32;
   const btnH = isMobile ? 36 : 28;
   const iconFS = isMobile ? 16 : 14;
+  const tbIconFS = isMobile ? 17 : 15;
 
-  const btnStyle: CSSProperties = {
-    width: btnW,
-    height: btnH,
-    background: "#1a1f2e",
-    border: "1px solid #2d3548",
-    borderRadius: 5,
-    color: "#94a3b8",
-    cursor: "pointer",
-    fontSize: iconFS,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.15s",
-  };
-
-  const tbBtnStyle: CSSProperties = {
-    ...btnStyle,
-    fontSize: isMobile ? 17 : 15,
-    fontWeight: 600,
-  };
+  const btnCls = "tb-btn bg-surface border border-border rounded-[5px] text-text-muted cursor-pointer flex items-center justify-center transition-all duration-150 hover:bg-border hover:text-text-primary";
+  const tbBtnCls = `${btnCls} font-semibold`;
 
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: isMobile ? 4 : 3,
-        padding: isMobile ? "6px 8px" : "6px 10px",
-        background: "#0f1219",
-        borderBottom: "1px solid #1e293b",
-        flexWrap: "wrap",
-      }}
+      className="flex items-center flex-wrap bg-bg-panel border-b border-border-subtle"
+      style={{ gap: isMobile ? 4 : 3, padding: isMobile ? "6px 8px" : "6px 10px" }}
     >
       {!isMobile && (
-        <span
-          style={{
-            fontSize: 10,
-            color: "#64748b",
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-            marginRight: 4,
-            fontFamily: "'IBM Plex Mono', monospace",
-          }}
-        >
+        <span className="text-[10px] text-text-faint uppercase tracking-[0.1em] mr-1 font-mono">
           追加
         </span>
       )}
@@ -88,9 +43,8 @@ export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomI
           key={s.shape}
           onClick={() => onAddNode(s.shape)}
           title={s.tip}
-          style={btnStyle}
-          onMouseEnter={tbHover}
-          onMouseLeave={tbLeave}
+          className={btnCls}
+          style={{ width: btnW, height: btnH, fontSize: iconFS }}
         >
           {s.icon}
         </button>
@@ -98,50 +52,37 @@ export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomI
       <button
         onClick={onAddNote}
         title="ノート追加"
-        style={btnStyle}
-        onMouseEnter={tbHover}
-        onMouseLeave={tbLeave}
+        className={btnCls}
+        style={{ width: btnW, height: btnH, fontSize: iconFS }}
       >
         ✎
       </button>
       <button
         onClick={onAddGroup}
         title="グループ追加"
-        style={btnStyle}
-        onMouseEnter={tbHover}
-        onMouseLeave={tbLeave}
+        className={btnCls}
+        style={{ width: btnW, height: btnH, fontSize: iconFS }}
       >
         ▢
       </button>
-      <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 4px" }} />
-      <button onClick={onZoomIn} title="ズームイン" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>+</button>
-      <button onClick={onZoomOut} title="ズームアウト" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>−</button>
-      <button onClick={onFitView} title="全体表示" style={tbBtnStyle} onMouseEnter={tbHover} onMouseLeave={tbLeave}>⊞</button>
-      <div style={{ width: 1, height: 20, background: "#2d3548", margin: "0 4px" }} />
+      <div className="w-px h-5 bg-border mx-1" />
+      <button onClick={onZoomIn} title="ズームイン" className={tbBtnCls} style={{ width: btnW, height: btnH, fontSize: tbIconFS }}>+</button>
+      <button onClick={onZoomOut} title="ズームアウト" className={tbBtnCls} style={{ width: btnW, height: btnH, fontSize: tbIconFS }}>−</button>
+      <button onClick={onFitView} title="全体表示" className={tbBtnCls} style={{ width: btnW, height: btnH, fontSize: tbIconFS }}>⊞</button>
+      <div className="w-px h-5 bg-border mx-1" />
       <button
         onClick={onResetLayout}
         title="ノードを自動配置"
-        style={{ ...tbBtnStyle, width: "auto", padding: "0 10px", fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}
-        onMouseEnter={tbHover}
-        onMouseLeave={tbLeave}
+        className={`${tbBtnCls} font-mono`}
+        style={{ width: "auto", height: btnH, padding: "0 10px", fontSize: 11 }}
       >
         {isMobile ? "⊞" : "⊞ 自動配置"}
       </button>
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
       <button
         onClick={onExportSVG}
-        style={{
-          ...tbBtnStyle,
-          width: "auto",
-          padding: "0 12px",
-          background: "#312e81",
-          borderColor: "#4338ca",
-          color: "#c7d2fe",
-          fontSize: 11,
-          fontWeight: 600,
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "#3730a3"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "#312e81"; }}
+        className="tb-btn bg-primary-darker hover:bg-primary-bg border border-primary-dark text-primary-lighter font-semibold cursor-pointer flex items-center justify-center transition-all duration-150 rounded-[5px]"
+        style={{ width: "auto", height: btnH, padding: "0 12px", fontSize: 11 }}
       >
         {isMobile ? "SVG" : "SVG出力"}
       </button>

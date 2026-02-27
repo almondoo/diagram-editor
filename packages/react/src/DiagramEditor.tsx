@@ -16,7 +16,6 @@ import { useEdgeDrag } from "./hooks/useEdgeDrag.js";
 import { useEdgeCreation } from "./hooks/useEdgeCreation.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { useViewport } from "./hooks/useViewport.js";
-import { DIAGRAM_EDITOR_STYLES } from "./styles.js";
 import type { DiagramState } from "./hooks/useDiagramState.js";
 import { getGroupDepth } from "diagram-dsl-core";
 
@@ -261,7 +260,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   // SVGキャンバス描画（モバイル・デスクトップ共通）
   const renderCanvas = () => (
     <div
-      style={{ flex: 1, position: "relative", overflow: "hidden", background: "#0a0c12", touchAction: "none" }}
+      className="flex-1 relative overflow-hidden bg-bg-base touch-none"
       onMouseDown={(e) => {
         const target = e.target as SVGElement;
         if (target === svgRef.current || target.getAttribute("data-bg")) {
@@ -280,37 +279,11 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     >
       {/* エッジ追加モードのバナー */}
       {edgeFromId && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 20,
-            background: "rgba(99,102,241,0.9)",
-            color: "#fff",
-            textAlign: "center",
-            padding: "8px 12px",
-            fontSize: 13,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 12,
-          }}
-        >
+        <div className="absolute top-0 left-0 right-0 z-20 bg-primary/90 text-white text-center px-3 py-2 text-[13px] font-semibold flex items-center justify-center gap-3">
           <span>接続先のノードをタップ</span>
           <button
             onClick={() => setEdgeFromId(null)}
-            style={{
-              background: "rgba(255,255,255,0.2)",
-              border: "none",
-              color: "#fff",
-              padding: "4px 12px",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontSize: 12,
-            }}
+            className="bg-white/20 border-none text-white px-3 py-1 rounded-[4px] cursor-pointer text-xs"
           >
             キャンセル
           </button>
@@ -430,7 +403,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 stroke="#6366f1"
                 strokeWidth={2}
                 strokeDasharray="6,3"
-                style={{ pointerEvents: "none" }}
+                className="pointer-events-none"
               />
             );
           })()}
@@ -445,7 +418,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 stroke="#6366f1"
                 strokeWidth={2}
                 strokeDasharray="6,3"
-                style={{ pointerEvents: "none" }}
+                className="pointer-events-none"
               />
             );
           })()}
@@ -487,7 +460,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               stroke="#0a0c12"
               strokeWidth={4}
               paintOrder="stroke"
-              style={{ pointerEvents: "none", userSelect: "none" }}
+              className="pointer-events-none select-none"
             >
               {g.label}
             </text>
@@ -505,7 +478,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               stroke="#6366f1"
               strokeWidth={1 / zoom}
               strokeDasharray={`${4 / zoom},${2 / zoom}`}
-              style={{ pointerEvents: "none" }}
+              className="pointer-events-none"
             />
           </g>
         )}
@@ -520,20 +493,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
         />
       )}
 
-      <div
-        style={{
-          position: "absolute",
-          bottom: 10,
-          left: 10,
-          background: "rgba(15,18,25,0.85)",
-          border: "1px solid #2d3548",
-          borderRadius: 5,
-          padding: "3px 10px",
-          fontSize: 10,
-          color: "#64748b",
-          fontFamily: "'IBM Plex Mono', monospace",
-        }}
-      >
+      <div className="absolute bottom-2.5 left-2.5 bg-[rgba(15,18,25,0.85)] border border-border rounded-[5px] px-2.5 py-[3px] text-[10px] text-text-faint font-mono">
         {Math.round(zoom * 100)}%
       </div>
     </div>
@@ -547,43 +507,30 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   // コードパネル描画
   const renderCodePanel = () => (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "6px 14px",
-          background: "#0c0e14",
-          borderBottom: "1px solid #1e293b",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, color: "#6366f1", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+    <div className="flex-1 flex flex-col relative">
+      <div className="flex items-center justify-between px-3.5 py-1.5 bg-bg-raised border-b border-border-subtle">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-primary font-mono font-semibold">
             {"</>"}
           </span>
-          <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>コードエディタ</span>
+          <span className="text-xs text-text-muted font-medium">コードエディタ</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           {parsed.errors.length > 0 && (
-            <span style={{ fontSize: 11, color: "#f87171", fontFamily: "'IBM Plex Mono', monospace" }}>
+            <span className="text-[11px] text-error font-mono">
               ⚠ {parsed.errors.length}エラー
             </span>
           )}
-          <span style={{ fontSize: 11, color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>
+          <span className="text-[11px] text-text-dimmed font-mono">
             {parsed.nodes.length}ノード · {parsed.edges.length}エッジ
           </span>
           <button
             onClick={() => setShowSyntax(!showSyntax)}
+            className="px-2.5 py-[3px] rounded-[5px] cursor-pointer text-[11px] font-medium"
             style={{
               background: showSyntax ? "#312e81" : "#131720",
               border: `1px solid ${showSyntax ? "#4338ca" : "#2d3548"}`,
               color: showSyntax ? "#c7d2fe" : "#94a3b8",
-              padding: "3px 10px",
-              borderRadius: 5,
-              cursor: "pointer",
-              fontSize: 11,
-              fontWeight: 500,
             }}
           >
             構文ヘルプ
@@ -591,29 +538,16 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: "hidden" }}>
+      <div className="flex-1 overflow-hidden">
         <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} focusLine={focusLine} />
       </div>
 
       {parsed.errors.length > 0 && (
-        <div
-          style={{
-            padding: "6px 14px",
-            background: "#1a0a0a",
-            borderTop: "1px solid #7f1d1d",
-            maxHeight: 80,
-            overflow: "auto",
-          }}
-        >
+        <div className="px-3.5 py-1.5 bg-error-surface border-t border-error-bg max-h-20 overflow-auto">
           {parsed.errors.map((err, i) => (
             <div
               key={i}
-              style={{
-                fontSize: 11,
-                color: "#fca5a5",
-                fontFamily: "'IBM Plex Mono', monospace",
-                padding: "2px 0",
-              }}
+              className="text-[11px] text-error-light font-mono py-0.5"
             >
               行{err.line}: {err.message}
             </div>
@@ -628,23 +562,13 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   return (
     <div
       ref={containerRef}
-      className={className}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        background: "#080a10",
-        fontFamily: "'IBM Plex Sans', 'Noto Sans JP', system-ui",
-        overflow: "hidden",
-        color: "#e2e8f0",
-        ...style,
-      }}
+      className={`flex flex-col bg-bg-deepest font-sans overflow-hidden text-text-primary ${className ?? ""}`}
+      style={style}
     >
-      <style>{DIAGRAM_EDITOR_STYLES}</style>
-
       {isMobile ? (
         /* ─── モバイルレイアウト: キャンバスのみ（コードエディタ非表示） ─── */
         <>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div className="flex-1 flex flex-col overflow-hidden">
             <Toolbar
               onAddNode={addNode}
               onAddNote={addNote}
@@ -674,17 +598,11 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
         </>
       ) : (
         /* ─── デスクトップレイアウト: 左右分割 ─── */
-        <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
+        <div className="flex flex-1 overflow-hidden relative">
           {/* Code Panel */}
           <div
-            style={{
-              width: `${splitPos}%`,
-              display: "flex",
-              flexDirection: "column",
-              borderRight: "1px solid #1e293b",
-              flexShrink: 0,
-              position: "relative",
-            }}
+            className="flex flex-col border-r border-border-subtle shrink-0 relative"
+            style={{ width: `${splitPos}%` }}
           >
             {renderCodePanel()}
           </div>
@@ -692,22 +610,12 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
           {/* Split handle */}
           <div
             onMouseDown={() => setIsResizing(true)}
-            style={{
-              width: 5,
-              cursor: "col-resize",
-              background: isResizing ? "#4338ca" : "transparent",
-              zIndex: 10,
-              transition: "background 0.2s",
-              position: "relative",
-              marginLeft: -3,
-              marginRight: -2,
-            }}
-            onMouseEnter={(e) => { if (!isResizing) (e.currentTarget as HTMLDivElement).style.background = "#2d3548"; }}
-            onMouseLeave={(e) => { if (!isResizing) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+            className="w-[5px] cursor-col-resize z-10 transition-[background] duration-200 relative -ml-[3px] -mr-[2px] hover:bg-border"
+            style={{ background: isResizing ? "#4338ca" : undefined }}
           />
 
           {/* Canvas Panel */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div className="flex-1 flex flex-col overflow-hidden">
             <Toolbar
               onAddNode={addNode}
               onAddNote={addNote}

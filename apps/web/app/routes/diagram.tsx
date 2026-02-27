@@ -125,16 +125,7 @@ export default function Diagram() {
   }, [handleSave]);
 
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        background: "#080a10",
-        overflow: "hidden",
-      }}
-    >
+    <div className="w-screen h-screen flex flex-col bg-bg-deepest overflow-hidden">
       <AppHeader
         onCreateFromTemplate={(code) => {
           navigate("/diagrams/new", { state: { templateCode: code } });
@@ -153,27 +144,8 @@ export default function Diagram() {
         />
       )}
       {toastVisible && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            background: "#1e2435",
-            border: "1px solid #4338ca",
-            borderRadius: 8,
-            padding: "10px 18px",
-            fontSize: 12,
-            color: "#a5b4fc",
-            fontWeight: 600,
-            zIndex: 2000,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontFamily: "'IBM Plex Sans', 'Noto Sans JP', system-ui",
-          }}
-        >
-          <span style={{ color: "#6366f1" }}>✓</span> 保存しました
+        <div className="fixed bottom-6 right-6 bg-surface-hover border border-primary-dark rounded-lg px-[18px] py-2.5 text-xs text-primary-pale font-semibold z-[2000] shadow-[0_4px_20px_rgba(0,0,0,0.4)] flex items-center gap-2 font-sans">
+          <span className="text-primary">✓</span> 保存しました
         </div>
       )}
     </div>

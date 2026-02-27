@@ -56,7 +56,7 @@ export const NoteBox = memo(
           fill={note.color}
           fontSize={11}
           fontFamily="'IBM Plex Mono', monospace"
-          style={{ pointerEvents: "none", userSelect: "none" }}
+          className="pointer-events-none select-none"
         >
           {note.text}
         </text>

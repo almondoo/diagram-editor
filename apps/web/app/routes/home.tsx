@@ -17,100 +17,38 @@ export default function Home() {
   const { isMobile } = useViewport();
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#080a10",
-        color: "#e2e8f0",
-        fontFamily: "'IBM Plex Sans', 'Noto Sans JP', system-ui",
-      }}
-    >
+    <div className="min-h-screen bg-bg-deepest text-text-primary font-sans">
       {/* ヘッダー */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "0 24px",
-          height: 48,
-          background: "#0c0e14",
-          borderBottom: "1px solid #1e293b",
-          gap: 10,
-        }}
-      >
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 7,
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
-            fontWeight: 700,
-          }}
-        >
+      <header className="flex items-center px-6 h-12 bg-bg-raised border-b border-border-subtle gap-2.5">
+        <div className="w-7 h-7 rounded-[7px] bg-gradient-to-br from-primary to-purple flex items-center justify-center text-sm font-bold">
           ◈
         </div>
-        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>
+        <span className="text-[15px] font-bold tracking-tight">
           DiagramCraft
         </span>
-        <span
-          style={{
-            fontSize: 9,
-            background: "#312e81",
-            color: "#a5b4fc",
-            padding: "2px 6px",
-            borderRadius: 4,
-            fontWeight: 600,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-          }}
-        >
+        <span className="text-[9px] bg-primary-darker text-primary-pale px-1.5 py-0.5 rounded-[4px] font-semibold tracking-[0.05em] uppercase">
           Code → Diagram
         </span>
       </header>
 
       {/* メインコンテンツ */}
-      <main style={{ padding: isMobile ? "20px 16px" : "40px 48px", maxWidth: 1200, margin: "0 auto" }}>
+      <main className="max-w-[1200px] mx-auto" style={{ padding: isMobile ? "20px 16px" : "40px 48px" }}>
         {/* タイトルと新規作成ボタン */}
         <div
+          className="flex justify-between"
           style={{
-            display: "flex",
             flexDirection: isMobile ? "column" as const : "row" as const,
             alignItems: isMobile ? "flex-start" : "center",
-            justifyContent: "space-between",
             gap: isMobile ? 12 : 0,
             marginBottom: isMobile ? 20 : 32,
           }}
         >
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "#e2e8f0",
-              margin: 0,
-              letterSpacing: "-0.02em",
-            }}
-          >
+          <h1 className="text-[22px] font-bold text-text-primary m-0 tracking-tight">
             マイ作品
           </h1>
           <Link
             to="/diagrams/new"
-            style={{
-              background: "#312e81",
-              border: "1px solid #4338ca",
-              color: "#c7d2fe",
-              padding: "6px 16px",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
+            className="bg-primary-darker border border-primary-dark text-primary-lighter px-4 py-1.5 rounded-md cursor-pointer text-[13px] font-semibold no-underline inline-flex items-center gap-1.5"
           >
             + 新規作成
           </Link>
@@ -118,29 +56,17 @@ export default function Home() {
 
         {/* ダイアグラム一覧 */}
         {savedDiagrams.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "80px 0",
-              color: "#475569",
-            }}
-          >
-            <div style={{ fontSize: 40, marginBottom: 16 }}>◈</div>
-            <p style={{ fontSize: 14, margin: 0 }}>
+          <div className="text-center py-20 text-text-dimmed">
+            <div className="text-[40px] mb-4">◈</div>
+            <p className="text-sm m-0">
               保存済みのダイアグラムはありません
             </p>
-            <p style={{ fontSize: 12, margin: "8px 0 0", color: "#334155" }}>
+            <p className="text-xs mt-2 text-border-faint">
               「+ 新規作成」からダイアグラムを作成しましょう
             </p>
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 16,
-            }}
-          >
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
             {savedDiagrams.map((d) => (
               <DiagramCard
                 key={d.id}
@@ -210,23 +136,9 @@ function DiagramCard({
     <div
       onClick={() => { setConfirmDelete(false); onClick(); }}
       onMouseLeave={() => setConfirmDelete(false)}
-      style={{
-        background: "#0f1219",
-        border: "1px solid #1e293b",
-        borderRadius: 10,
-        padding: "16px 20px",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        transition: "border-color 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "#4338ca";
-      }}
+      className="bg-bg-panel border border-border-subtle rounded-[10px] px-5 py-4 cursor-pointer flex items-center justify-between gap-3 transition-[border-color] duration-150 hover:border-primary-dark"
     >
-      <div style={{ minWidth: 0, flex: 1 }}>
+      <div className="min-w-0 flex-1">
         {editing ? (
           <input
             ref={inputRef}
@@ -236,57 +148,30 @@ function DiagramCard({
             onKeyDown={handleKeyDown}
             onClick={(e) => e.stopPropagation()}
             autoFocus
-            style={{
-              width: "100%",
-              background: "#131720",
-              border: "1px solid #4338ca",
-              borderRadius: 4,
-              padding: "2px 6px",
-              color: "#e2e8f0",
-              fontSize: 14,
-              fontWeight: 600,
-              outline: "none",
-              boxSizing: "border-box",
-            }}
+            className="w-full bg-bg-overlay border border-primary-dark rounded-[4px] px-1.5 py-0.5 text-text-primary text-sm font-semibold outline-none box-border"
           />
         ) : (
           <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#e2e8f0",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
+            className="text-sm font-semibold text-text-primary overflow-hidden text-ellipsis whitespace-nowrap"
             onDoubleClick={startEdit}
             title="ダブルクリックで名前変更"
           >
             {name}
           </div>
         )}
-        <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
+        <div className="text-[11px] text-text-dimmed mt-1">
           {new Date(savedAt).toLocaleDateString("ja-JP")}
         </div>
       </div>
       {/* アクションボタン */}
       <div
-        style={{ display: "flex", gap: 4, flexShrink: 0 }}
+        className="flex gap-1 shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
         {!editing && (
           <button
             onClick={startEdit}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#475569",
-              cursor: "pointer",
-              fontSize: 13,
-              padding: "4px 6px",
-              borderRadius: 4,
-              lineHeight: 1,
-            }}
+            className="bg-transparent border-none text-text-dimmed cursor-pointer text-[13px] px-1.5 py-1 rounded-[4px] leading-none"
             title="名前変更"
           >
             ✎

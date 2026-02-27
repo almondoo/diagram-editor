@@ -116,7 +116,7 @@ export const ShapeNode = memo(
             y={iconY}
             width={iconSize}
             height={iconSize}
-            style={{ pointerEvents: "none" }}
+            className="pointer-events-none"
           />
           <text
             x={x + w / 2}
@@ -127,7 +127,7 @@ export const ShapeNode = memo(
             fontSize={fontSize}
             fontFamily="'IBM Plex Sans', 'Noto Sans JP', system-ui, sans-serif"
             fontWeight="500"
-            style={{ pointerEvents: "none", userSelect: "none" }}
+            className="pointer-events-none select-none"
           >
             {label}
           </text>
@@ -148,7 +148,7 @@ export const ShapeNode = memo(
           fontSize={fontSize}
           fontFamily="'IBM Plex Sans', 'Noto Sans JP', system-ui, sans-serif"
           fontWeight="500"
-          style={{ pointerEvents: "none", userSelect: "none" }}
+          className="pointer-events-none select-none"
         >
           {lines.map((line, i) => (
             <tspan key={i} x={x + w / 2} dy={i === 0 ? 0 : lineHeight}>
@@ -164,24 +164,24 @@ export const ShapeNode = memo(
     const resizeHandles = isSelected && onResizeMouseDown ? (
       <g>
         {/* N (top edge) */}
-        <rect x={x + w / 2 - HS / 2} y={y - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
-        <rect x={x + HT} y={y - HT / 2} width={w - HT * 2} height={HT} fill="transparent" style={{ cursor: "n-resize" }}
+        <rect x={x + w / 2 - HS / 2} y={y - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" className="pointer-events-none" />
+        <rect x={x + HT} y={y - HT / 2} width={w - HT * 2} height={HT} fill="transparent" className="cursor-n-resize"
           onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "n"); }} />
         {/* S (bottom edge) */}
-        <rect x={x + w / 2 - HS / 2} y={y + h - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
-        <rect x={x + HT} y={y + h - HT / 2} width={w - HT * 2} height={HT} fill="transparent" style={{ cursor: "s-resize" }}
+        <rect x={x + w / 2 - HS / 2} y={y + h - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" className="pointer-events-none" />
+        <rect x={x + HT} y={y + h - HT / 2} width={w - HT * 2} height={HT} fill="transparent" className="cursor-s-resize"
           onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "s"); }} />
         {/* W (left edge) */}
-        <rect x={x - HS / 2} y={y + h / 2 - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
-        <rect x={x - HT / 2} y={y + HT} width={HT} height={h - HT * 2} fill="transparent" style={{ cursor: "w-resize" }}
+        <rect x={x - HS / 2} y={y + h / 2 - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" className="pointer-events-none" />
+        <rect x={x - HT / 2} y={y + HT} width={HT} height={h - HT * 2} fill="transparent" className="cursor-w-resize"
           onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "w"); }} />
         {/* E (right edge) */}
-        <rect x={x + w - HS / 2} y={y + h / 2 - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
-        <rect x={x + w - HT / 2} y={y + HT} width={HT} height={h - HT * 2} fill="transparent" style={{ cursor: "e-resize" }}
+        <rect x={x + w - HS / 2} y={y + h / 2 - HS / 2} width={HS} height={HS} rx={1} fill="#818cf8" className="pointer-events-none" />
+        <rect x={x + w - HT / 2} y={y + HT} width={HT} height={h - HT * 2} fill="transparent" className="cursor-e-resize"
           onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "e"); }} />
         {/* SE (bottom-right corner) */}
-        <rect x={x + w - HS} y={y + h - HS} width={HS} height={HS} rx={1} fill="#818cf8" style={{ pointerEvents: "none" }} />
-        <rect x={x + w - HT} y={y + h - HT} width={HT} height={HT} fill="transparent" style={{ cursor: "se-resize" }}
+        <rect x={x + w - HS} y={y + h - HS} width={HS} height={HS} rx={1} fill="#818cf8" className="pointer-events-none" />
+        <rect x={x + w - HT} y={y + h - HT} width={HT} height={HT} fill="transparent" className="cursor-se-resize"
           onMouseDown={(e) => { e.stopPropagation(); onResizeMouseDown(e, "se"); }} />
       </g>
     ) : null;
@@ -202,7 +202,7 @@ export const ShapeNode = memo(
             fill="#6366f1"
             stroke="#fff"
             strokeWidth={2}
-            style={{ cursor: "crosshair", pointerEvents: "all" }}
+            className="cursor-crosshair [pointer-events:all]"
             onMouseDown={(e) => {
               e.stopPropagation();
               onConnectionPointMouseDownRef.current?.(e, node.id);
@@ -216,7 +216,7 @@ export const ShapeNode = memo(
       <rect
         x={x - 4} y={y - 4} width={w + 8} height={h + 8} rx={8}
         fill="none" stroke="#6366f1" strokeWidth={2} strokeDasharray="5,3" opacity={0.5}
-        style={{ pointerEvents: "none" }}
+        className="pointer-events-none"
       />
     ) : null;
 
@@ -245,7 +245,8 @@ export const ShapeNode = memo(
       onTouchStart: handleTouchStart,
       onTouchEnd: handleTouchEnd,
       onDoubleClick: handleDoubleClick,
-      style: { cursor: "grab" as const, opacity },
+      style: { opacity },
+      className: "cursor-grab",
     };
 
     // アイコンあり: シェイプを描画せずアイコン+ラベルのみ

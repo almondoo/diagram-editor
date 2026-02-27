@@ -29,17 +29,7 @@ export const Minimap = memo(function Minimap({ nodes, viewBox, canvasW, canvasH 
 
   return (
     <div
-      style={{
-        position: "absolute",
-        bottom: 10,
-        right: 10,
-        width: mapW,
-        height: mapH,
-        background: "rgba(15,18,25,0.9)",
-        border: "1px solid #2d3548",
-        borderRadius: 6,
-        overflow: "hidden",
-      }}
+      className="absolute bottom-2.5 right-2.5 w-40 h-[100px] bg-[rgba(15,18,25,0.9)] border border-border rounded-md overflow-hidden"
     >
       <svg width={mapW} height={mapH}>
         {nodes.map((n) => (

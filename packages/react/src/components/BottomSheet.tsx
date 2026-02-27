@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 interface BottomSheetProps {
   open: boolean;
@@ -32,70 +32,22 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
 
   if (!open) return null;
 
-  const overlayStyle: CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.5)",
-    zIndex: 1000,
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "flex-end",
-  };
-
-  const sheetStyle: CSSProperties = {
-    background: "#0f1219",
-    borderTop: "1px solid #2d3548",
-    borderRadius: "16px 16px 0 0",
-    maxHeight: "70vh",
-    overflow: "auto",
-    animation: "bottomSheetSlideUp 0.25s ease-out",
-    WebkitOverflowScrolling: "touch",
-  };
-
-  const headerStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "12px 16px 8px",
-    borderBottom: "1px solid #1e293b",
-    position: "sticky",
-    top: 0,
-    background: "#0f1219",
-    zIndex: 1,
-  };
-
-  const handleStyle: CSSProperties = {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    background: "#475569",
-    margin: "8px auto 0",
-  };
-
   return (
-    <div style={overlayStyle}>
-      <div ref={sheetRef} style={sheetStyle}>
-        <div style={handleStyle} />
+    <div className="fixed inset-0 bg-black/50 z-[1000] flex flex-col justify-end">
+      <div ref={sheetRef} className="bg-bg-panel border-t border-border rounded-t-2xl max-h-[70vh] overflow-auto animate-slide-up [-webkit-overflow-scrolling:touch]">
+        <div className="w-9 h-1 rounded-sm bg-text-dimmed mt-2 mx-auto" />
         {title && (
-          <div style={headerStyle}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>{title}</span>
+          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border-subtle sticky top-0 bg-bg-panel z-[1]">
+            <span className="text-sm font-semibold text-text-primary">{title}</span>
             <button
               onClick={onClose}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#94a3b8",
-                fontSize: 18,
-                cursor: "pointer",
-                padding: "4px 8px",
-                lineHeight: 1,
-              }}
+              className="bg-transparent border-none text-text-muted text-lg cursor-pointer px-2 py-1 leading-none"
             >
               ✕
             </button>
           </div>
         )}
-        <div style={{ padding: "12px 16px 24px" }}>
+        <div className="px-4 pt-3 pb-6">
           {children}
         </div>
       </div>

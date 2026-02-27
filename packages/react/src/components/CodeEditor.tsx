@@ -381,24 +381,10 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
   const highlighted = useMemo(() => code.split("\n").map(highlightLine), [code]);
 
   return (
-    <div style={{ display: "flex", height: "100%", position: "relative" }}>
+    <div className="flex h-full relative">
       <div
         ref={lineCountRef}
-        style={{
-          width: 44,
-          background: "#0c0e14",
-          color: "#475569",
-          fontSize: 12,
-          fontFamily: "'IBM Plex Mono', monospace",
-          lineHeight: "21px",
-          paddingTop: 12,
-          paddingRight: 8,
-          textAlign: "right",
-          overflow: "hidden",
-          userSelect: "none",
-          borderRight: "1px solid #1e293b",
-          flexShrink: 0,
-        }}
+        className="w-11 bg-bg-raised text-text-dimmed text-[12px] font-mono leading-[21px] pt-3 pr-2 text-right overflow-hidden select-none border-r border-border-subtle shrink-0"
       >
         {lines.map((_, i) => (
           <div
@@ -414,29 +400,14 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
           </div>
         ))}
       </div>
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      <div className="flex-1 relative overflow-hidden">
         <div
           ref={highlightRef}
           aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            padding: "12px 16px",
-            fontSize: 13,
-            fontFamily: "'IBM Plex Mono', monospace",
-            lineHeight: "21px",
-            letterSpacing: "0.02em",
-            whiteSpace: "pre",
-            overflow: "hidden",
-            pointerEvents: "none",
-            color: "transparent",
-          }}
+          className="absolute inset-0 px-4 py-3 text-[13px] font-mono leading-[21px] tracking-[0.02em] whitespace-pre overflow-hidden pointer-events-none text-transparent"
         >
           {highlighted.map((tokens, i) => (
-            <div key={i} style={{ height: 21 }}>
+            <div key={i} className="h-[21px]">
               {tokens.map((t, j) => (
                 <span key={j} style={{ color: t.color }}>
                   {t.text}
@@ -448,16 +419,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
         <div
           ref={mirrorRef}
           aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: -9999,
-            left: -9999,
-            visibility: "hidden",
-            whiteSpace: "pre",
-            fontSize: 13,
-            fontFamily: "'IBM Plex Mono', monospace",
-            letterSpacing: "0.02em",
-          }}
+          className="absolute -top-[9999px] -left-[9999px] invisible whitespace-pre text-[13px] font-mono tracking-[0.02em]"
         />
         <textarea
           ref={textareaRef}
@@ -476,24 +438,8 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
           onCompositionEnd={() => (composingRef.current = false)}
           onScroll={handleScroll}
           spellCheck={false}
-          style={{
-            position: "relative",
-            width: "100%",
-            height: "100%",
-            background: "transparent",
-            color: "rgba(226,232,240,0.0)",
-            caretColor: "#818cf8",
-            border: "none",
-            outline: "none",
-            resize: "none",
-            fontSize: 13,
-            fontFamily: "'IBM Plex Mono', monospace",
-            lineHeight: "21px",
-            padding: "12px 16px",
-            tabSize: 2,
-            letterSpacing: "0.02em",
-            zIndex: 1,
-          }}
+          className="relative w-full h-full bg-transparent border-none outline-none resize-none text-[13px] font-mono leading-[21px] px-4 py-3 z-[1] tracking-[0.02em]"
+          style={{ color: "rgba(226,232,240,0.0)", caretColor: "#818cf8", tabSize: 2 }}
         />
         {showCompletion && (
           <AutocompleteDropdown
@@ -507,32 +453,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
       <button
         onClick={onFormat}
         title="コードを整形"
-        style={{
-          position: "absolute",
-          bottom: 10,
-          right: 10,
-          zIndex: 5,
-          background: "#1a1f2e",
-          border: "1px solid #2d3548",
-          borderRadius: 6,
-          color: "#94a3b8",
-          padding: "4px 10px",
-          cursor: "pointer",
-          fontSize: 11,
-          fontFamily: "'IBM Plex Mono', monospace",
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          transition: "all 0.15s",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "#2d3548";
-          e.currentTarget.style.color = "#e2e8f0";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "#1a1f2e";
-          e.currentTarget.style.color = "#94a3b8";
-        }}
+        className="absolute bottom-2.5 right-2.5 z-5 bg-surface border border-border rounded-md text-text-muted px-2.5 py-1 cursor-pointer text-[11px] font-mono flex items-center gap-1 transition-all duration-150 hover:bg-border hover:text-text-primary"
       >
         ⟐ 整形
       </button>

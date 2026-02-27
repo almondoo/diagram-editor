@@ -133,7 +133,7 @@ const state = useDiagramState(TEMPLATES.architecture);
 ## 主な制約
 
 - **SSR 有効**: `react-router.config.ts` に `ssr: true` + `vercelPreset()`。Vercel デプロイ。
-- **インラインスタイルのみ**: Tailwind クラス不使用。`style={}` で記述。
+- **Tailwind CSS v4**: `@tailwindcss/vite` プラグイン使用。カスタムカラーパレットは `apps/web/app/app.css` の `@theme` で定義。静的スタイルは Tailwind ユーティリティクラス、動的値（DSLデータ由来の色、計算値、SVG属性）のみ `style={}` で記述。
 - **pnpm ストア**: `.pnpm-store/` はプロジェクト内 Docker ボリューム。
 - **esbuild**: pnpm セキュリティがスクリプトをブロックするが tsup/Vite は正常動作。
 
