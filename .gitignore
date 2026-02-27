@@ -22,3 +22,7 @@ packages/*/dist/
 
 # Git worktrees
 .worktrees/
+
+# Playwright
+packages/e2e/test-results/
+packages/e2e/playwright-report/

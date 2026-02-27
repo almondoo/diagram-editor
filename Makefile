@@ -1,4 +1,7 @@
-.PHONY: up down restart logs build typecheck lint test shell clean preview
+.PHONY: up down restart logs build typecheck lint test shell clean preview e2e e2e-headed e2e-ui e2e-install
+
+docker-build:
+	docker compose build
 
 up:
 	docker compose up -d
@@ -19,13 +22,13 @@ dev:
 	docker compose exec app pnpm dev
 
 build:
-	docker compose exec app pnpm -r build
+	docker compose exec app pnpm build
 
 typecheck:
-	docker compose exec app pnpm -r typecheck
+	docker compose exec app pnpm typecheck
 
 lint:
-	docker compose exec app pnpm -r lint
+	docker compose exec app pnpm lint
 
 test:
 	docker compose exec app pnpm test
@@ -38,3 +41,19 @@ preview:
 
 clean:
 	docker compose down -v
+
+# E2E tests (ホスト側で実行、開発サーバーは make up で起動しておくこと)
+e2e:
+	docker compose exec app pnpm e2e
+
+e2e-report:
+	docker compose exec app pnpm exec playwright show-report
+
+e2e-headed:
+	docker compose exec app pnpm e2e:headed
+
+e2e-ui:
+	docker compose exec app pnpm e2e:ui
+
+e2e-install:
+	docker compose exec app pnpm exec playwright install --with-deps chromium

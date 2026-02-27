@@ -10,65 +10,67 @@
 
 | コマンド | 説明 |
 |---|---|
-| `make up` | コンテナ起動 (`pnpm install && pnpm -r build && dev`, http://localhost:5173) |
+| `make up` | コンテナ起動 (http://localhost:5173) |
 | `make down` | コンテナ停止 |
 | `make clean` | 停止 + ボリューム削除 (pnpm 再インストール強制) |
 | `make logs` | 開発サーバーのログ追跡 |
-| `make build` | 全パッケージビルド |
-| `make typecheck` | 全パッケージ型チェック |
-| `make test` | diagram-dsl-core テスト |
-| `make preview` | 全ビルド + プレビューサーバー (http://localhost:4173) |
+| `make build` | 本番ビルド |
+| `make typecheck` | 型チェック |
+| `make test` | ユニットテスト (vitest) |
+| `make preview` | 本番ビルド + プレビューサーバー (http://localhost:4173) |
 
 ### よく使う docker コマンド
 
 ```bash
-docker compose exec app pnpm -r typecheck           # 型チェック
-docker compose exec app pnpm -r lint                # lint (ESLint v9 flat config)
-docker compose exec app pnpm -r build               # 全ビルド
-docker compose exec app pnpm --filter diagram-dsl-core test   # core テスト
-docker compose exec app pnpm --filter diagram-dsl-core build  # core ビルド
-docker compose exec app pnpm --filter diagram-dsl-react build # react ビルド
+docker compose exec app pnpm typecheck    # 型チェック
+docker compose exec app pnpm lint         # lint (ESLint v9 flat config)
+docker compose exec app pnpm build        # 本番ビルド
+docker compose exec app pnpm test         # ユニットテスト
+docker compose exec app pnpm e2e          # E2Eテスト
 ```
 
 ### コード変更後の必須チェック
 
 変更後は必ず **typecheck → lint → build** を実行。core 変更時は test も実行。
 
-### packages 変更後のビルド必須
-
-`packages/core` or `packages/react` を変更した場合、**必ずビルドすること**。`apps/web` はビルド済み `dist/` を参照するため、ソース変更だけではブラウザに反映されない。ビルド後はブラウザをリロード。
-
 ### サーバー確認
 
 - **開発サーバー**: http://localhost:5173 (HMR, `make up`)
 - **プレビューサーバー**: http://localhost:4173 (`make preview`, 本番ビルド確認用)
 
-`packages/` 変更時は `make preview` (4173) で確認するのが確実。
-
-## モノレポ構造
+## プロジェクト構造
 
 ```
 diagram-editor/
-├── packages/
-│   ├── core/          # diagram-dsl-core (React非依存の純TypeScript)
-│   │   └── src/       # types, parser, layout, formatter, syntax, geometry, svg-export
-│   └── react/         # diagram-dsl-react (ライブラリ本体)
-│       └── src/
-│           ├── components/  # ShapeNode, EdgeLine, GroupBox, NoteBox,
-│           │                # CodeEditor, Toolbar, Minimap, SyntaxPanel
-│           ├── hooks/       # useDiagramState, useNodeDrag, useGroupDrag,
-│           │                # useCanvasInteraction, useSplitPane,
-│           │                # syncNodes, syncGroups, syncNotes
-│           ├── DiagramEditor.tsx
-│           └── styles.ts
-├── apps/
-│   └── web/           # diagram-editor-web (React Router v7 SPA)
-│       └── app/
-│           ├── components/  # AppHeader.tsx, SaveModal.tsx
-│           ├── data/        # templates.ts
-│           ├── hooks/       # useLocalDiagrams.ts
-│           └── routes/home.tsx
-├── docker-compose.yml, Dockerfile, Makefile, pnpm-workspace.yaml
+├── app/
+│   ├── lib/
+│   │   ├── core/          # 純TypeScript (React非依存)
+│   │   │   ├── __tests__/ # ユニットテスト (vitest)
+│   │   │   └── ...        # types, parser, layout, formatter, syntax, geometry, svg-export
+│   │   └── react/         # React コンポーネント・フック
+│   │       ├── components/ # ShapeNode, EdgeLine, GroupBox, NoteBox,
+│   │       │               # CodeEditor, Toolbar, Minimap, SyntaxPanel
+│   │       ├── hooks/      # useDiagramState, useNodeDrag, useGroupDrag,
+│   │       │               # useCanvasInteraction, useSplitPane,
+│   │       │               # syncNodes, syncGroups, syncNotes
+│   │       ├── DiagramEditor.tsx
+│   │       └── index.ts
+│   ├── components/         # AppHeader.tsx, SaveModal.tsx
+│   ├── data/               # templates.ts
+│   ├── hooks/              # useLocalDiagrams.ts
+│   ├── routes/             # home.tsx, diagram.tsx
+│   ├── root.tsx
+│   ├── routes.ts
+│   └── app.css
+├── e2e/                    # Playwright E2Eテスト
+├── docs/                   # ドキュメント
+├── package.json            # 単一パッケージ
+├── vite.config.ts
+├── react-router.config.ts
+├── tsconfig.json
+├── vitest.config.ts
+├── eslint.config.mjs
+├── docker-compose.yml, Dockerfile, Makefile
 ```
 
 ## アーキテクチャ
@@ -79,6 +81,16 @@ diagram-editor/
 code (文字列) → parseDSL() → ParseResult { nodes, edges, groups, notes, errors }
   → nodeStates/groupStates (ドラッグ位置ミラー) → autoLayout() → SVG レンダリング
 ```
+
+### Import パス
+
+```ts
+import { parseDSL } from "~/lib/core";
+import { DiagramEditor } from "~/lib/react";
+import { useLocalDiagrams } from "~/hooks/useLocalDiagrams";
+```
+
+`~/` は `app/` にマッピング（tsconfig.json の paths で設定）。
 
 ### 二層ステートモデル (`useDiagramState`)
 
@@ -94,20 +106,18 @@ code (文字列) → parseDSL() → ParseResult { nodes, edges, groups, notes, e
 
 ### localStorage 永続化
 
-`useLocalDiagrams` フック（`apps/web`）。キー: `diagramcraft_saved_diagrams`。
+`useLocalDiagrams` フック（`app/hooks/`）。キー: `diagramcraft_saved_diagrams`。
 `SavedDiagram { id, name, code, nodeStates, groupStates, savedAt }`。Cmd+S で保存。
 
 ### geometry.ts
 
 `getShapePath`, `getNodeCenter`, `getEdgePoints` を提供。`ShapeNode.tsx`・`EdgeLine.tsx`・`svg-export.ts` が共通インポート。
 
-## ライブラリとアプリの責務分離
+## コード配置の指針
 
-判断基準: 「`diagram-dsl-react` を他アプリで使い回す時も必要か？」→ Yes: packages / No: apps/web
-
-**ライブラリ (packages)**: SVG描画, コードエディタ, ドラッグ/ズーム/パン, ツールバー, ミニマップ, 構文パネル, ステート管理 (`useDiagramState`), DSLパース/フォーマット/レイアウト
-
-**アプリ (apps/web)**: ヘッダー/ブランディング, テンプレート, 保存/読込UI, localStorage永続化, Cmd+Sキーバインド, トースト通知
+- **`app/lib/core/`**: React非依存の純TypeScript。DSLパース、レイアウト、ジオメトリ計算、SVGエクスポート
+- **`app/lib/react/`**: Reactコンポーネント・フック。SVG描画, コードエディタ, ドラッグ/ズーム/パン, ツールバー, ミニマップ, 構文パネル, ステート管理
+- **`app/`（直下）**: アプリ固有。ヘッダー/ブランディング, テンプレート, 保存/読込UI, localStorage永続化, ルーティング
 
 ```tsx
 // API: State object prop パターン
@@ -133,9 +143,8 @@ const state = useDiagramState(TEMPLATES.architecture);
 ## 主な制約
 
 - **SSR 有効**: `react-router.config.ts` に `ssr: true` + `vercelPreset()`。Vercel デプロイ。
-- **Tailwind CSS v4**: `@tailwindcss/vite` プラグイン使用。カスタムカラーパレットは `apps/web/app/app.css` の `@theme` で定義。静的スタイルは Tailwind ユーティリティクラス、動的値（DSLデータ由来の色、計算値、SVG属性）のみ `style={}` で記述。
+- **Tailwind CSS v4**: `@tailwindcss/vite` プラグイン使用。カスタムカラーパレットは `app/app.css` の `@theme` で定義。静的スタイルは Tailwind ユーティリティクラス、動的値（DSLデータ由来の色、計算値、SVG属性）のみ `style={}` で記述。
 - **pnpm ストア**: `.pnpm-store/` はプロジェクト内 Docker ボリューム。
-- **esbuild**: pnpm セキュリティがスクリプトをブロックするが tsup/Vite は正常動作。
 
 ## DSL シンタックス
 

@@ -142,6 +142,7 @@ export default defineConfig(
       "**/.react-router/**",
       "**/build/**",
       ".pnpm-store/**",
+      "e2e/**",
     ],
   },
 );

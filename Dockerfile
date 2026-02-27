@@ -2,4 +2,10 @@ FROM node:22-slim
 
 WORKDIR /app
 
-RUN npm install -g pnpm@10.7.0 --silent
+COPY . .
+
+RUN npm install -g pnpm
+
+RUN pnpm install
+
+RUN pnpm exec playwright install --with-deps chromium
