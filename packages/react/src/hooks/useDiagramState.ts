@@ -147,7 +147,7 @@ export interface DiagramState {
   setGroupSize: (groupId: string, newW: number, newH: number, newX?: number, newY?: number) => void;
   setNoteLayout: (noteId: string, x: number, y: number) => void;
   multiMoveLayout: (selectedIds: Set<string>, dx: number, dy: number) => void;
-  addNode: (shape: string) => void;
+  addNode: (shape: string, parentGroupId?: string) => void;
   addNote: () => void;
   addGroup: (parentGroupId?: string) => void;
   addEdge: (fromId: string, toId: string) => void;
@@ -608,13 +608,62 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     });
   }, []);
 
-  // ノード追加
-  const addNode = (shape: string) => {
+  // ノード追加（parentGroupId があれば親グループ内にネスト）
+  const addNode = (shape: string, parentGroupId?: string) => {
     pushSnapshot();
     const id = `n${Date.now().toString(36)}`;
     const col = randomColor(colorPreset);
-    const newLine = `\nnode ${id} "新規ノード" { shape=${shape} color=${col} }`;
-    setCode((c) => c + newLine);
+
+    if (!parentGroupId) {
+      setCode((c) => c + `\nnode ${id} "新規ノード" { shape=${shape} color=${col} }`);
+      return;
+    }
+
+    setCode((c) => {
+      const lines = c.split("\n");
+      const groupPattern = new RegExp(`^(\\s*)group\\s+${parentGroupId}\\s+`);
+
+      for (let i = 0; i < lines.length; i++) {
+        const match = lines[i]!.match(groupPattern);
+        if (!match) continue;
+
+        const indent = match[1] ?? "";
+        const childIndent = `${indent}  `;
+        const childLine = `${childIndent}node ${id} "新規ノード" { shape=${shape} color=${col} }`;
+        const line = lines[i]!;
+
+        // 単一行グループ: { ... } を複数行に展開
+        if (line.includes("{") && line.includes("}")) {
+          const closeBrace = line.lastIndexOf("}");
+          lines[i] = line.slice(0, closeBrace).trimEnd();
+          lines.splice(i + 1, 0, childLine, `${indent}}`);
+          break;
+        }
+
+        // 複数行ブロック: 閉じ } の直前に挿入
+        if (line.includes("{")) {
+          let depth = 1;
+          let j = i + 1;
+          while (j < lines.length && depth > 0) {
+            const opens = (lines[j]!.match(/\{/g) ?? []).length;
+            const closes = (lines[j]!.match(/\}/g) ?? []).length;
+            depth += opens - closes;
+            if (depth === 0) {
+              lines.splice(j, 0, childLine);
+              break;
+            }
+            j++;
+          }
+          break;
+        }
+
+        // ブロックなし: { } で囲んで子を追加
+        lines[i] = `${line} {`;
+        lines.splice(i + 1, 0, childLine, `${indent}}`);
+        break;
+      }
+      return lines.join("\n");
+    });
   };
 
   // ノート追加（ノード追加と同様にコードに追記するだけ、位置は自動レイアウトで決定）

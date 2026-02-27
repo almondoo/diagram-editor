@@ -438,7 +438,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
           onCompositionEnd={() => (composingRef.current = false)}
           onScroll={handleScroll}
           spellCheck={false}
-          className="relative w-full h-full bg-transparent border-none outline-none resize-none text-[13px] font-mono leading-[21px] px-4 py-3 z-[1] tracking-[0.02em]"
+          className="relative w-full h-full bg-transparent border-none outline-none resize-none text-[13px] font-mono leading-[21px] px-4 py-3 z-[1] tracking-[0.02em] overflow-auto"
           style={{ color: "rgba(226,232,240,0.0)", caretColor: "#818cf8", tabSize: 2 }}
         />
         {showCompletion && (

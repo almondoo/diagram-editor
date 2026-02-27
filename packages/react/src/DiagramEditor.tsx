@@ -235,6 +235,12 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     }
   }, [edgeFromId, isMobile, addEdge]);
 
+  // ノード追加: 選択中のグループがあればその中にネスト作成
+  const handleAddNode = useCallback((shape: string) => {
+    const selectedGroup = [...selectedIds].find((id) => groupById[id]);
+    addNode(shape, selectedGroup);
+  }, [selectedIds, groupById, addNode]);
+
   // グループ追加: 選択中のグループがあればその中にネスト作成
   const handleAddGroup = useCallback(() => {
     const selectedGroup = [...selectedIds].find((id) => groupById[id]);
@@ -637,7 +643,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
         <>
           <div className="flex-1 flex flex-col overflow-hidden">
             <Toolbar
-              onAddNode={addNode}
+              onAddNode={handleAddNode}
               onAddNote={addNote}
               onAddGroup={handleAddGroup}
               onExportSVG={exportSVG}
@@ -690,7 +696,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
           {/* Canvas Panel */}
           <div className="flex-1 flex flex-col overflow-hidden">
             <Toolbar
-              onAddNode={addNode}
+              onAddNode={handleAddNode}
               onAddNote={addNote}
               onAddGroup={handleAddGroup}
               onExportSVG={exportSVG}
