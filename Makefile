@@ -28,7 +28,7 @@ lint:
 	docker compose exec app pnpm -r lint
 
 test:
-	docker compose exec app pnpm --filter diagram-dsl-core test
+	docker compose exec app pnpm test
 
 app:
 	docker compose exec app bash

@@ -256,6 +256,40 @@ describe("forceLayout (direction=auto)", () => {
     expect(result[0]!.x).toBe(100);
     expect(result[0]!.y).toBe(100);
   });
+
+  it("ネストされたグループと別のトップレベルグループが重ならない", () => {
+    // AWSアーキテクチャ風: VPC(public, private) + 外部アクセスグループ
+    const vpc = makeGroup("vpc", 0, 0, 500, 400);
+    const pub = makeGroup("public", 10, 40, 200, 150, "vpc");
+    const priv = makeGroup("private", 10, 200, 200, 150, "vpc");
+    const ext = makeGroup("ext", 0, 0, 300, 200);
+
+    const nodes = [
+      makeNode("alb", true, "public"),
+      makeNode("nat", true, "public"),
+      makeNode("ecs", true, "private"),
+      makeNode("rds", true, "private"),
+      makeNode("cache", true, "private"),
+      makeNode("cf", true, "ext"),
+      makeNode("s3", true, "ext"),
+    ];
+    const edges = [
+      EDGE("cf", "alb"),
+      EDGE("alb", "ecs"),
+      EDGE("ecs", "rds"),
+      EDGE("ecs", "cache"),
+      EDGE("cf", "s3"),
+    ];
+
+    const { groupUpdates } = autoLayout(nodes, edges, [vpc, pub, priv, ext], "auto");
+    const rVpc = groupUpdates["vpc"] ?? vpc;
+    const rExt = groupUpdates["ext"] ?? ext;
+
+    // トップレベルグループ (vpc, ext) が重ならないことを確認
+    const overlapX = rVpc.x < rExt.x + rExt.w && rExt.x < rVpc.x + rVpc.w;
+    const overlapY = rVpc.y < rExt.y + rExt.h && rExt.y < rVpc.y + rVpc.h;
+    expect(overlapX && overlapY).toBe(false);
+  });
 });
 
 describe("direction=TB", () => {

@@ -352,6 +352,45 @@ function forceLayout(
     }
   }
 
+  // トップレベルグループの重なりを dagre で解消
+  const topLevelGroups = groups.filter(
+    (g) => groupUpdates[g.id] !== undefined && !g.parentGroup,
+  );
+  if (topLevelGroups.length > 1) {
+    const repositionedGroups = layoutGroupsDagre(topLevelGroups, groupUpdates, edges, nodes, "LR");
+    for (const tlg of topLevelGroups) {
+      const newG = repositionedGroups[tlg.id];
+      if (!newG) continue;
+      const oldG = groupUpdates[tlg.id] ?? groupById[tlg.id];
+      if (!oldG) continue;
+      const dx = newG.x - oldG.x;
+      const dy = newG.y - oldG.y;
+      if (dx === 0 && dy === 0) continue;
+
+      // グループツリーをシフト
+      const shiftTree = (gid: string) => {
+        const cg = groupUpdates[gid] ?? groupById[gid];
+        if (cg) groupUpdates[gid] = { ...cg, x: cg.x + dx, y: cg.y + dy };
+        (childGroupsMap[gid] ?? []).forEach((d) => shiftTree(d.id));
+      };
+      shiftTree(tlg.id);
+
+      // グループ内ノードをシフト
+      const descIds = new Set<string>();
+      const collectDesc = (gid: string) => {
+        descIds.add(gid);
+        (childGroupsMap[gid] ?? []).forEach((d) => collectDesc(d.id));
+      };
+      collectDesc(tlg.id);
+      nodes.forEach((n) => {
+        if (n.group && descIds.has(n.group)) {
+          n.x += dx;
+          n.y += dy;
+        }
+      });
+    }
+  }
+
   nodes.forEach((n) => delete n._needsPosition);
   return { nodes, groupUpdates };
 }
