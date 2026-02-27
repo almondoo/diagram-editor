@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { DiagramNode, DiagramEdge, DiagramGroup } from "./types.js";
+import type { DiagramNode, DiagramEdge, DiagramGroup, LayoutDirection } from "./types.js";
 import { colorForId } from "./colors.js";
 
 export const GROUP_LABEL_HEIGHT = 26; // グループラベルの高さ
@@ -34,12 +34,13 @@ function layoutGroupNodesDagre(
   allGroupNodes: DiagramNode[],
   g: DiagramGroup,
   edges: DiagramEdge[],
+  rankdir: "TB" | "LR" = "LR",
 ): void {
   if (toLayout.length === 0) return;
 
   const nodeIds = new Set(toLayout.map((n) => n.id));
   const graph = new dagre.graphlib.Graph();
-  graph.setGraph({ rankdir: "LR", nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 0, marginy: 0 });
+  graph.setGraph({ rankdir, nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 0, marginy: 0 });
   graph.setDefaultEdgeLabel(() => ({}));
 
   toLayout.forEach((n) => graph.setNode(n.id, { width: n.w, height: n.h }));
@@ -92,6 +93,7 @@ function layoutGroupsDagre(
   groupUpdates: Record<string, DiagramGroup>,
   edges: DiagramEdge[],
   allNodes: DiagramNode[],
+  rankdir: "TB" | "LR" = "LR",
 ): Record<string, DiagramGroup> {
   if (groups.length <= 1) return groupUpdates;
 
@@ -99,7 +101,7 @@ function layoutGroupsDagre(
 
   const graph = new dagre.graphlib.Graph();
   graph.setGraph({
-    rankdir: "LR",
+    rankdir,
     nodesep: GROUP_GAP,
     ranksep: GROUP_GAP * 1.5,
     marginx: 40,
@@ -146,12 +148,13 @@ function layoutFreeNodesDagre(
   allFreeNodes: DiagramNode[],
   edges: DiagramEdge[],
   startY: number,
+  rankdir: "TB" | "LR" = "LR",
 ): void {
   if (toLayout.length === 0) return;
 
   const nodeIds = new Set(toLayout.map((n) => n.id));
   const graph = new dagre.graphlib.Graph();
-  graph.setGraph({ rankdir: "LR", nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 40, marginy: 40 });
+  graph.setGraph({ rankdir, nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 40, marginy: 40 });
   graph.setDefaultEdgeLabel(() => ({}));
 
   toLayout.forEach((n) => graph.setNode(n.id, { width: n.w, height: n.h }));
@@ -194,10 +197,170 @@ export function getGroupDepth(gid: string, groupById: Record<string, DiagramGrou
   return getGroupDepth(g.parentGroup, groupById) + 1;
 }
 
+/** Fruchterman-Reingold フォースレイアウト */
+function forceLayout(
+  nodes: DiagramNode[],
+  edges: DiagramEdge[],
+  groups: DiagramGroup[],
+): { nodes: DiagramNode[]; groupUpdates: Record<string, DiagramGroup> } {
+  const groupById: Record<string, DiagramGroup> = {};
+  groups.forEach((g) => (groupById[g.id] = g));
+
+  const toLayout = nodes.filter((n) => n._needsPosition);
+  const fixed = nodes.filter((n) => !n._needsPosition);
+  if (toLayout.length === 0) {
+    nodes.forEach((n) => delete n._needsPosition);
+    return { nodes, groupUpdates: {} };
+  }
+
+  const allNodes = [...toLayout, ...fixed];
+  const idxMap = new Map<string, number>();
+  allNodes.forEach((n, i) => idxMap.set(n.id, i));
+
+  // 初期位置: 円形配置
+  const cx = 400, cy = 300;
+  const radius = Math.max(150, toLayout.length * 30);
+  toLayout.forEach((n, i) => {
+    const angle = (2 * Math.PI * i) / toLayout.length;
+    n.x = cx + radius * Math.cos(angle) - n.w / 2;
+    n.y = cy + radius * Math.sin(angle) - n.h / 2;
+  });
+
+  const area = 800 * 600;
+  const k = Math.sqrt(area / allNodes.length);
+  const ITERATIONS = 300;
+  let temperature = Math.max(800, radius * 2);
+  const coolingFactor = temperature / (ITERATIONS + 1);
+
+  // グループメンバーセット
+  const groupMembers: Record<string, string[]> = {};
+  nodes.forEach((n) => {
+    if (n.group && groupById[n.group]) {
+      (groupMembers[n.group] ??= []).push(n.id);
+    }
+  });
+
+  const dx: number[] = new Array(allNodes.length).fill(0);
+  const dy: number[] = new Array(allNodes.length).fill(0);
+
+  for (let iter = 0; iter < ITERATIONS; iter++) {
+    for (let i = 0; i < allNodes.length; i++) { dx[i] = 0; dy[i] = 0; }
+
+    // 反発力（全ペア）
+    for (let i = 0; i < allNodes.length; i++) {
+      const ni = allNodes[i]!;
+      const ncx = ni.x + ni.w / 2;
+      const ncy = ni.y + ni.h / 2;
+      for (let j = i + 1; j < allNodes.length; j++) {
+        const nj = allNodes[j]!;
+        const mcx = nj.x + nj.w / 2;
+        const mcy = nj.y + nj.h / 2;
+        const ddx = ncx - mcx;
+        const ddy = ncy - mcy;
+        const dist = Math.max(1, Math.sqrt(ddx * ddx + ddy * ddy));
+        const minDist = (ni.w + nj.w) / 2 + 20;
+        const effectiveDist = Math.max(1, dist - minDist + 20);
+        const force = (k * k) / effectiveDist;
+        const fx = (ddx / dist) * force;
+        const fy = (ddy / dist) * force;
+        dx[i] = dx[i]! + fx;
+        dy[i] = dy[i]! + fy;
+        dx[j] = dx[j]! - fx;
+        dy[j] = dy[j]! - fy;
+      }
+    }
+
+    // 引力（エッジ）
+    for (const edge of edges) {
+      const si = idxMap.get(edge.from);
+      const ti = idxMap.get(edge.to);
+      if (si === undefined || ti === undefined) continue;
+      const sn = allNodes[si]!;
+      const tn = allNodes[ti]!;
+      const ddx = (tn.x + tn.w / 2) - (sn.x + sn.w / 2);
+      const ddy = (tn.y + tn.h / 2) - (sn.y + sn.h / 2);
+      const dist = Math.max(1, Math.sqrt(ddx * ddx + ddy * ddy));
+      const force = (dist * dist) / k;
+      const fx = (ddx / dist) * force;
+      const fy = (ddy / dist) * force;
+      dx[si] = dx[si]! + fx;
+      dy[si] = dy[si]! + fy;
+      dx[ti] = dx[ti]! - fx;
+      dy[ti] = dy[ti]! - fy;
+    }
+
+    // グループ内引力
+    for (const members of Object.values(groupMembers)) {
+      for (let i = 0; i < members.length; i++) {
+        for (let j = i + 1; j < members.length; j++) {
+          const si = idxMap.get(members[i]!);
+          const ti = idxMap.get(members[j]!);
+          if (si === undefined || ti === undefined) continue;
+          const sn = allNodes[si]!;
+          const tn = allNodes[ti]!;
+          const ddx = (tn.x + tn.w / 2) - (sn.x + sn.w / 2);
+          const ddy = (tn.y + tn.h / 2) - (sn.y + sn.h / 2);
+          const dist = Math.max(1, Math.sqrt(ddx * ddx + ddy * ddy));
+          const force = dist * 0.3;
+          const fx = (ddx / dist) * force;
+          const fy = (ddy / dist) * force;
+          dx[si] = dx[si]! + fx;
+          dy[si] = dy[si]! + fy;
+          dx[ti] = dx[ti]! - fx;
+          dy[ti] = dy[ti]! - fy;
+        }
+      }
+    }
+
+    // 中心引力
+    for (let i = 0; i < allNodes.length; i++) {
+      const n = allNodes[i]!;
+      dx[i] = dx[i]! + (cx - (n.x + n.w / 2)) * 0.01;
+      dy[i] = dy[i]! + (cy - (n.y + n.h / 2)) * 0.01;
+    }
+
+    // 位置更新（toLayout のみ、fixed は動かさない）
+    for (let i = 0; i < toLayout.length; i++) {
+      const n = toLayout[i]!;
+      const dxi = dx[i]!;
+      const dyi = dy[i]!;
+      const disp = Math.max(1, Math.sqrt(dxi * dxi + dyi * dyi));
+      const scale = Math.min(disp, temperature) / disp;
+      n.x += dxi * scale;
+      n.y += dyi * scale;
+    }
+
+    temperature -= coolingFactor;
+    if (temperature <= 0) break;
+  }
+
+  // グループフィッティング
+  const groupUpdates: Record<string, DiagramGroup> = {};
+  const childGroupsMap: Record<string, DiagramGroup[]> = {};
+  groups.forEach((g) => {
+    if (g.parentGroup) (childGroupsMap[g.parentGroup] ??= []).push(g);
+  });
+
+  const getDepth = (gid: string): number => getGroupDepth(gid, groupById);
+  const sortedGroups = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
+
+  for (const g of sortedGroups) {
+    const members = nodes.filter((n) => n.group === g.id);
+    const children = (childGroupsMap[g.id] ?? []).map((c) => groupUpdates[c.id] ?? c);
+    if (members.length > 0 || children.length > 0) {
+      groupUpdates[g.id] = computeGroupFit(members, children, g);
+    }
+  }
+
+  nodes.forEach((n) => delete n._needsPosition);
+  return { nodes, groupUpdates };
+}
+
 export function autoLayout(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
   groups: DiagramGroup[] = [],
+  direction: LayoutDirection = "auto",
 ): { nodes: DiagramNode[]; groupUpdates: Record<string, DiagramGroup> } {
   if (nodes.length === 0) return { nodes, groupUpdates: {} };
 
@@ -208,6 +371,11 @@ export function autoLayout(
 
   const needsLayout = nodes.some((n) => n._needsPosition);
   if (!needsLayout) return { nodes, groupUpdates: {} };
+
+  if (direction === "auto") {
+    return forceLayout(nodes, edges, groups);
+  }
+  const rankdir = direction; // "TB" | "LR"
 
   const groupById: Record<string, DiagramGroup> = {};
   groups.forEach((g) => (groupById[g.id] = g));
@@ -260,7 +428,7 @@ export function autoLayout(
   for (const g of sortedGroups) {
     const gnodes = groupedNodesMap[g.id] ?? [];
     const toLayout = gnodes.filter((n) => n._needsPosition);
-    if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, gnodes, g, edges);
+    if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, gnodes, g, edges, rankdir);
 
     const childDefs = childGroupsMap[g.id] ?? [];
     const hasUpdatedChildren = childDefs.some((c) => groupUpdates[c.id] !== undefined);
@@ -303,7 +471,7 @@ export function autoLayout(
   const topLevelGroups = groups.filter(
     (g) => groupUpdates[g.id] !== undefined && !g.parentGroup,
   );
-  const repositionedGroups = layoutGroupsDagre(topLevelGroups, groupUpdates, edges, nodes);
+  const repositionedGroups = layoutGroupsDagre(topLevelGroups, groupUpdates, edges, nodes, rankdir);
   // トップレベルグループの位置変化をグループ・ノードに適用
   for (const tlg of topLevelGroups) {
     const newG = repositionedGroups[tlg.id];
@@ -324,7 +492,7 @@ export function autoLayout(
     const groupsBottom =
       updatedGroups.length > 0 ? Math.max(...updatedGroups.map((g) => g.y + g.h)) : 0;
     const startY = groupsBottom > 0 ? groupsBottom + 80 : 40;
-    layoutFreeNodesDagre(freeToLayout, freeNodes, edges, startY);
+    layoutFreeNodesDagre(freeToLayout, freeNodes, edges, startY, rankdir);
   }
 
   nodes.forEach((n) => delete n._needsPosition);

@@ -70,7 +70,7 @@ describe("autoLayout", () => {
   it("エッジに基づいてレイヤーを割り当てる (a < b < c)", () => {
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
     const edges = [EDGE("a", "b"), EDGE("b", "c")];
-    const { nodes: result } = autoLayout(nodes, edges);
+    const { nodes: result } = autoLayout(nodes, edges, [], "LR");
     const byId = Object.fromEntries(result.map(n => [n.id, n]));
     expect(byId.a!.x).toBeLessThan(byId.b!.x);
     expect(byId.b!.x).toBeLessThan(byId.c!.x);
@@ -135,7 +135,7 @@ describe("autoLayout", () => {
     ];
     // a->b, b->c のエッジ → dagre は g1→g2→g3 の順に配置 (LR)
     const edges = [EDGE("a", "b"), EDGE("b", "c")];
-    const { groupUpdates } = autoLayout(nodes, edges, [g1, g2, g3]);
+    const { groupUpdates } = autoLayout(nodes, edges, [g1, g2, g3], "LR");
     const rg1 = groupUpdates["g1"] ?? g1;
     const rg2 = groupUpdates["g2"] ?? g2;
     const rg3 = groupUpdates["g3"] ?? g3;
@@ -163,7 +163,7 @@ describe("autoLayout", () => {
       makeNode("a", true, "g1"),
       makeNode("free", true, ""),
     ];
-    const { nodes: result, groupUpdates } = autoLayout(nodes, [], [group]);
+    const { nodes: result, groupUpdates } = autoLayout(nodes, [], [group], "LR");
     const g = groupUpdates["g1"] ?? group;
     const freeNode = result.find(n => n.id === "free")!;
     // フリーノードはグループの下に配置される
@@ -178,7 +178,7 @@ describe("autoLayout", () => {
       makeNode("c", true, "g1"),
     ];
     const edges = [EDGE("a", "b"), EDGE("b", "c")];
-    const { nodes: result } = autoLayout(nodes, edges, [group]);
+    const { nodes: result } = autoLayout(nodes, edges, [group], "LR");
     const byId = Object.fromEntries(result.map(n => [n.id, n]));
     // a -> b -> c の順に x が増える (LR layout)
     expect(byId.a!.x).toBeLessThan(byId.b!.x);
@@ -206,5 +206,76 @@ describe("autoLayout", () => {
       makeNode("b", true, "child"),
     ];
     expect(() => autoLayout(nodes, [], [parent, child])).not.toThrow();
+  });
+});
+
+describe("forceLayout (direction=auto)", () => {
+  it("接続されたノードが近くに配置される", () => {
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
+    const edges = [EDGE("a", "b")];
+    const { nodes: result } = autoLayout(nodes, edges, [], "auto");
+    const byId = Object.fromEntries(result.map(n => [n.id, n]));
+    const distAB = Math.hypot(byId.a!.x - byId.b!.x, byId.a!.y - byId.b!.y);
+    const distAC = Math.hypot(byId.a!.x - byId.c!.x, byId.a!.y - byId.c!.y);
+    expect(distAB).toBeLessThan(distAC);
+  });
+
+  it("ノードが重ならない", () => {
+    const nodes = Array.from({ length: 6 }, (_, i) => makeNode(`n${i}`));
+    const edges = [EDGE("n0", "n1"), EDGE("n1", "n2"), EDGE("n2", "n3")];
+    const { nodes: result } = autoLayout(nodes, edges, [], "auto");
+    for (let i = 0; i < result.length; i++) {
+      for (let j = i + 1; j < result.length; j++) {
+        const a = result[i]!;
+        const b = result[j]!;
+        const overlap =
+          a.x < b.x + b.w && a.x + a.w > b.x &&
+          a.y < b.y + b.h && a.y + a.h > b.y;
+        expect(overlap).toBe(false);
+      }
+    }
+  });
+
+  it("グループ内ノードが近くに集まる", () => {
+    const group = makeGroup("g1", 0, 0, 400, 300);
+    const nodes = [
+      makeNode("a", true, "g1"),
+      makeNode("b", true, "g1"),
+      makeNode("c", true, ""),
+    ];
+    const { nodes: result } = autoLayout(nodes, [], [group], "auto");
+    const byId = Object.fromEntries(result.map(n => [n.id, n]));
+    const distAB = Math.hypot(byId.a!.x - byId.b!.x, byId.a!.y - byId.b!.y);
+    const distAC = Math.hypot(byId.a!.x - byId.c!.x, byId.a!.y - byId.c!.y);
+    expect(distAB).toBeLessThan(distAC);
+  });
+
+  it("位置確定済みノードはスキップされる", () => {
+    const nodes = [makeNode("a", false), makeNode("b", true)];
+    const { nodes: result } = autoLayout(nodes, [], [], "auto");
+    expect(result[0]!.x).toBe(100);
+    expect(result[0]!.y).toBe(100);
+  });
+});
+
+describe("direction=TB", () => {
+  it("a→b→c が上から下に配置される", () => {
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
+    const edges = [EDGE("a", "b"), EDGE("b", "c")];
+    const { nodes: result } = autoLayout(nodes, edges, [], "TB");
+    const byId = Object.fromEntries(result.map(n => [n.id, n]));
+    expect(byId.a!.y).toBeLessThan(byId.b!.y);
+    expect(byId.b!.y).toBeLessThan(byId.c!.y);
+  });
+});
+
+describe("direction=LR", () => {
+  it("a→b→c が左から右に配置される (既存と同じ)", () => {
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
+    const edges = [EDGE("a", "b"), EDGE("b", "c")];
+    const { nodes: result } = autoLayout(nodes, edges, [], "LR");
+    const byId = Object.fromEntries(result.map(n => [n.id, n]));
+    expect(byId.a!.x).toBeLessThan(byId.b!.x);
+    expect(byId.b!.x).toBeLessThan(byId.c!.x);
   });
 });
