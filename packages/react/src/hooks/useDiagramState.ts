@@ -10,7 +10,7 @@ import {
   GROUP_LABEL_HEIGHT,
   getGroupDepth,
 } from "diagram-dsl-core";
-import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote, ColorPreset } from "diagram-dsl-core";
+import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote, ColorPreset, LayoutDirection } from "diagram-dsl-core";
 import { syncNodes } from "./syncNodes.js";
 import { syncGroups } from "./syncGroups.js";
 import { syncNotes } from "./syncNotes.js";
@@ -159,7 +159,7 @@ export interface DiagramState {
   updateEdgeBend: (fromId: string, toId: string, bendX: number, bendY: number) => void;
   exportSVG: () => void;
   formatCode: () => void;
-  resetLayout: () => void;
+  resetLayout: (dir?: LayoutDirection) => void;
   loadTemplate: (templateCode: string) => void;
   loadSaved: (code: string, nodeStates: Record<string, DiagramNode>, groupStates: Record<string, DiagramGroup>, noteStates?: Record<string, DiagramNote>, bendStates?: Record<string, { bendX: number; bendY: number }>) => void;
   colorPreset: ColorPreset;
@@ -171,6 +171,8 @@ export interface DiagramState {
   pushSnapshot: () => void;
   deleteGroup: (groupId: string) => void;
   deleteNote: (noteId: string) => void;
+  layoutDirection: LayoutDirection;
+  isAnimating: boolean;
 }
 
 export function useDiagramState(initialCode: string = ""): DiagramState {
@@ -180,6 +182,8 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   const [noteStates, setNoteStates] = useState<Record<string, DiagramNote>>({});
   const [bendStates, setBendStates] = useState<Record<string, { bendX: number; bendY: number }>>({});
   const [colorPreset, setColorPreset] = useState<ColorPreset>("default");
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("auto");
+  const [isAnimating, setIsAnimating] = useState(false);
   const [historyVersion, setHistoryVersion] = useState(0);
 
   // グループ状態の ref（setNodeLayout の stable callback から読むため）
@@ -339,8 +343,8 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       if (n.color === "__RANDOM__") n.color = colorForId(n.id, colorPreset);
     });
     if (!needsLayout) return { nodes, groupUpdates: {} };
-    return autoLayout(nodes, parsedRaw.edges, displayGroups);
-  }, [parsedRaw, nodeStates, needsLayout, displayGroups, colorPreset]);
+    return autoLayout(nodes, parsedRaw.edges, displayGroups, layoutDirection);
+  }, [parsedRaw, nodeStates, needsLayout, displayGroups, colorPreset, layoutDirection]);
 
   const displayNodes = layoutResult.nodes;
 
@@ -900,8 +904,10 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   const formatCode = () => { pushSnapshot(); setCode((c) => formatDSLCode(c)); };
 
   // 全ノードの位置をリセットして autoLayout を再実行
-  const resetLayout = () => {
+  const resetLayout = (dir?: LayoutDirection) => {
     pushSnapshot();
+    if (dir !== undefined) setLayoutDirection(dir);
+    setIsAnimating(true);
     setNodeStates((prev) => {
       const updated: Record<string, DiagramNode> = {};
       for (const [id, node] of Object.entries(prev)) {
@@ -909,6 +915,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       }
       return updated;
     });
+    setTimeout(() => setIsAnimating(false), 350);
   };
 
   // テンプレート読み込み
@@ -1054,5 +1061,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     pushSnapshot,
     deleteGroup,
     deleteNote,
+    layoutDirection,
+    isAnimating,
   };
 }
