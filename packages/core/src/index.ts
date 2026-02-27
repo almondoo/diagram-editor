@@ -7,6 +7,7 @@ export type {
   ParseResult,
   SyntaxToken,
   ViewBox,
+  LayoutDirection,
 } from "./types.js";
 
 export { VIBRANT_COLORS, randomColor, randomPosition, colorForId, COLOR_PRESETS } from "./colors.js";

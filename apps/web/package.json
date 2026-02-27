@@ -8,7 +8,7 @@
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
     "lint": "eslint app",
-    "preview": "vite preview --host --port 4173"
+    "preview": "HOST=0.0.0.0 PORT=4173 react-router-serve ./build/server/index.js"
   },
   "dependencies": {
     "@react-router/node": "7.12.0",

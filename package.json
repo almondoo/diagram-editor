@@ -8,7 +8,8 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm --filter diagram-dsl-core test",
-    "dev": "pnpm --filter diagram-editor-web dev"
+    "dev": "pnpm --filter diagram-editor-web dev",
+    "preview": "pnpm --filter diagram-editor-web preview"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

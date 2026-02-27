@@ -75,3 +75,5 @@ export interface ViewBox {
   w: number;
   h: number;
 }
+
+export type LayoutDirection = "auto" | "TB" | "LR";
