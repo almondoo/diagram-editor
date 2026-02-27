@@ -59,7 +59,9 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const {
     code, setCode, parsed, nodeById, groupById, noteStates,
     setNodeLayout, setNodeSize, setGroupLayout, setGroupSize, setNoteLayout, multiMoveLayout,
-    addNode, addNote, addGroup, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, reconnectEdge, updateEdgeBend, exportSVG, formatCode, resetLayout,
+    addNode, addNote, addGroup, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, deleteGroup, deleteNote, reconnectEdge, updateEdgeBend, exportSVG, formatCode, resetLayout,
+    colorPreset, setColorPreset,
+    undo, redo, canUndo, canRedo, pushSnapshot,
   } = state;
 
   const findCodeLine = useCallback((type: "node" | "edge" | "note", id: string, fromId?: string) => {
@@ -83,6 +85,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   const {
     selectedIds,
+    setSelectedIds,
     selectionRect,
     startSelectionRect,
     updateSelectionRect,
@@ -119,11 +122,13 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   useEffect(() => {
     if (!noteDragInfo) return;
     let rafId = 0;
+    let noteDragged = false;
 
     const applyMove = (clientX: number, clientY: number) => {
       const dx = (clientX - noteDragInfo.startX) / zoom;
       const dy = (clientY - noteDragInfo.startY) / zoom;
       if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+      if (!noteDragged) { pushSnapshot(); noteDragged = true; }
       if (noteDragInfo.isMulti) {
         onMultiMove(dx, dy);
       } else {
@@ -159,7 +164,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       window.removeEventListener("touchend", handleUp);
       window.removeEventListener("touchcancel", handleUp);
     };
-  }, [noteDragInfo, zoom, noteStates, parsed.notes, setNoteLayout, onMultiMove]);
+  }, [noteDragInfo, zoom, noteStates, parsed.notes, setNoteLayout, onMultiMove, pushSnapshot]);
 
   const parsedRef = useRef(parsed);
   parsedRef.current = parsed;
@@ -187,13 +192,13 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   }, [selectionRect, zoom, updateSelectionRect, endSelectionRect]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { handleNodeMouseDown, handleNodeResizeMouseDown, handleNodeTouchStart } =
-    useNodeDrag(nodeById, zoom, selectedIds, setNodeLayout, setNodeSize, onMultiMove);
+    useNodeDrag(nodeById, zoom, selectedIds, setNodeLayout, setNodeSize, onMultiMove, pushSnapshot);
 
   const { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown, handleGroupResizeTouchStart } =
-    useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove);
+    useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove, pushSnapshot);
 
   const { edgeDragInfo, handleEdgeMoveMouseDown, handleEdgeEndpointMouseDown } =
-    useEdgeDrag(nodeById, parsed.edges, zoom, updateEdgeBend, reconnectEdge, svgRef, panRef);
+    useEdgeDrag(nodeById, parsed.edges, zoom, updateEdgeBend, reconnectEdge, svgRef, panRef, pushSnapshot);
 
   const { edgeCreationDragInfo, handleConnectionPointMouseDown } =
     useEdgeCreation(nodeById, zoom, addEdge, svgRef, panRef);
@@ -499,6 +504,68 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     </div>
   );
 
+  // キーボードショートカット
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      const isInput = el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement || (el instanceof HTMLElement && el.isContentEditable);
+      if (isInput) return;
+
+      const isMeta = e.metaKey || e.ctrlKey;
+
+      // Cmd+Z / Ctrl+Z → Undo
+      if (isMeta && !e.shiftKey && e.key === "z") {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // Cmd+Shift+Z / Ctrl+Shift+Z → Redo
+      if (isMeta && e.shiftKey && e.key === "z") {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // Cmd+A / Ctrl+A → 全選択
+      if (isMeta && e.key === "a") {
+        e.preventDefault();
+        const allIds = new Set([
+          ...parsed.nodes.map((n) => n.id),
+          ...parsed.groups.map((g) => g.id),
+          ...parsed.notes.map((n) => n.id),
+        ]);
+        setSelectedIds(allIds);
+        return;
+      }
+
+      // Escape → 選択解除
+      if (e.key === "Escape") {
+        clearSelection();
+        return;
+      }
+
+      // Delete / Backspace → 選択要素を削除
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.size > 0) {
+        e.preventDefault();
+        for (const id of selectedIds) {
+          if (nodeById[id]) {
+            deleteNode(id);
+          } else if (groupById[id]) {
+            deleteGroup(id);
+          } else if (noteStates[id]) {
+            deleteNote(id);
+          }
+        }
+        clearSelection();
+        return;
+      }
+    };
+
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [undo, redo, parsed, selectedIds, nodeById, groupById, noteStates, deleteNode, deleteGroup, deleteNote, clearSelection, setSelectedIds]);
+
   const existingIds = useMemo(() => [
     ...parsed.nodes.map((n) => n.id),
     ...parsed.groups.map((g) => g.id),
@@ -578,6 +645,12 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               onZoomOut={zoomOut}
               onFitView={() => fitView(parsed.nodes, parsed.groups)}
               onResetLayout={resetLayout}
+              colorPreset={colorPreset}
+              onSetColorPreset={setColorPreset}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={undo}
+              onRedo={redo}
               isMobile={isMobile}
             />
             {renderCanvas()}
@@ -625,6 +698,12 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               onZoomOut={zoomOut}
               onFitView={() => fitView(parsed.nodes, parsed.groups)}
               onResetLayout={resetLayout}
+              colorPreset={colorPreset}
+              onSetColorPreset={setColorPreset}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={undo}
+              onRedo={redo}
             />
             {renderCanvas()}
           </div>

@@ -10,7 +10,7 @@ import {
   GROUP_LABEL_HEIGHT,
   getGroupDepth,
 } from "diagram-dsl-core";
-import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote } from "diagram-dsl-core";
+import type { ParseResult, DiagramNode, DiagramGroup, DiagramNote, ColorPreset } from "diagram-dsl-core";
 import { syncNodes } from "./syncNodes.js";
 import { syncGroups } from "./syncGroups.js";
 import { syncNotes } from "./syncNotes.js";
@@ -162,6 +162,15 @@ export interface DiagramState {
   resetLayout: () => void;
   loadTemplate: (templateCode: string) => void;
   loadSaved: (code: string, nodeStates: Record<string, DiagramNode>, groupStates: Record<string, DiagramGroup>, noteStates?: Record<string, DiagramNote>, bendStates?: Record<string, { bendX: number; bendY: number }>) => void;
+  colorPreset: ColorPreset;
+  setColorPreset: (preset: ColorPreset) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  pushSnapshot: () => void;
+  deleteGroup: (groupId: string) => void;
+  deleteNote: (noteId: string) => void;
 }
 
 export function useDiagramState(initialCode: string = ""): DiagramState {
@@ -170,6 +179,8 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   const [groupStates, setGroupStates] = useState<Record<string, DiagramGroup>>({});
   const [noteStates, setNoteStates] = useState<Record<string, DiagramNote>>({});
   const [bendStates, setBendStates] = useState<Record<string, { bendX: number; bendY: number }>>({});
+  const [colorPreset, setColorPreset] = useState<ColorPreset>("default");
+  const [historyVersion, setHistoryVersion] = useState(0);
 
   // グループ状態の ref（setNodeLayout の stable callback から読むため）
   const groupStatesRef = useRef(groupStates);
@@ -182,15 +193,121 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   const noteStatesRef = useRef(noteStates);
   noteStatesRef.current = noteStates;
 
+  const bendStatesRef = useRef(bendStates);
+  bendStatesRef.current = bendStates;
+
+  const codeRef = useRef(code);
+  codeRef.current = code;
+
+  // ---- Undo/Redo 履歴管理 ----
+  interface DiagramSnapshot {
+    code: string;
+    nodeStates: Record<string, DiagramNode>;
+    groupStates: Record<string, DiagramGroup>;
+    noteStates: Record<string, DiagramNote>;
+    bendStates: Record<string, { bendX: number; bendY: number }>;
+  }
+
+  const MAX_HISTORY = 50;
+  const undoStackRef = useRef<DiagramSnapshot[]>([]);
+  const redoStackRef = useRef<DiagramSnapshot[]>([]);
+  const isRestoringRef = useRef(false);
+
+  const captureSnapshot = useCallback((): DiagramSnapshot => ({
+    code: codeRef.current,
+    nodeStates: { ...nodeStatesRef.current },
+    groupStates: { ...groupStatesRef.current },
+    noteStates: { ...noteStatesRef.current },
+    bendStates: { ...bendStatesRef.current },
+  }), []);
+
+  const pushSnapshot = useCallback(() => {
+    const snap = captureSnapshot();
+    const stack = undoStackRef.current;
+    if (stack.length > 0 && stack[stack.length - 1]!.code === snap.code) return;
+    stack.push(snap);
+    if (stack.length > MAX_HISTORY) stack.shift();
+    redoStackRef.current = [];
+    // setHistoryVersion は不要: 呼び出し元が必ず setCode 等で再レンダリングを発火する
+  }, [captureSnapshot]);
+
+  const restoreSnapshot = useCallback((snap: DiagramSnapshot) => {
+    isRestoringRef.current = true;
+    setNodeStates(snap.nodeStates);
+    setGroupStates(snap.groupStates);
+    setNoteStates(snap.noteStates);
+    setBendStates(snap.bendStates);
+    setCode(snap.code);
+    // isRestoringRef のクリアは useEffect で行う（タイミング保証のため）
+  }, []);
+
+  const undo = useCallback(() => {
+    const stack = undoStackRef.current;
+    if (stack.length === 0) return;
+    redoStackRef.current.push(captureSnapshot());
+    const snap = stack.pop()!;
+    restoreSnapshot(snap);
+  }, [captureSnapshot, restoreSnapshot]);
+
+  const redo = useCallback(() => {
+    const stack = redoStackRef.current;
+    if (stack.length === 0) return;
+    undoStackRef.current.push(captureSnapshot());
+    const snap = stack.pop()!;
+    restoreSnapshot(snap);
+  }, [captureSnapshot, restoreSnapshot]);
+
+  // historyVersion はデバウンスタイマーからの canUndo/canRedo 更新トリガー
+  // （pushSnapshot/undo/redo は他の state 更新で再レンダリングされるため不要）
+  void historyVersion;
+  const canUndo = undoStackRef.current.length > 0;
+  const canRedo = redoStackRef.current.length > 0;
+
+  // コード編集用デバウンスド・スナップショット
+  const pendingSnapshotRef = useRef<DiagramSnapshot | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setCodeWithHistory: React.Dispatch<React.SetStateAction<string>> = useCallback((action) => {
+    if (pendingSnapshotRef.current === null) {
+      pendingSnapshotRef.current = captureSnapshot();
+    }
+    if (debounceTimerRef.current !== null) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      if (pendingSnapshotRef.current) {
+        const snap = pendingSnapshotRef.current;
+        const stack = undoStackRef.current;
+        if (stack.length === 0 || stack[stack.length - 1]!.code !== snap.code) {
+          stack.push(snap);
+          if (stack.length > MAX_HISTORY) stack.shift();
+          redoStackRef.current = [];
+          setHistoryVersion((v) => v + 1);
+        }
+        pendingSnapshotRef.current = null;
+      }
+      debounceTimerRef.current = null;
+    }, 300);
+    setCode(action);
+  }, [captureSnapshot]);
+
   // コードをパース
   const parsedRaw = useMemo(() => parseDSL(code), [code]);
 
   // コード変更時に各ステートを一括同期（1回の useEffect で3つを更新 → React 18 自動バッチで 1 レンダリング）
   useEffect(() => {
+    if (isRestoringRef.current) return;
     setNodeStates((prev) => syncNodes(parsedRaw.nodes, prev));
     setGroupStates((prev) => syncGroups(parsedRaw.groups, prev));
     setNoteStates((prev) => syncNotes(parsedRaw.notes, prev));
   }, [parsedRaw]);
+
+  // restoreSnapshot 後に isRestoringRef をクリア（sync effect の後に実行される）
+  useEffect(() => {
+    if (isRestoringRef.current) {
+      isRestoringRef.current = false;
+    }
+  });
 
   // displayGroups: 位置/サイズは groupStates、label/color は parsedRaw を優先
   const displayGroups = useMemo<DiagramGroup[]>(() => {
@@ -219,48 +336,13 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       .map((n) => ({ ...nodeStates[n.id] as DiagramNode }));
     // __RANDOM__ カラーを解決（autoLayout スキップ時のため）
     nodes.forEach((n) => {
-      if (n.color === "__RANDOM__") n.color = colorForId(n.id);
+      if (n.color === "__RANDOM__") n.color = colorForId(n.id, colorPreset);
     });
     if (!needsLayout) return { nodes, groupUpdates: {} };
     return autoLayout(nodes, parsedRaw.edges, displayGroups);
-  }, [parsedRaw, nodeStates, needsLayout, displayGroups]);
+  }, [parsedRaw, nodeStates, needsLayout, displayGroups, colorPreset]);
 
   const displayNodes = layoutResult.nodes;
-
-  // autoLayout 結果とノート自動配置を1つの effect で処理
-  useEffect(() => {
-    // _needsPosition をクリア
-    const nodeUpdates: Record<string, DiagramNode> = {};
-    for (const node of displayNodes) {
-      if (nodeStates[node.id]?._needsPosition) {
-        nodeUpdates[node.id] = { ...node, _needsPosition: false };
-      }
-    }
-    if (Object.keys(nodeUpdates).length > 0) {
-      setNodeStates((prev) => ({ ...prev, ...nodeUpdates }));
-    }
-
-    // グループ自動フィットを反映
-    const { groupUpdates } = layoutResult;
-    if (Object.keys(groupUpdates).length > 0) {
-      setGroupStates((prev) => ({ ...prev, ...groupUpdates }));
-    }
-
-    // _needsPosition なノートを自動配置（全コンテンツの下に並べる）
-    const toPlace = displayNotes.filter((n) => n._needsPosition);
-    if (toPlace.length > 0) {
-      const allGroups = Object.values(groupStatesRef.current);
-      let contentBottom = 40;
-      for (const n of displayNodes) contentBottom = Math.max(contentBottom, n.y + n.h);
-      for (const g of allGroups) contentBottom = Math.max(contentBottom, g.y + g.h);
-
-      const noteUpdates: Record<string, DiagramNote> = {};
-      toPlace.forEach((n, i) => {
-        noteUpdates[n.id] = { ...n, x: 60 + i * 190, y: contentBottom + 40, _needsPosition: false };
-      });
-      setNoteStates((prev) => ({ ...prev, ...noteUpdates }));
-    }
-  }, [displayNodes, displayNotes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // displayEdges: bendStates のベンド値を優先（ドラッグベンドを反映）
   const displayEdges = useMemo(() => {
@@ -283,27 +365,47 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     [displayGroupsAfterLayout, displayNodes],
   );
 
-  // enforceGroupContainment で拡張された親グループのサイズを groupStates に保存
-  // これにより、子グループが縮小しても親グループは縮小しない
+  // autoLayout + enforceGroupContainment の結果とノート自動配置を1つの effect で一括処理
+  // （groupStates を複数回に分けて更新するとちらつきの原因になるため統合）
   useEffect(() => {
-    const updates: Record<string, DiagramGroup> = {};
-    for (let i = 0; i < adjustedGroups.length; i++) {
-      const adjusted = adjustedGroups[i]!;
-      const before = displayGroupsAfterLayout[i];
-      if (!before || adjusted.id !== before.id) continue;
-      if (
-        adjusted.x !== before.x ||
-        adjusted.y !== before.y ||
-        adjusted.w !== before.w ||
-        adjusted.h !== before.h
-      ) {
-        updates[adjusted.id] = adjusted;
+    // _needsPosition をクリア
+    const nodeUpdates: Record<string, DiagramNode> = {};
+    for (const node of displayNodes) {
+      if (nodeStates[node.id]?._needsPosition) {
+        nodeUpdates[node.id] = { ...node, _needsPosition: false };
       }
     }
-    if (Object.keys(updates).length > 0) {
-      setGroupStates((prev) => ({ ...prev, ...updates }));
+    if (Object.keys(nodeUpdates).length > 0) {
+      setNodeStates((prev) => ({ ...prev, ...nodeUpdates }));
     }
-  }, [adjustedGroups, displayGroupsAfterLayout]);
+
+    // グループ: autoLayout groupUpdates + enforceGroupContainment を一括保存
+    const groupChanges: Record<string, DiagramGroup> = {};
+    for (const g of adjustedGroups) {
+      const current = groupStatesRef.current[g.id];
+      if (!current || current.x !== g.x || current.y !== g.y || current.w !== g.w || current.h !== g.h) {
+        groupChanges[g.id] = g;
+      }
+    }
+    if (Object.keys(groupChanges).length > 0) {
+      setGroupStates((prev) => ({ ...prev, ...groupChanges }));
+    }
+
+    // _needsPosition なノートを自動配置（全コンテンツの下に並べる）
+    const toPlace = displayNotes.filter((n) => n._needsPosition);
+    if (toPlace.length > 0) {
+      const allGroups = Object.values(groupStatesRef.current);
+      let contentBottom = 40;
+      for (const n of displayNodes) contentBottom = Math.max(contentBottom, n.y + n.h);
+      for (const g of allGroups) contentBottom = Math.max(contentBottom, g.y + g.h);
+
+      const noteUpdates: Record<string, DiagramNote> = {};
+      toPlace.forEach((n, i) => {
+        noteUpdates[n.id] = { ...n, x: 60 + i * 190, y: contentBottom + 40, _needsPosition: false };
+      });
+      setNoteStates((prev) => ({ ...prev, ...noteUpdates }));
+    }
+  }, [displayNodes, displayNotes, adjustedGroups]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 最終的な parsed（consumers はこれを使う）
   const parsed: ParseResult = useMemo(
@@ -508,22 +610,25 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
   // ノード追加
   const addNode = (shape: string) => {
+    pushSnapshot();
     const id = `n${Date.now().toString(36)}`;
-    const col = randomColor();
+    const col = randomColor(colorPreset);
     const newLine = `\nnode ${id} "新規ノード" { shape=${shape} color=${col} }`;
     setCode((c) => c + newLine);
   };
 
   // ノート追加（ノード追加と同様にコードに追記するだけ、位置は自動レイアウトで決定）
   const addNote = () => {
+    pushSnapshot();
     const id = `note${Date.now().toString(36)}`;
     setCode((c) => `${c}\nnote ${id} "メモ" { color=#fbbf24 }`);
   };
 
   // グループ追加（parentGroupId があれば親グループ内にネスト）
   const addGroup = (parentGroupId?: string) => {
+    pushSnapshot();
     const id = `g${Date.now().toString(36)}`;
-    const col = randomColor();
+    const col = randomColor(colorPreset);
 
     if (!parentGroupId) {
       setCode((c) => `${c}\ngroup ${id} "新規グループ" { color=${col} x=0 y=0 w=300 h=200 }`);
@@ -579,8 +684,9 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
   // エッジ追加
   const addEdge = useCallback((fromId: string, toId: string) => {
+    pushSnapshot();
     setCode((c) => `${c}\nedge ${fromId} -> ${toId}`);
-  }, []);
+  }, [pushSnapshot]);
 
   // ノードのプロパティをDSLコード内で更新
   const updateNodeProp = useCallback((nodeId: string, key: string, value: string) => {
@@ -669,15 +775,17 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
   // エッジをDSLコードから削除
   const deleteEdge = useCallback((fromId: string, toId: string) => {
+    pushSnapshot();
     setCode((c) => {
       const lines = c.split("\n");
       const edgePattern = new RegExp(`^edge\\s+${fromId}\\s*->\\s*${toId}(\\s|$)`);
       return lines.filter((line) => !edgePattern.test(line.trim())).join("\n");
     });
-  }, []);
+  }, [pushSnapshot]);
 
   // ノードをDSLコードから削除（関連エッジとスタイルも削除）
   const deleteNode = useCallback((nodeId: string) => {
+    pushSnapshot();
     setCode((c) => {
       const lines = c.split("\n");
       const filtered = lines.filter((line) => {
@@ -699,10 +807,11 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       delete next[nodeId];
       return next;
     });
-  }, []);
+  }, [pushSnapshot]);
 
   // エッジの接続先を付け替え（DSLコード内の edge 行を書き換え）
   const reconnectEdge = useCallback((originalFrom: string, originalTo: string, newFrom: string, newTo: string) => {
+    pushSnapshot();
     setCode((c) => {
       const lines = c.split("\n");
       const edgePattern = new RegExp(
@@ -715,7 +824,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       });
       return updated.join("\n");
     });
-  }, []);
+  }, [pushSnapshot]);
 
   // エッジのベンド値を更新（コードには書き戻さず bendStates で管理）
   const updateEdgeBend = useCallback((fromId: string, toId: string, bendX: number, bendY: number) => {
@@ -739,10 +848,11 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     URL.revokeObjectURL(url);
   };
 
-  const formatCode = () => setCode((c) => formatDSLCode(c));
+  const formatCode = () => { pushSnapshot(); setCode((c) => formatDSLCode(c)); };
 
   // 全ノードの位置をリセットして autoLayout を再実行
   const resetLayout = () => {
+    pushSnapshot();
     setNodeStates((prev) => {
       const updated: Record<string, DiagramNode> = {};
       for (const [id, node] of Object.entries(prev)) {
@@ -754,6 +864,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
   // テンプレート読み込み
   const loadTemplate = (templateCode: string) => {
+    pushSnapshot();
     const tempParsed = parseDSL(templateCode);
 
     // nodeStates 初期化
@@ -778,6 +889,67 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setCode(formatDSLCode(templateCode));
   };
 
+  // グループをDSLコードから削除（ネストされた { ... } ブロック全体を削除）
+  const deleteGroup = useCallback((groupId: string) => {
+    pushSnapshot();
+    setCode((c) => {
+      const lines = c.split("\n");
+      const groupPattern = new RegExp(`^(\\s*)group\\s+${groupId}\\s+`);
+      let startIdx = -1;
+      let endIdx = -1;
+
+      for (let i = 0; i < lines.length; i++) {
+        if (!groupPattern.test(lines[i]!)) continue;
+        startIdx = i;
+        // ブレースマッチングで終了行を特定
+        if (lines[i]!.includes("{")) {
+          if (lines[i]!.includes("}")) {
+            endIdx = i;
+          } else {
+            let depth = 1;
+            let j = i + 1;
+            while (j < lines.length && depth > 0) {
+              depth += (lines[j]!.match(/\{/g) ?? []).length;
+              depth -= (lines[j]!.match(/\}/g) ?? []).length;
+              if (depth === 0) { endIdx = j; break; }
+              j++;
+            }
+            if (endIdx === -1) endIdx = lines.length - 1;
+          }
+        } else {
+          endIdx = i;
+        }
+        break;
+      }
+
+      if (startIdx === -1) return c;
+      lines.splice(startIdx, endIdx - startIdx + 1);
+      return lines.join("\n");
+    });
+    setGroupStates((prev) => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
+  }, [pushSnapshot]);
+
+  // ノートをDSLコードから削除
+  const deleteNote = useCallback((noteId: string) => {
+    pushSnapshot();
+    setCode((c) => {
+      const lines = c.split("\n");
+      return lines.filter((line) => {
+        const trimmed = line.trim();
+        return !(trimmed.startsWith(`note ${noteId} `) || trimmed.startsWith(`note ${noteId}"`));
+      }).join("\n");
+    });
+    setNoteStates((prev) => {
+      const next = { ...prev };
+      delete next[noteId];
+      return next;
+    });
+  }, [pushSnapshot]);
+
   // 保存済みダイアグラムを読み込む
   const loadSaved = (
     savedCode: string,
@@ -795,7 +967,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
   return {
     code,
-    setCode,
+    setCode: setCodeWithHistory,
     parsed,
     nodeById,
     groupById,
@@ -824,5 +996,14 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     resetLayout,
     loadTemplate,
     loadSaved,
+    colorPreset,
+    setColorPreset,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    pushSnapshot,
+    deleteGroup,
+    deleteNote,
   };
 }

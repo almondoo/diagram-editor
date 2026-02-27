@@ -262,8 +262,13 @@ export function autoLayout(
     const toLayout = gnodes.filter((n) => n._needsPosition);
     if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, gnodes, g, edges);
 
-    // 処理済み子グループを直接ノードの下に配置
     const childDefs = childGroupsMap[g.id] ?? [];
+    const hasUpdatedChildren = childDefs.some((c) => groupUpdates[c.id] !== undefined);
+
+    // メンバーノードのレイアウト変更も子グループの更新もなければスキップ
+    if (toLayout.length === 0 && !hasUpdatedChildren) continue;
+
+    // 処理済み子グループを直接ノードの下に配置
     if (childDefs.length > 0) {
       let contentBottom = g.y + LABEL_HEIGHT + PADDING;
       if (gnodes.length > 0) {

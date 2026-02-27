@@ -1,3 +1,7 @@
+import { useState, useRef, useEffect } from "react";
+import type { ColorPreset } from "diagram-dsl-core";
+import { COLOR_PRESETS } from "diagram-dsl-core";
+
 interface ToolbarProps {
   onAddNode: (shape: string) => void;
   onAddNote: () => void;
@@ -7,10 +11,18 @@ interface ToolbarProps {
   onZoomOut: () => void;
   onFitView: () => void;
   onResetLayout: () => void;
+  colorPreset: ColorPreset;
+  onSetColorPreset: (preset: ColorPreset) => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   isMobile?: boolean;
 }
 
-export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout, isMobile }: ToolbarProps) {
+const PRESET_KEYS: ColorPreset[] = ["default", "pastel", "monochrome", "ocean", "neon"];
+
+export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout, colorPreset, onSetColorPreset, canUndo, canRedo, onUndo, onRedo, isMobile }: ToolbarProps) {
   const shapes = [
     { shape: "rect", icon: "▭", tip: "矩形" },
     { shape: "stadium", icon: "⊂⊃", tip: "角丸" },
@@ -27,6 +39,22 @@ export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomI
 
   const btnCls = "tb-btn bg-surface border border-border rounded-[5px] text-text-muted cursor-pointer flex items-center justify-center transition-all duration-150 hover:bg-border hover:text-text-primary";
   const tbBtnCls = `${btnCls} font-semibold`;
+
+  const [showPresets, setShowPresets] = useState(false);
+  const presetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showPresets) return;
+    const handler = (e: MouseEvent) => {
+      if (presetRef.current && !presetRef.current.contains(e.target as Node)) {
+        setShowPresets(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPresets]);
+
+  const currentColors = COLOR_PRESETS[colorPreset].colors;
 
   return (
     <div
@@ -66,6 +94,78 @@ export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomI
         ▢
       </button>
       <div className="w-px h-5 bg-border mx-1" />
+
+      {/* カラープリセット */}
+      <div ref={presetRef} className="relative">
+        <button
+          onClick={() => setShowPresets(!showPresets)}
+          title="カラープリセット"
+          className={btnCls}
+          style={{ width: "auto", height: btnH, padding: "0 8px", gap: 3 }}
+        >
+          {currentColors.slice(0, 5).map((c, i) => (
+            <span
+              key={i}
+              className="inline-block rounded-full"
+              style={{ width: 8, height: 8, backgroundColor: c }}
+            />
+          ))}
+        </button>
+        {showPresets && (
+          <div className="absolute top-full left-0 mt-1 bg-bg-raised border border-border rounded-lg shadow-lg z-50 py-1 min-w-[160px]">
+            {PRESET_KEYS.map((key) => {
+              const preset = COLOR_PRESETS[key];
+              return (
+                <button
+                  key={key}
+                  onClick={() => { onSetColorPreset(key); setShowPresets(false); }}
+                  className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-xs hover:bg-border transition-colors"
+                  style={{ color: colorPreset === key ? "#a5b4fc" : "#94a3b8" }}
+                >
+                  <span className="flex gap-0.5">
+                    {preset.colors.slice(0, 5).map((c, i) => (
+                      <span
+                        key={i}
+                        className="inline-block rounded-full"
+                        style={{ width: 8, height: 8, backgroundColor: c }}
+                      />
+                    ))}
+                  </span>
+                  <span className="font-medium">{preset.label}</span>
+                  {colorPreset === key && <span className="ml-auto">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="w-px h-5 bg-border mx-1" />
+
+      {/* Undo/Redo */}
+      {onUndo && (
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="元に戻す (Cmd+Z)"
+          className={tbBtnCls}
+          style={{ width: btnW, height: btnH, fontSize: tbIconFS, opacity: canUndo ? 1 : 0.35 }}
+        >
+          ↩
+        </button>
+      )}
+      {onRedo && (
+        <button
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="やり直す (Cmd+Shift+Z)"
+          className={tbBtnCls}
+          style={{ width: btnW, height: btnH, fontSize: tbIconFS, opacity: canRedo ? 1 : 0.35 }}
+        >
+          ↪
+        </button>
+      )}
+      <div className="w-px h-5 bg-border mx-1" />
+
       <button onClick={onZoomIn} title="ズームイン" className={tbBtnCls} style={{ width: btnW, height: btnH, fontSize: tbIconFS }}>+</button>
       <button onClick={onZoomOut} title="ズームアウト" className={tbBtnCls} style={{ width: btnW, height: btnH, fontSize: tbIconFS }}>−</button>
       <button onClick={onFitView} title="全体表示" className={tbBtnCls} style={{ width: btnW, height: btnH, fontSize: tbIconFS }}>⊞</button>

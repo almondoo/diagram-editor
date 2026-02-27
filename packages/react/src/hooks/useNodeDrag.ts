@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { DiagramNode } from "diagram-dsl-core";
 
 export type NodeResizeHandle = "n" | "s" | "w" | "e" | "se";
@@ -19,8 +19,12 @@ export function useNodeDrag(
   setNodeLayout: (nodeId: string, x: number, y: number) => void,
   setNodeSize: (nodeId: string, w: number, h: number, x?: number, y?: number) => void,
   onMultiMove: (dx: number, dy: number) => void,
+  onDragEnd?: () => void,
 ) {
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
+  const onDragEndRef = useRef(onDragEnd);
+  onDragEndRef.current = onDragEnd;
+  const hasDraggedRef = useRef(false);
 
   const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation();
@@ -45,11 +49,17 @@ export function useNodeDrag(
 
   useEffect(() => {
     if (!dragInfo) return;
+    hasDraggedRef.current = false;
 
     const applyDrag = (clientX: number, clientY: number, threshold: number): boolean => {
       const dx = (clientX - dragInfo.startX) / zoom;
       const dy = (clientY - dragInfo.startY) / zoom;
       if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return false;
+
+      if (!hasDraggedRef.current) {
+        onDragEndRef.current?.();
+        hasDraggedRef.current = true;
+      }
 
       if (dragInfo.type === "resize") {
         const node = nodeById[dragInfo.nodeId];

@@ -82,6 +82,7 @@ export function useMultiSelect() {
 
   return {
     selectedIds,
+    setSelectedIds,
     selectionRect,
     startSelectionRect,
     updateSelectionRect,

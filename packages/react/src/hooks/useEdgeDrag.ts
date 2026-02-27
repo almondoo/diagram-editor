@@ -38,12 +38,16 @@ export function useEdgeDrag(
   reconnectEdge: (originalFrom: string, originalTo: string, newFrom: string, newTo: string) => void,
   svgRef: React.RefObject<SVGSVGElement | null>,
   panRef: React.RefObject<{ x: number; y: number }>,
+  onDragEnd?: () => void,
 ) {
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
   const nodeByIdRef = useRef(nodeById);
   nodeByIdRef.current = nodeById;
   const edgesRef = useRef(edges);
   edgesRef.current = edges;
+  const onDragEndRef = useRef(onDragEnd);
+  onDragEndRef.current = onDragEnd;
+  const hasDraggedRef = useRef(false);
 
   // エッジの線をドラッグ開始(ベンド変更)
   const handleEdgeMoveMouseDown = useCallback((e: React.MouseEvent, fromId: string, toId: string) => {
@@ -85,8 +89,13 @@ export function useEdgeDrag(
 
   useEffect(() => {
     if (!dragInfo) return;
+    hasDraggedRef.current = false;
 
     const handleMove = (e: MouseEvent) => {
+      if (!hasDraggedRef.current) {
+        onDragEndRef.current?.();
+        hasDraggedRef.current = true;
+      }
       if (dragInfo.type === "bend") {
         const dx = (e.clientX - dragInfo.startX) / zoom;
         const dy = (e.clientY - dragInfo.startY) / zoom;

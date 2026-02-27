@@ -19,11 +19,16 @@ export function useGroupDrag(
   setGroupLayout: (groupId: string, dx: number, dy: number) => void,
   setGroupSize: (groupId: string, newW: number, newH: number, newX?: number, newY?: number) => void,
   onMultiMove: (dx: number, dy: number) => void,
+  onDragEnd?: () => void,
 ) {
   const [dragInfo, setDragInfo] = useState<GroupDragInfo | null>(null);
 
   const groupByIdRef = useRef(groupById);
   groupByIdRef.current = groupById;
+
+  const onDragEndRef = useRef(onDragEnd);
+  onDragEndRef.current = onDragEnd;
+  const hasDraggedRef = useRef(false);
 
   const handleGroupMoveMouseDown = (e: React.MouseEvent, groupId: string) => {
     if (e.button !== 0) return;
@@ -63,11 +68,17 @@ export function useGroupDrag(
 
   useEffect(() => {
     if (!dragInfo) return;
+    hasDraggedRef.current = false;
 
     const applyDrag = (clientX: number, clientY: number) => {
       const dx = (clientX - dragInfo.startClientX) / zoom;
       const dy = (clientY - dragInfo.startClientY) / zoom;
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return false;
+
+      if (!hasDraggedRef.current) {
+        onDragEndRef.current?.();
+        hasDraggedRef.current = true;
+      }
 
       if (dragInfo.type === "move") {
         if (dragInfo.isMulti) {
