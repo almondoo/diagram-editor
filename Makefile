@@ -1,4 +1,4 @@
-.PHONY: up down restart logs build typecheck lint test shell clean preview e2e e2e-headed e2e-ui e2e-install
+.PHONY: up down restart app logs build typecheck lint test shell clean preview e2e e2e-headed e2e-ui e2e-install
 
 docker-build:
 	docker compose build
