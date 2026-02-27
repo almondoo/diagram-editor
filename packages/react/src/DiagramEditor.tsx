@@ -70,6 +70,9 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const [animOffsets, setAnimOffsets] = useState<Record<string, { dx: number; dy: number }>>({});
   const prevPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
 
+  // 自動配置後の fitView 予約フラグ
+  const pendingFitViewRef = useRef(false);
+
   // resetLayout をラップして位置スナップショットを取る
   const handleResetLayout = useCallback((dir?: LayoutDirection) => {
     const positions: Record<string, { x: number; y: number }> = {};
@@ -77,6 +80,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     for (const g of parsed.groups) positions[g.id] = { x: g.x, y: g.y };
     for (const n of parsed.notes) positions[n.id] = { x: n.x, y: n.y };
     prevPositionsRef.current = positions;
+    pendingFitViewRef.current = true;
     resetLayout(dir);
   }, [parsed, resetLayout]);
 
@@ -139,6 +143,16 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   const { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef, svgGroupRef, gridRef, gridLargeRef);
+
+  // アニメーション完了後に fitView を実行
+  const prevIsAnimatingRef = useRef(false);
+  useEffect(() => {
+    if (prevIsAnimatingRef.current && !isAnimating && pendingFitViewRef.current) {
+      pendingFitViewRef.current = false;
+      fitView(parsed.nodes, parsed.groups);
+    }
+    prevIsAnimatingRef.current = isAnimating;
+  }, [isAnimating, parsed.nodes, parsed.groups, fitView]);
 
   const {
     selectedIds,

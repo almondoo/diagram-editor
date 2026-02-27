@@ -219,17 +219,17 @@ function forceLayout(
 
   // 初期位置: 円形配置
   const cx = 400, cy = 300;
-  const radius = Math.max(150, toLayout.length * 30);
+  const radius = Math.max(80, toLayout.length * 15);
   toLayout.forEach((n, i) => {
     const angle = (2 * Math.PI * i) / toLayout.length;
     n.x = cx + radius * Math.cos(angle) - n.w / 2;
     n.y = cy + radius * Math.sin(angle) - n.h / 2;
   });
 
-  const area = 800 * 600;
+  const area = 300 * 300;
   const k = Math.sqrt(area / allNodes.length);
   const ITERATIONS = 300;
-  let temperature = Math.max(800, radius * 2);
+  let temperature = Math.max(400, radius * 2);
   const coolingFactor = temperature / (ITERATIONS + 1);
 
   // グループメンバーセット
@@ -301,7 +301,7 @@ function forceLayout(
           const ddx = (tn.x + tn.w / 2) - (sn.x + sn.w / 2);
           const ddy = (tn.y + tn.h / 2) - (sn.y + sn.h / 2);
           const dist = Math.max(1, Math.sqrt(ddx * ddx + ddy * ddy));
-          const force = dist * 0.3;
+          const force = dist * 0.8;
           const fx = (ddx / dist) * force;
           const fy = (ddy / dist) * force;
           dx[si] = dx[si]! + fx;
@@ -315,8 +315,8 @@ function forceLayout(
     // 中心引力
     for (let i = 0; i < allNodes.length; i++) {
       const n = allNodes[i]!;
-      dx[i] = dx[i]! + (cx - (n.x + n.w / 2)) * 0.01;
-      dy[i] = dy[i]! + (cy - (n.y + n.h / 2)) * 0.01;
+      dx[i] = dx[i]! + (cx - (n.x + n.w / 2)) * 0.05;
+      dy[i] = dy[i]! + (cy - (n.y + n.h / 2)) * 0.05;
     }
 
     // 位置更新（toLayout のみ、fixed は動かさない）
