@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import type { ColorPreset } from "diagram-dsl-core";
+import type { ColorPreset, LayoutDirection } from "diagram-dsl-core";
 import { COLOR_PRESETS } from "diagram-dsl-core";
 
 interface ToolbarProps {
@@ -10,7 +10,8 @@ interface ToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
-  onResetLayout: () => void;
+  onResetLayout: (dir?: LayoutDirection) => void;
+  layoutDirection: LayoutDirection;
   colorPreset: ColorPreset;
   onSetColorPreset: (preset: ColorPreset) => void;
   canUndo?: boolean;
@@ -22,7 +23,7 @@ interface ToolbarProps {
 
 const PRESET_KEYS: ColorPreset[] = ["default", "pastel", "monochrome", "ocean", "neon"];
 
-export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout, colorPreset, onSetColorPreset, canUndo, canRedo, onUndo, onRedo, isMobile }: ToolbarProps) {
+export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomIn, onZoomOut, onFitView, onResetLayout, layoutDirection, colorPreset, onSetColorPreset, canUndo, canRedo, onUndo, onRedo, isMobile }: ToolbarProps) {
   const shapes = [
     { shape: "rect", icon: "▭", tip: "矩形" },
     { shape: "stadium", icon: "⊂⊃", tip: "角丸" },
@@ -53,6 +54,26 @@ export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomI
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showPresets]);
+
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const layoutRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showLayoutMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (layoutRef.current && !layoutRef.current.contains(e.target as Node)) {
+        setShowLayoutMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showLayoutMenu]);
+
+  const layoutOptions: { key: LayoutDirection; label: string; desc: string }[] = [
+    { key: "auto", label: "自動", desc: "フォース配置" },
+    { key: "TB", label: "上→下", desc: "階層レイアウト" },
+    { key: "LR", label: "左→右", desc: "階層レイアウト" },
+  ];
 
   const currentColors = COLOR_PRESETS[colorPreset].colors;
 
@@ -170,14 +191,42 @@ export function Toolbar({ onAddNode, onAddNote, onAddGroup, onExportSVG, onZoomI
       <button onClick={onZoomOut} title="ズームアウト" className={tbBtnCls} style={{ width: btnW, height: btnH, fontSize: tbIconFS }}>−</button>
       <button onClick={onFitView} title="全体表示" className={tbBtnCls} style={{ width: btnW, height: btnH, fontSize: tbIconFS }}>⊞</button>
       <div className="w-px h-5 bg-border mx-1" />
-      <button
-        onClick={onResetLayout}
-        title="ノードを自動配置"
-        className={`${tbBtnCls} font-mono`}
-        style={{ width: "auto", height: btnH, padding: "0 10px", fontSize: 11 }}
-      >
-        {isMobile ? "⊞" : "⊞ 自動配置"}
-      </button>
+      <div ref={layoutRef} className="relative">
+        <div className="flex">
+          <button
+            onClick={() => onResetLayout()}
+            title="ノードを自動配置"
+            className={`${tbBtnCls} font-mono rounded-r-none border-r-0`}
+            style={{ width: "auto", height: btnH, padding: "0 8px", fontSize: 11 }}
+          >
+            {isMobile ? "⊞" : "⊞ 自動配置"}
+          </button>
+          <button
+            onClick={() => setShowLayoutMenu(!showLayoutMenu)}
+            title="レイアウト方向"
+            className={`${tbBtnCls} rounded-l-none`}
+            style={{ width: btnW, height: btnH, fontSize: 10 }}
+          >
+            ▾
+          </button>
+        </div>
+        {showLayoutMenu && (
+          <div className="absolute top-full left-0 mt-1 bg-bg-raised border border-border rounded-lg shadow-lg z-50 py-1 min-w-[180px]">
+            {layoutOptions.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => { onResetLayout(opt.key); setShowLayoutMenu(false); }}
+                className="w-full px-3 py-1.5 flex items-center gap-2 text-left text-xs hover:bg-border transition-colors"
+                style={{ color: layoutDirection === opt.key ? "#a5b4fc" : "#94a3b8" }}
+              >
+                <span className="w-4">{layoutDirection === opt.key ? "✓" : ""}</span>
+                <span className="font-medium">{opt.label}</span>
+                <span className="ml-auto" style={{ color: "#64748b" }}>{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="flex-1" />
       <button
         onClick={onExportSVG}

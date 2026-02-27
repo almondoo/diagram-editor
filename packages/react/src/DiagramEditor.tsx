@@ -17,6 +17,7 @@ import { useEdgeCreation } from "./hooks/useEdgeCreation.js";
 import { useSplitPane } from "./hooks/useSplitPane.js";
 import { useViewport } from "./hooks/useViewport.js";
 import type { DiagramState } from "./hooks/useDiagramState.js";
+import type { LayoutDirection } from "diagram-dsl-core";
 import { getGroupDepth } from "diagram-dsl-core";
 
 interface DiagramEditorProps {
@@ -62,7 +63,63 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     addNode, addNote, addGroup, addEdge, updateNodeProp, updateEdgeProp, deleteEdge, deleteNode, deleteGroup, deleteNote, reconnectEdge, updateEdgeBend, exportSVG, formatCode, resetLayout,
     colorPreset, setColorPreset,
     undo, redo, canUndo, canRedo, pushSnapshot,
+    isAnimating, layoutDirection,
   } = state;
+
+  // FLIP アニメーション用の状態管理
+  const [animOffsets, setAnimOffsets] = useState<Record<string, { dx: number; dy: number }>>({});
+  const prevPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+
+  // resetLayout をラップして位置スナップショットを取る
+  const handleResetLayout = useCallback((dir?: LayoutDirection) => {
+    const positions: Record<string, { x: number; y: number }> = {};
+    for (const n of parsed.nodes) positions[n.id] = { x: n.x, y: n.y };
+    for (const g of parsed.groups) positions[g.id] = { x: g.x, y: g.y };
+    for (const n of parsed.notes) positions[n.id] = { x: n.x, y: n.y };
+    prevPositionsRef.current = positions;
+    resetLayout(dir);
+  }, [parsed, resetLayout]);
+
+  // レイアウト完了後のオフセット計算
+  useEffect(() => {
+    if (!isAnimating) return;
+    const prev = prevPositionsRef.current;
+    if (Object.keys(prev).length === 0) return;
+
+    const offsets: Record<string, { dx: number; dy: number }> = {};
+    for (const n of parsed.nodes) {
+      const p = prev[n.id];
+      if (p && (p.x !== n.x || p.y !== n.y)) {
+        offsets[n.id] = { dx: p.x - n.x, dy: p.y - n.y };
+      }
+    }
+    for (const g of parsed.groups) {
+      const p = prev[g.id];
+      if (p && (p.x !== g.x || p.y !== g.y)) {
+        offsets[g.id] = { dx: p.x - g.x, dy: p.y - g.y };
+      }
+    }
+    for (const n of parsed.notes) {
+      const p = prev[n.id];
+      if (p && (p.x !== n.x || p.y !== n.y)) {
+        offsets[n.id] = { dx: p.x - n.x, dy: p.y - n.y };
+      }
+    }
+
+    if (Object.keys(offsets).length === 0) return;
+
+    setAnimOffsets(offsets);
+
+    // 次フレームでオフセットクリア → CSS transition が発火
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setAnimOffsets({});
+      });
+    });
+  }, [isAnimating, parsed]);
+
+  // animating かつ offsets が空 = Play フェーズ（アニメーション中）
+  const isPlaying = isAnimating && Object.keys(animOffsets).length === 0;
 
   const findCodeLine = useCallback((type: "node" | "edge" | "note", id: string, fromId?: string) => {
     const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -348,43 +405,61 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
         <g ref={svgGroupRef} transform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}>
           {[...parsed.groups]
             .sort((a, b) => getGroupDepth(a.id, groupById) - getGroupDepth(b.id, groupById))
-            .map((g) => (
-              <GroupBox
-                key={g.id}
-                group={g}
-                isSelected={isSelected(g.id)}
-                isNested={nestedGroupIds.has(g.id)}
-                onMoveMouseDown={(e) => {
-                  if (!isSelected(g.id)) selectSingle(g.id);
-                  handleGroupMoveMouseDown(e, g.id);
-                }}
-                onMoveTouchStart={(e) => {
-                  if (!isSelected(g.id)) selectSingle(g.id);
-                  handleGroupMoveTouchStart(e, g.id);
-                }}
-                onResizeMouseDown={(e, handle) => handleGroupResizeMouseDown(e, g.id, handle)}
-                onResizeTouchStart={(e, handle) => handleGroupResizeTouchStart(e, g.id, handle)}
-              />
-            ))}
-          {parsed.notes.map((n) => (
-            <NoteBox
-              key={n.id}
-              note={n}
-              isSelected={isSelected(n.id)}
-              onMouseDown={(e) => {
-                if (!isSelected(n.id)) selectSingle(n.id);
-                handleNoteMouseDown(e, n.id);
-              }}
-              onTouchStart={(e) => {
-                if (!isSelected(n.id)) selectSingle(n.id);
-                handleNoteTouchStart(e, n.id);
-              }}
-              onDoubleClick={() => {
-                const line = findCodeLine("note", n.id);
-                if (line) setFocusLine(line);
-              }}
-            />
-          ))}
+            .map((g) => {
+              const offset = animOffsets[g.id];
+              return (
+                <g
+                  key={`anim-${g.id}`}
+                  transform={offset ? `translate(${offset.dx}, ${offset.dy})` : undefined}
+                  style={isPlaying ? { transition: "transform 300ms ease-out" } : undefined}
+                >
+                  <GroupBox
+                    key={g.id}
+                    group={g}
+                    isSelected={isSelected(g.id)}
+                    isNested={nestedGroupIds.has(g.id)}
+                    onMoveMouseDown={(e) => {
+                      if (!isSelected(g.id)) selectSingle(g.id);
+                      handleGroupMoveMouseDown(e, g.id);
+                    }}
+                    onMoveTouchStart={(e) => {
+                      if (!isSelected(g.id)) selectSingle(g.id);
+                      handleGroupMoveTouchStart(e, g.id);
+                    }}
+                    onResizeMouseDown={(e, handle) => handleGroupResizeMouseDown(e, g.id, handle)}
+                    onResizeTouchStart={(e, handle) => handleGroupResizeTouchStart(e, g.id, handle)}
+                  />
+                </g>
+              );
+            })}
+          {parsed.notes.map((n) => {
+            const offset = animOffsets[n.id];
+            return (
+              <g
+                key={`anim-${n.id}`}
+                transform={offset ? `translate(${offset.dx}, ${offset.dy})` : undefined}
+                style={isPlaying ? { transition: "transform 300ms ease-out" } : undefined}
+              >
+                <NoteBox
+                  key={n.id}
+                  note={n}
+                  isSelected={isSelected(n.id)}
+                  onMouseDown={(e) => {
+                    if (!isSelected(n.id)) selectSingle(n.id);
+                    handleNoteMouseDown(e, n.id);
+                  }}
+                  onTouchStart={(e) => {
+                    if (!isSelected(n.id)) selectSingle(n.id);
+                    handleNoteTouchStart(e, n.id);
+                  }}
+                  onDoubleClick={() => {
+                    const line = findCodeLine("note", n.id);
+                    if (line) setFocusLine(line);
+                  }}
+                />
+              </g>
+            );
+          })}
           {parsed.edges.map((edge, i) => (
             <EdgeLine
               key={`${edge.from}-${edge.to}-${i}`}
@@ -433,49 +508,67 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               />
             );
           })()}
-          {parsed.nodes.map((node) => (
-            <ShapeNode
-              key={node.id}
-              node={node}
-              isSelected={isSelected(node.id)}
-              isEdgeSource={edgeFromId === node.id}
-              onMouseDown={(e) => {
-                if (!isSelected(node.id)) selectSingle(node.id);
-                handleNodeMouseDown(e, node.id);
-              }}
-              onTouchStart={(e) => {
-                if (!isSelected(node.id)) selectSingle(node.id);
-                handleNodeTouchStart(e, node.id);
-              }}
-              onTap={() => handleNodeTap(node.id)}
-              onResizeMouseDown={(e, handle) => handleNodeResizeMouseDown(e, node.id, handle)}
-              onDoubleClick={() => {
-                const line = findCodeLine("node", node.id);
-                if (line) setFocusLine(line);
-              }}
-              onConnectionPointMouseDown={handleConnectionPointMouseDown}
-              edgeCreationActive={edgeCreationDragInfo !== null && edgeCreationDragInfo.fromNodeId !== node.id}
-            />
-          ))}
+          {parsed.nodes.map((node) => {
+            const offset = animOffsets[node.id];
+            return (
+              <g
+                key={`anim-${node.id}`}
+                transform={offset ? `translate(${offset.dx}, ${offset.dy})` : undefined}
+                style={isPlaying ? { transition: "transform 300ms ease-out" } : undefined}
+              >
+                <ShapeNode
+                  key={node.id}
+                  node={node}
+                  isSelected={isSelected(node.id)}
+                  isEdgeSource={edgeFromId === node.id}
+                  onMouseDown={(e) => {
+                    if (!isSelected(node.id)) selectSingle(node.id);
+                    handleNodeMouseDown(e, node.id);
+                  }}
+                  onTouchStart={(e) => {
+                    if (!isSelected(node.id)) selectSingle(node.id);
+                    handleNodeTouchStart(e, node.id);
+                  }}
+                  onTap={() => handleNodeTap(node.id)}
+                  onResizeMouseDown={(e, handle) => handleNodeResizeMouseDown(e, node.id, handle)}
+                  onDoubleClick={() => {
+                    const line = findCodeLine("node", node.id);
+                    if (line) setFocusLine(line);
+                  }}
+                  onConnectionPointMouseDown={handleConnectionPointMouseDown}
+                  edgeCreationActive={edgeCreationDragInfo !== null && edgeCreationDragInfo.fromNodeId !== node.id}
+                />
+              </g>
+            );
+          })}
           {/* グループラベルをノードの上に再描画（ノードに隠れないようにする） */}
-          {parsed.groups.map((g) => (
-            <text
-              key={`label-${g.id}`}
-              x={g.x + 14}
-              y={g.y + 20}
-              fill={g.color}
-              fontSize={12}
-              fontFamily="'IBM Plex Mono', monospace"
-              fontWeight="600"
-              opacity={0.8}
-              stroke="#0a0c12"
-              strokeWidth={4}
-              paintOrder="stroke"
-              className="pointer-events-none select-none"
-            >
-              {g.label}
-            </text>
-          ))}
+          {parsed.groups.map((g) => {
+            const offset = animOffsets[g.id];
+            return (
+              <g
+                key={`anim-label-${g.id}`}
+                transform={offset ? `translate(${offset.dx}, ${offset.dy})` : undefined}
+                style={isPlaying ? { transition: "transform 300ms ease-out" } : undefined}
+              >
+                <text
+                  key={`label-${g.id}`}
+                  x={g.x + 14}
+                  y={g.y + 20}
+                  fill={g.color}
+                  fontSize={12}
+                  fontFamily="'IBM Plex Mono', monospace"
+                  fontWeight="600"
+                  opacity={0.8}
+                  stroke="#0a0c12"
+                  strokeWidth={4}
+                  paintOrder="stroke"
+                  className="pointer-events-none select-none"
+                >
+                  {g.label}
+                </text>
+              </g>
+            );
+          })}
         </g>
         {selectionRect && (
           <g transform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}>
@@ -650,7 +743,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               onZoomIn={zoomIn}
               onZoomOut={zoomOut}
               onFitView={() => fitView(parsed.nodes, parsed.groups)}
-              onResetLayout={resetLayout}
+              onResetLayout={handleResetLayout}
+              layoutDirection={layoutDirection}
               colorPreset={colorPreset}
               onSetColorPreset={setColorPreset}
               canUndo={canUndo}
@@ -703,7 +797,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               onZoomIn={zoomIn}
               onZoomOut={zoomOut}
               onFitView={() => fitView(parsed.nodes, parsed.groups)}
-              onResetLayout={resetLayout}
+              onResetLayout={handleResetLayout}
+              layoutDirection={layoutDirection}
               colorPreset={colorPreset}
               onSetColorPreset={setColorPreset}
               canUndo={canUndo}
