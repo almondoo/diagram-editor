@@ -31,7 +31,7 @@ docker compose exec app pnpm e2e          # E2Eテスト
 
 ### コード変更後の必須チェック
 
-変更後は必ず **typecheck → lint → build** を実行。core 変更時は test も実行。
+実装完了後は必ず **typecheck → lint → test → e2e → build** を順に実行する。
 
 ### サーバー確認
 

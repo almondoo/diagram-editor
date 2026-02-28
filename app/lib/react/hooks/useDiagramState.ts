@@ -946,6 +946,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     pushSnapshot();
     if (dir !== undefined) setLayoutDirection(dir);
     setIsAnimating(true);
+    setBendStates({});
     setNodeStates((prev) => {
       const updated: Record<string, DiagramNode> = {};
       for (const [id, node] of Object.entries(prev)) {

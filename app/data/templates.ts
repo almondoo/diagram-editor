@@ -100,15 +100,19 @@ edge ecs --> s3 { label="Upload" }`,
     description: "API Gateway + Lambda + DynamoDB のサーバーレス構成",
     category: "aws",
     code: `// ⚡ サーバーレスアーキテクチャ
-node apigw "API Gateway" { icon=aws.service.api-gateway }
-node lambda1 "Auth Function" { icon=aws.service.lambda }
-node lambda2 "API Function" { icon=aws.service.lambda }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
-node s3 "S3 Bucket" { icon=aws.service.s3 }
-node cognito "Cognito" { icon=aws.service.cognito }
 node cf "CloudFront" { icon=aws.service.cloudfront }
-node sqs "SQS Queue" { icon=aws.service.sqs }
-node lambda3 "Worker" { icon=aws.service.lambda }
+node s3 "S3 Bucket" { icon=aws.service.s3 }
+group api "API Backend" { color=#f97316
+  node apigw "API Gateway" { icon=aws.service.api-gateway }
+  node lambda1 "Auth Function" { icon=aws.service.lambda }
+  node lambda2 "API Function" { icon=aws.service.lambda }
+  node cognito "Cognito" { icon=aws.service.cognito }
+  node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+}
+group async "非同期処理" { color=#8b5cf6
+  node sqs "SQS Queue" { icon=aws.service.sqs }
+  node lambda3 "Worker" { icon=aws.service.lambda }
+}
 
 edge cf -> s3 { label="Static" }
 edge cf -> apigw { label="API" }
@@ -127,14 +131,20 @@ edge lambda3 --> s3 { label="Store" }`,
     category: "ai-data",
     code: `// 📊 データパイプライン
 node source "Data Source" { shape=cylinder }
-node firehose "Firehose" { icon=aws.service.data-firehose }
-node s3raw "Raw Data" { icon=aws.service.s3 }
-node glue "Glue ETL" { icon=aws.service.glue }
-node s3proc "Processed" { icon=aws.service.s3 }
-node athena "Athena" { icon=aws.service.athena }
-node quicksight "QuickSight" { icon=aws.service.quicksight }
-node redshift "Redshift" { icon=aws.service.redshift }
-node lambda "Transform" { icon=aws.service.lambda }
+group ingestion "Ingestion" { color=#22c55e
+  node firehose "Firehose" { icon=aws.service.data-firehose }
+  node lambda "Transform" { icon=aws.service.lambda }
+  node s3raw "Raw Data" { icon=aws.service.s3 }
+}
+group processing "Processing" { color=#f97316
+  node glue "Glue ETL" { icon=aws.service.glue }
+  node s3proc "Processed" { icon=aws.service.s3 }
+}
+group analytics "Analytics" { color=#8b5cf6
+  node athena "Athena" { icon=aws.service.athena }
+  node redshift "Redshift" { icon=aws.service.redshift }
+  node quicksight "QuickSight" { icon=aws.service.quicksight }
+}
 
 edge source -> firehose { label="Stream" animate=true }
 edge firehose -> s3raw { label="Store" }
@@ -263,12 +273,14 @@ edge rds1 --> rds2 { label="Replication" }`,
     description: "API Gateway + Lambda + DynamoDB",
     category: "aws",
     code: `// ⚡ サーバーレスAPI
-node apigw "API Gateway" { icon=aws.service.api-gateway }
-node authFn "Authorizer" { icon=aws.service.lambda }
-node getFn "GET Handler" { icon=aws.service.lambda }
-node postFn "POST Handler" { icon=aws.service.lambda }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+group api "API" { color=#f97316
+  node apigw "API Gateway" { icon=aws.service.api-gateway }
+  node authFn "Authorizer" { icon=aws.service.lambda }
+  node getFn "GET Handler" { icon=aws.service.lambda }
+  node postFn "POST Handler" { icon=aws.service.lambda }
+}
 node cognito "Cognito" { icon=aws.service.cognito }
+node dynamo "DynamoDB" { icon=aws.service.dynamodb }
 
 edge apigw -> authFn { label="Auth" }
 edge authFn -> cognito { label="Verify" }
@@ -283,15 +295,19 @@ edge postFn -> dynamo { label="Put" }`,
     description: "ECS Fargate + ALB + RDS のマイクロサービス構成",
     category: "aws",
     code: `// 🐳 マイクロサービス
-node alb "ALB" { icon=aws.service.elb }
-group ecs "ECS Cluster" { color=#f97316
-  node svcA "User Service" { icon=aws.service.fargate }
-  node svcB "Order Service" { icon=aws.service.fargate }
-  node svcC "Payment Service" { icon=aws.service.fargate }
+group vpc "VPC" { color=#8b5cf6
+  group public "Public Subnet" { color=#22c55e
+    node alb "ALB" { icon=aws.service.elb }
+  }
+  group private "Private Subnet" { color=#3b82f6
+    node svcA "User Service" { icon=aws.service.fargate }
+    node svcB "Order Service" { icon=aws.service.fargate }
+    node svcC "Payment Service" { icon=aws.service.fargate }
+    node rdsA "Users DB" { icon=aws.service.aurora }
+    node rdsB "Orders DB" { icon=aws.service.aurora }
+  }
 }
 node ecr "ECR" { icon=aws.service.ecr }
-node rdsA "Users DB" { icon=aws.service.aurora }
-node rdsB "Orders DB" { icon=aws.service.aurora }
 node sqs "SQS" { icon=aws.service.sqs }
 
 edge alb -> svcA { label="/users" }
@@ -326,20 +342,26 @@ edge cf --> s3logs { label="Access Log" }`,
     description: "CodeCommit → CodeBuild → CodeDeploy",
     category: "aws",
     code: `// 🚀 CI/CDパイプライン
-node repo "CodeCommit" { icon=aws.service.codecommit }
-node pipeline "CodePipeline" { icon=aws.service.codepipeline }
-node build "CodeBuild" { icon=aws.service.codebuild }
-node deploy "CodeDeploy" { icon=aws.service.codedeploy }
-node ecr "ECR" { icon=aws.service.ecr }
-node ecs "ECS" { icon=aws.service.ecs }
+group cicd "CI/CD Pipeline" { color=#f97316
+  node repo "CodeCommit" { icon=aws.service.codecommit }
+  node cp "CodePipeline" { icon=aws.service.codepipeline }
+  node build "CodeBuild" { icon=aws.service.codebuild }
+  node deploy "CodeDeploy" { icon=aws.service.codedeploy }
+  node ecr "ECR" { icon=aws.service.ecr }
+}
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node ecs "ECS" { icon=aws.service.ecs }
+  }
+}
 node sns "SNS" { icon=aws.service.sns }
 
-edge repo -> pipeline { label="Push" animate=true }
-edge pipeline -> build { label="Build" }
+edge repo -> cp { label="Push" animate=true }
+edge cp -> build { label="Build" }
 edge build -> ecr { label="Push Image" }
-edge pipeline -> deploy { label="Deploy" }
+edge cp -> deploy { label="Deploy" }
 edge deploy -> ecs { label="Update" }
-edge pipeline --> sns { label="Notify" }`,
+edge cp --> sns { label="Notify" }`,
   },
   {
     id: "aws-data-lake",
@@ -348,12 +370,16 @@ edge pipeline --> sns { label="Notify" }`,
     category: "aws",
     code: `// 🗃️ データレイク
 node sources "Data Sources" { shape=cylinder }
-node s3raw "S3 Raw Zone" { icon=aws.service.s3 }
-node s3curated "S3 Curated Zone" { icon=aws.service.s3 }
-node glue "Glue Crawler" { icon=aws.service.glue }
-node catalog "Glue Catalog" { icon=aws.service.glue }
-node athena "Athena" { icon=aws.service.athena }
-node qs "QuickSight" { icon=aws.service.quicksight }
+group lake "Data Lake" { color=#22c55e
+  node s3raw "S3 Raw Zone" { icon=aws.service.s3 }
+  node s3curated "S3 Curated Zone" { icon=aws.service.s3 }
+  node glue "Glue Crawler" { icon=aws.service.glue }
+  node catalog "Glue Catalog" { icon=aws.service.glue }
+}
+group analytics "Analytics" { color=#8b5cf6
+  node athena "Athena" { icon=aws.service.athena }
+  node qs "QuickSight" { icon=aws.service.quicksight }
+}
 
 edge sources -> s3raw { label="Ingest" }
 edge s3raw -> glue { label="Crawl" }
@@ -369,11 +395,15 @@ edge athena -> qs { label="Visualize" }`,
     category: "aws",
     code: `// 📡 リアルタイムストリーミング
 node producer "Producer" { shape=rect }
-node kinesis "Kinesis Data Stream" { icon=aws.service.kinesis }
-node lambdaProc "Processor" { icon=aws.service.lambda }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
-node firehose "Firehose" { icon=aws.service.data-firehose }
-node s3 "S3 Archive" { icon=aws.service.s3 }
+group streaming "Stream Processing" { color=#f97316
+  node kinesis "Kinesis Data Stream" { icon=aws.service.kinesis }
+  node lambdaProc "Processor" { icon=aws.service.lambda }
+  node firehose "Firehose" { icon=aws.service.data-firehose }
+}
+group storage "Storage" { color=#3b82f6
+  node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+  node s3 "S3 Archive" { icon=aws.service.s3 }
+}
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
 edge producer -> kinesis { label="Put Records" animate=true }
@@ -390,13 +420,17 @@ edge lambdaProc --> cw { label="Metrics" }`,
     category: "aws",
     code: `// ☸️ EKS コンテナオーケストレーション
 node ecr "ECR" { icon=aws.service.ecr }
-node alb "ALB" { icon=aws.service.elb }
-group eks "EKS Cluster" { color=#326ce5
-  node podA "Pod A" { icon=aws.service.eks }
-  node podB "Pod B" { icon=aws.service.eks }
-  node podC "Pod C" { icon=aws.service.eks }
+group vpc "VPC" { color=#8b5cf6
+  group public "Public Subnet" { color=#22c55e
+    node alb "ALB" { icon=aws.service.elb }
+  }
+  group private "Private Subnet" { color=#3b82f6
+    node podA "Pod A" { icon=aws.service.eks }
+    node podB "Pod B" { icon=aws.service.eks }
+    node podC "Pod C" { icon=aws.service.eks }
+    node rds "Aurora" { icon=aws.service.aurora }
+  }
 }
-node rds "Aurora" { icon=aws.service.aurora }
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
 edge alb -> podA { label="Route" }
@@ -405,7 +439,7 @@ edge alb -> podC { label="Route" }
 edge ecr --> podA { label="Pull" }
 edge podA -> rds { label="SQL" }
 edge podB -> rds { label="SQL" }
-edge eks --> cw { label="Logs" }`,
+edge podA --> cw { label="Logs" }`,
   },
   {
     id: "aws-messaging",
@@ -415,12 +449,16 @@ edge eks --> cw { label="Logs" }`,
     code: `// 📬 メッセージングシステム
 node api "API Gateway" { icon=aws.service.api-gateway }
 node sns "SNS Topic" { icon=aws.service.sns }
-node sqsOrder "SQS (Order)" { icon=aws.service.sqs }
-node sqsNotify "SQS (Notify)" { icon=aws.service.sqs }
-node sqsAudit "SQS (Audit)" { icon=aws.service.sqs }
-node fnOrder "Order Fn" { icon=aws.service.lambda }
-node fnNotify "Notify Fn" { icon=aws.service.lambda }
-node fnAudit "Audit Fn" { icon=aws.service.lambda }
+group queues "Message Queues" { color=#f97316
+  node sqsOrder "SQS (Order)" { icon=aws.service.sqs }
+  node sqsNotify "SQS (Notify)" { icon=aws.service.sqs }
+  node sqsAudit "SQS (Audit)" { icon=aws.service.sqs }
+}
+group handlers "Lambda Handlers" { color=#3b82f6
+  node fnOrder "Order Fn" { icon=aws.service.lambda }
+  node fnNotify "Notify Fn" { icon=aws.service.lambda }
+  node fnAudit "Audit Fn" { icon=aws.service.lambda }
+}
 
 edge api -> sns { label="Publish" }
 edge sns -> sqsOrder { label="Fan-out" }
@@ -437,12 +475,16 @@ edge sqsAudit -> fnAudit { label="Process" animate=true }`,
     category: "aws",
     code: `// 📱 IoTプラットフォーム
 node devices "IoT Devices" { shape=rect }
-node iotcore "IoT Core" { icon=aws.service.iot-core }
-node rules "IoT Rules" { icon=aws.service.iot-core }
-node kinesis "Kinesis" { icon=aws.service.kinesis }
-node lambda "Lambda" { icon=aws.service.lambda }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
-node s3 "S3" { icon=aws.service.s3 }
+group iot "IoT Ingestion" { color=#22c55e
+  node iotcore "IoT Core" { icon=aws.service.iot-core }
+  node rules "IoT Rules" { icon=aws.service.iot-core }
+}
+group processing "Backend Processing" { color=#3b82f6
+  node kinesis "Kinesis" { icon=aws.service.kinesis }
+  node lambda "Lambda" { icon=aws.service.lambda }
+  node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+  node s3 "S3" { icon=aws.service.s3 }
+}
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
 edge devices -> iotcore { label="MQTT" animate=true }
@@ -459,12 +501,16 @@ edge lambda --> cw { label="Alarm" }`,
     description: "SageMaker + S3 + Lambda + API Gateway",
     category: "aws",
     code: `// 🤖 機械学習パイプライン
-node s3data "S3 Training Data" { icon=aws.service.s3 }
-node sage "SageMaker" { icon=aws.service.sagemaker }
-node s3model "S3 Model" { icon=aws.service.s3 }
-node endpoint "SageMaker Endpoint" { icon=aws.service.sagemaker }
-node lambda "Lambda" { icon=aws.service.lambda }
-node apigw "API Gateway" { icon=aws.service.api-gateway }
+group training "Training" { color=#f97316
+  node s3data "S3 Training Data" { icon=aws.service.s3 }
+  node sage "SageMaker" { icon=aws.service.sagemaker }
+  node s3model "S3 Model" { icon=aws.service.s3 }
+}
+group inference "Inference" { color=#3b82f6
+  node endpoint "SageMaker Endpoint" { icon=aws.service.sagemaker }
+  node lambda "Lambda" { icon=aws.service.lambda }
+  node apigw "API Gateway" { icon=aws.service.api-gateway }
+}
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
 edge s3data -> sage { label="Train" }
@@ -510,8 +556,10 @@ node onprem "オンプレDC" { shape=rect }
 group vpc "VPC" { color=#8b5cf6
   node vgw "VPN Gateway" { icon=aws.service.vpc }
   node tgw "Transit Gateway" { icon=aws.service.tgw }
-  node ec2 "EC2" { icon=aws.service.ec2 }
-  node rds "RDS" { icon=aws.service.rds }
+  group private "Private Subnet" { color=#3b82f6
+    node ec2 "EC2" { icon=aws.service.ec2 }
+    node rds "RDS" { icon=aws.service.rds }
+  }
 }
 
 edge onprem -> vgw { label="IPsec VPN" }
@@ -528,9 +576,11 @@ edge ec2 -> rds { label="SQL" }`,
     code: `// ⏱️ バッチ処理
 node trigger "EventBridge" { icon=aws.service.eventbridge }
 node sfn "Step Functions" { icon=aws.service.step-functions }
-node fn1 "Extract" { icon=aws.service.lambda }
-node fn2 "Transform" { icon=aws.service.lambda }
-node fn3 "Load" { icon=aws.service.lambda }
+group etl "ETL Pipeline" { color=#3b82f6
+  node fn1 "Extract" { icon=aws.service.lambda }
+  node fn2 "Transform" { icon=aws.service.lambda }
+  node fn3 "Load" { icon=aws.service.lambda }
+}
 node s3in "S3 Input" { icon=aws.service.s3 }
 node s3out "S3 Output" { icon=aws.service.s3 }
 node sns "SNS" { icon=aws.service.sns }
@@ -550,11 +600,15 @@ edge sfn --> sns { label="Complete" }`,
     category: "aws",
     code: `// 📊 監視・ログ
 node app "Application" { shape=rect }
-node cw "CloudWatch" { icon=aws.service.cloudwatch }
-node ct "CloudTrail" { icon=aws.service.cloudtrail }
-node cwlogs "CW Logs" { icon=aws.service.cloudwatch }
-node alarm "CW Alarm" { icon=aws.service.cloudwatch }
-node sns "SNS" { icon=aws.service.sns }
+group monitoring "Monitoring" { color=#3b82f6
+  node cw "CloudWatch" { icon=aws.service.cloudwatch }
+  node cwlogs "CW Logs" { icon=aws.service.cloudwatch }
+  node ct "CloudTrail" { icon=aws.service.cloudtrail }
+}
+group alerting "Alerting" { color=#ef4444
+  node alarm "CW Alarm" { icon=aws.service.cloudwatch }
+  node sns "SNS" { icon=aws.service.sns }
+}
 node s3 "S3 Logs" { icon=aws.service.s3 }
 
 edge app -> cw { label="Metrics" }
@@ -574,8 +628,14 @@ node users "Users" { shape=rect }
 node shield "Shield" { icon=aws.service.shield }
 node waf "WAF" { icon=aws.service.waf }
 node cf "CloudFront" { icon=aws.service.cloudfront }
-node alb "ALB" { icon=aws.service.elb }
-node ecs "ECS" { icon=aws.service.ecs }
+group vpc "VPC" { color=#8b5cf6
+  group public "Public Subnet" { color=#22c55e
+    node alb "ALB" { icon=aws.service.elb }
+  }
+  group private "Private Subnet" { color=#3b82f6
+    node ecs "ECS" { icon=aws.service.ecs }
+  }
+}
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
 edge users -> shield { label="Request" }
@@ -593,9 +653,11 @@ edge waf --> cw { label="Metrics" }`,
     code: `// 🔐 Cognito認証フロー
 node client "Client App" { shape=rect }
 node cognito "Cognito" { icon=aws.service.cognito }
-node apigw "API Gateway" { icon=aws.service.api-gateway }
-node lambda "Lambda" { icon=aws.service.lambda }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+group backend "API Backend" { color=#3b82f6
+  node apigw "API Gateway" { icon=aws.service.api-gateway }
+  node lambda "Lambda" { icon=aws.service.lambda }
+  node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+}
 
 edge client -> cognito { label="Sign In" }
 edge cognito -> client { label="JWT Token" }
@@ -612,11 +674,15 @@ edge lambda -> dynamo { label="Query" }`,
     code: `// ⚡ EventBridgeイベント駆動
 node srcA "Service A" { shape=rect }
 node srcB "Service B" { shape=rect }
-node eb "EventBridge" { icon=aws.service.eventbridge }
-node rule1 "Order Rule" { icon=aws.service.eventbridge }
-node rule2 "Audit Rule" { icon=aws.service.eventbridge }
-node fn1 "Process Order" { icon=aws.service.lambda }
-node fn2 "Audit Logger" { icon=aws.service.lambda }
+group events "Event Routing" { color=#f97316
+  node eb "EventBridge" { icon=aws.service.eventbridge }
+  node rule1 "Order Rule" { icon=aws.service.eventbridge }
+  node rule2 "Audit Rule" { icon=aws.service.eventbridge }
+}
+group handlers "Handlers" { color=#3b82f6
+  node fn1 "Process Order" { icon=aws.service.lambda }
+  node fn2 "Audit Logger" { icon=aws.service.lambda }
+}
 node sqs "SQS DLQ" { icon=aws.service.sqs }
 
 edge srcA -> eb { label="Events" }
@@ -633,9 +699,13 @@ edge fn1 --> sqs { label="Failed" }`,
     description: "ElastiCache + RDS のキャッシュ戦略",
     category: "aws",
     code: `// ⚡ ElastiCacheキャッシュ構成
-node app "Application" { icon=aws.service.ecs }
-node cache "ElastiCache" { icon=aws.service.elasticache }
-node rds "RDS" { icon=aws.service.rds }
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node app "Application" { icon=aws.service.ecs }
+    node cache "ElastiCache" { icon=aws.service.elasticache }
+    node rds "RDS" { icon=aws.service.rds }
+  }
+}
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
 edge app -> cache { label="Cache Hit?" }
@@ -651,10 +721,14 @@ edge cache --> cw { label="Metrics" }`,
     description: "S3 + Lambda による画像処理自動化",
     category: "aws",
     code: `// 🖼️ S3画像処理パイプライン
-node s3upload "S3 Upload" { icon=aws.service.s3 }
-node lambda "Processor" { icon=aws.service.lambda }
-node s3thumb "S3 Thumbnails" { icon=aws.service.s3 }
-node rekognition "Rekognition" { icon=aws.service.rekognition }
+group storage "Storage" { color=#22c55e
+  node s3upload "S3 Upload" { icon=aws.service.s3 }
+  node s3thumb "S3 Thumbnails" { icon=aws.service.s3 }
+}
+group processing "Processing" { color=#3b82f6
+  node lambda "Processor" { icon=aws.service.lambda }
+  node rekognition "Rekognition" { icon=aws.service.rekognition }
+}
 node dynamo "DynamoDB" { icon=aws.service.dynamodb }
 node sns "SNS" { icon=aws.service.sns }
 
@@ -672,12 +746,14 @@ edge lambda --> sns { label="Complete" }`,
     code: `// 🔄 ECS Blue/Greenデプロイ
 node pipeline "CodePipeline" { icon=aws.service.codepipeline }
 node deploy "CodeDeploy" { icon=aws.service.codedeploy }
-node alb "ALB" { icon=aws.service.elb }
-group blue "Blue (Current)" { color=#3b82f6
-  node ecsBlue "ECS Blue" { icon=aws.service.ecs }
-}
-group green "Green (New)" { color=#22c55e
-  node ecsGreen "ECS Green" { icon=aws.service.ecs }
+group vpc "VPC" { color=#8b5cf6
+  group public "Public Subnet" { color=#22c55e
+    node alb "ALB" { icon=aws.service.elb }
+  }
+  group private "Private Subnet" { color=#3b82f6
+    node ecsBlue "ECS Blue" { icon=aws.service.ecs }
+    node ecsGreen "ECS Green" { icon=aws.service.ecs }
+  }
 }
 node ecr "ECR" { icon=aws.service.ecr }
 
@@ -695,7 +771,11 @@ edge ecr -> ecsGreen { label="Pull" }`,
     code: `// 🗄️ Aurora Serverless + API
 node apigw "API Gateway" { icon=aws.service.api-gateway }
 node lambda "Lambda" { icon=aws.service.lambda }
-node aurora "Aurora Serverless" { icon=aws.service.aurora }
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node aurora "Aurora Serverless" { icon=aws.service.aurora }
+  }
+}
 node s3 "S3" { icon=aws.service.s3 }
 node secrets "Secrets Manager" { shape=rect }
 
@@ -729,10 +809,14 @@ edge cf -> apigw { label="API" }`,
     category: "aws",
     code: `// 📂 Transfer Family（SFTP）
 node partner "External Partner" { shape=rect }
-node transfer "Transfer Family" { icon=aws.service.transfer-family }
-node s3 "S3" { icon=aws.service.s3 }
-node lambda "Lambda" { icon=aws.service.lambda }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+group ingestion "Ingestion" { color=#22c55e
+  node transfer "Transfer Family" { icon=aws.service.transfer-family }
+  node s3 "S3" { icon=aws.service.s3 }
+}
+group processing "Processing" { color=#3b82f6
+  node lambda "Lambda" { icon=aws.service.lambda }
+  node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+}
 
 edge partner -> transfer { label="SFTP Upload" }
 edge transfer -> s3 { label="Store" }
@@ -746,11 +830,19 @@ edge lambda -> dynamo { label="Register" }`,
     category: "aws",
     code: `// 📊 Redshift DWH
 node sources "Data Sources" { shape=cylinder }
-node s3 "S3 Staging" { icon=aws.service.s3 }
-node glue "Glue ETL" { icon=aws.service.glue }
-node redshift "Redshift" { icon=aws.service.redshift }
-node qs "QuickSight" { icon=aws.service.quicksight }
-node athena "Athena" { icon=aws.service.athena }
+group etl "ETL" { color=#f97316
+  node s3 "S3 Staging" { icon=aws.service.s3 }
+  node glue "Glue ETL" { icon=aws.service.glue }
+}
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node redshift "Redshift" { icon=aws.service.redshift }
+  }
+}
+group analytics "Analytics" { color=#22c55e
+  node athena "Athena" { icon=aws.service.athena }
+  node qs "QuickSight" { icon=aws.service.quicksight }
+}
 
 edge sources -> s3 { label="Extract" }
 edge s3 -> glue { label="Transform" }
@@ -766,10 +858,14 @@ edge s3 -> athena { label="Ad-hoc" }`,
     code: `// 🔗 AppSync GraphQL API
 node client "Client" { shape=rect }
 node appsync "AppSync" { icon=aws.service.appsync }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
-node lambda "Lambda Resolver" { icon=aws.service.lambda }
-node rds "Aurora" { icon=aws.service.aurora }
 node cognito "Cognito" { icon=aws.service.cognito }
+node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node lambda "Lambda Resolver" { icon=aws.service.lambda }
+    node rds "Aurora" { icon=aws.service.aurora }
+  }
+}
 
 edge client -> appsync { label="GraphQL" }
 edge appsync -> cognito { label="Auth" }
@@ -783,12 +879,16 @@ edge lambda -> rds { label="SQL" }`,
     description: "EFS + ECS による共有ファイルシステム",
     category: "aws",
     code: `// 📁 EFS共有ストレージ
-node alb "ALB" { icon=aws.service.elb }
-group ecs "ECS Cluster" { color=#f97316
-  node taskA "Task A" { icon=aws.service.fargate }
-  node taskB "Task B" { icon=aws.service.fargate }
+group vpc "VPC" { color=#8b5cf6
+  group public "Public Subnet" { color=#22c55e
+    node alb "ALB" { icon=aws.service.elb }
+  }
+  group private "Private Subnet" { color=#3b82f6
+    node taskA "Task A" { icon=aws.service.fargate }
+    node taskB "Task B" { icon=aws.service.fargate }
+    node efs "EFS" { icon=aws.service.efs }
+  }
 }
-node efs "EFS" { icon=aws.service.efs }
 node backup "AWS Backup" { icon=aws.service.backup }
 
 edge alb -> taskA
@@ -804,10 +904,14 @@ edge efs --> backup { label="Backup" }`,
     category: "aws",
     code: `// 💾 AWS Backup 統合バックアップ
 node backup "AWS Backup" { icon=aws.service.backup }
-node rds "RDS" { icon=aws.service.rds }
-node efs "EFS" { icon=aws.service.efs }
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node rds "RDS" { icon=aws.service.rds }
+    node efs "EFS" { icon=aws.service.efs }
+    node ec2 "EC2 (EBS)" { icon=aws.service.ec2 }
+  }
+}
 node dynamo "DynamoDB" { icon=aws.service.dynamodb }
-node ec2 "EC2 (EBS)" { icon=aws.service.ec2 }
 node s3vault "S3 Backup Vault" { icon=aws.service.s3 }
 
 edge backup -> rds { label="Snapshot" }
@@ -824,11 +928,15 @@ edge backup -> s3vault { label="Store" }`,
     code: `// 🏢 Organizations マルチアカウント
 node org "Organizations" { icon=aws.service.organizations }
 node mgmt "Management Account" { shape=rect }
-node security "Security Account" { shape=rect }
-node prod "Production Account" { shape=rect }
-node dev "Development Account" { shape=rect }
-node guardduty "GuardDuty" { icon=aws.service.guardduty }
-node sechub "Security Hub" { icon=aws.service.security-hub }
+group securityOU "Security OU" { color=#f59e0b
+  node security "Security Account" { shape=rect }
+  node guardduty "GuardDuty" { icon=aws.service.guardduty }
+  node sechub "Security Hub" { icon=aws.service.security-hub }
+}
+group workloadOU "Workload OU" { color=#3b82f6
+  node prod "Production Account" { shape=rect }
+  node dev "Development Account" { shape=rect }
+}
 
 edge org -> mgmt { label="Root" }
 edge org -> security { label="Security OU" }
@@ -844,8 +952,12 @@ edge security -> sechub { label="Findings" }`,
     category: "aws",
     code: `// 🔄 DMS データベース移行
 node source "Source DB" { shape=cylinder }
-node dms "DMS" { icon=aws.service.dms }
-node target "Aurora" { icon=aws.service.aurora }
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node dms "DMS" { icon=aws.service.dms }
+    node target "Aurora" { icon=aws.service.aurora }
+  }
+}
 node s3 "S3 (CDC)" { icon=aws.service.s3 }
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
@@ -884,13 +996,17 @@ edge onprem -> tgw { label="VPN" }`,
     description: "GuardDuty + Security Hub 構成",
     category: "aws",
     code: `// 🔍 セキュリティ監視
-node guardduty "GuardDuty" { icon=aws.service.guardduty }
-node sechub "Security Hub" { icon=aws.service.security-hub }
-node ct "CloudTrail" { icon=aws.service.cloudtrail }
-node config "AWS Config" { shape=rect }
-node eb "EventBridge" { icon=aws.service.eventbridge }
-node sns "SNS" { icon=aws.service.sns }
-node lambda "Remediation" { icon=aws.service.lambda }
+group detection "Detection" { color=#f59e0b
+  node guardduty "GuardDuty" { icon=aws.service.guardduty }
+  node ct "CloudTrail" { icon=aws.service.cloudtrail }
+  node config "AWS Config" { shape=rect }
+}
+group response "Aggregation & Response" { color=#ef4444
+  node sechub "Security Hub" { icon=aws.service.security-hub }
+  node eb "EventBridge" { icon=aws.service.eventbridge }
+  node sns "SNS" { icon=aws.service.sns }
+  node lambda "Remediation" { icon=aws.service.lambda }
+}
 
 edge guardduty -> sechub { label="Findings" }
 edge ct -> sechub { label="Events" }
@@ -908,10 +1024,12 @@ edge eb -> lambda { label="Auto-Fix" }`,
     category: "ai-data",
     code: `// 🤖 Bedrock AI チャットボット
 node client "Client" { shape=rect }
-node apigw "API Gateway" { icon=aws.service.api-gateway }
-node lambda "Lambda" { icon=aws.service.lambda }
-node bedrock "Bedrock" { icon=aws.service.bedrock }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+group backend "Backend" { color=#3b82f6
+  node apigw "API Gateway" { icon=aws.service.api-gateway }
+  node lambda "Lambda" { icon=aws.service.lambda }
+  node bedrock "Bedrock" { icon=aws.service.bedrock }
+  node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+}
 
 edge client -> apigw { label="Message" }
 edge apigw -> lambda { label="Request" }
@@ -925,13 +1043,17 @@ edge bedrock -> lambda { label="Response" }`,
     description: "Bedrock + OpenSearch + S3 によるRAG構成",
     category: "ai-data",
     code: `// 🧠 Bedrock RAG
-node docs "Documents" { shape=cylinder }
-node s3 "S3" { icon=aws.service.s3 }
-node embedFn "Embed Lambda" { icon=aws.service.lambda }
+group ingestion "Ingestion Pipeline" { color=#22c55e
+  node docs "Documents" { shape=cylinder }
+  node s3 "S3" { icon=aws.service.s3 }
+  node embedFn "Embed Lambda" { icon=aws.service.lambda }
+}
+group query "Query Pipeline" { color=#3b82f6
+  node apigw "API Gateway" { icon=aws.service.api-gateway }
+  node queryFn "Query Lambda" { icon=aws.service.lambda }
+}
 node bedrock "Bedrock" { icon=aws.service.bedrock }
 node opensearch "OpenSearch" { icon=aws.service.opensearch-service }
-node queryFn "Query Lambda" { icon=aws.service.lambda }
-node apigw "API Gateway" { icon=aws.service.api-gateway }
 
 edge docs -> s3 { label="Upload" }
 edge s3 -> embedFn { label="Trigger" }
@@ -947,13 +1069,17 @@ edge queryFn -> bedrock { label="Generate" }`,
     description: "SageMaker + Step Functions + ECR のMLOps",
     category: "ai-data",
     code: `// ⚙️ SageMaker MLOps
-node repo "CodeCommit" { icon=aws.service.codecommit }
-node pipeline "Step Functions" { icon=aws.service.step-functions }
-node ecr "ECR" { icon=aws.service.ecr }
-node s3data "S3 Data" { icon=aws.service.s3 }
-node sage "SageMaker Training" { icon=aws.service.sagemaker }
-node s3model "S3 Model" { icon=aws.service.s3 }
-node endpoint "SageMaker Endpoint" { icon=aws.service.sagemaker }
+group training "Training Pipeline" { color=#f97316
+  node repo "CodeCommit" { icon=aws.service.codecommit }
+  node pipeline "Step Functions" { icon=aws.service.step-functions }
+  node ecr "ECR" { icon=aws.service.ecr }
+  node s3data "S3 Data" { icon=aws.service.s3 }
+  node sage "SageMaker Training" { icon=aws.service.sagemaker }
+  node s3model "S3 Model" { icon=aws.service.s3 }
+}
+group serving "Serving" { color=#3b82f6
+  node endpoint "SageMaker Endpoint" { icon=aws.service.sagemaker }
+}
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
 edge repo -> pipeline { label="Trigger" }
@@ -970,11 +1096,15 @@ edge endpoint --> cw { label="Monitor" }`,
     description: "Comprehend によるテキスト分析パイプライン",
     category: "ai-data",
     code: `// 📝 Comprehend テキスト分析
-node s3input "S3 Input" { icon=aws.service.s3 }
-node lambda "Lambda" { icon=aws.service.lambda }
-node comprehend "Comprehend" { icon=aws.service.comprehend }
-node dynamo "DynamoDB" { icon=aws.service.dynamodb }
-node qs "QuickSight" { icon=aws.service.quicksight }
+group pipeline "Analysis Pipeline" { color=#3b82f6
+  node s3input "S3 Input" { icon=aws.service.s3 }
+  node lambda "Lambda" { icon=aws.service.lambda }
+  node comprehend "Comprehend" { icon=aws.service.comprehend }
+}
+group output "Output" { color=#22c55e
+  node dynamo "DynamoDB" { icon=aws.service.dynamodb }
+  node qs "QuickSight" { icon=aws.service.quicksight }
+}
 
 edge s3input -> lambda { label="Trigger" }
 edge lambda -> comprehend { label="Analyze" }
@@ -988,9 +1118,11 @@ edge dynamo -> qs { label="Visualize" }`,
     description: "Rekognition による画像分析パイプライン",
     category: "ai-data",
     code: `// 📷 Rekognition 画像分析
-node s3 "S3 Images" { icon=aws.service.s3 }
-node lambda "Lambda" { icon=aws.service.lambda }
-node rekognition "Rekognition" { icon=aws.service.rekognition }
+group pipeline "Analysis Pipeline" { color=#3b82f6
+  node s3 "S3 Images" { icon=aws.service.s3 }
+  node lambda "Lambda" { icon=aws.service.lambda }
+  node rekognition "Rekognition" { icon=aws.service.rekognition }
+}
 node dynamo "DynamoDB" { icon=aws.service.dynamodb }
 node sns "SNS" { icon=aws.service.sns }
 
@@ -1006,10 +1138,12 @@ edge lambda --> sns { label="Alert" }`,
     description: "Transcribe + Comprehend の音声分析パイプライン",
     category: "ai-data",
     code: `// 🎤 Transcribe 音声分析
-node s3audio "S3 Audio" { icon=aws.service.s3 }
-node transcribe "Transcribe" { icon=aws.service.transcribe }
-node s3text "S3 Transcript" { icon=aws.service.s3 }
-node comprehend "Comprehend" { icon=aws.service.comprehend }
+group pipeline "Analysis Pipeline" { color=#3b82f6
+  node s3audio "S3 Audio" { icon=aws.service.s3 }
+  node transcribe "Transcribe" { icon=aws.service.transcribe }
+  node s3text "S3 Transcript" { icon=aws.service.s3 }
+  node comprehend "Comprehend" { icon=aws.service.comprehend }
+}
 node dynamo "DynamoDB" { icon=aws.service.dynamodb }
 
 edge s3audio -> transcribe { label="Transcribe" }
@@ -1024,12 +1158,16 @@ edge comprehend -> dynamo { label="Insights" }`,
     category: "ai-data",
     code: `// 🏠 データレイクハウス
 node sources "Data Sources" { shape=cylinder }
-node s3 "S3 Data Lake" { icon=aws.service.s3 }
-node lakeform "Lake Formation" { icon=aws.service.lake-formation }
-node glue "Glue ETL" { icon=aws.service.glue }
-node athena "Athena" { icon=aws.service.athena }
-node redshift "Redshift" { icon=aws.service.redshift }
-node qs "QuickSight" { icon=aws.service.quicksight }
+group lake "Data Lake" { color=#22c55e
+  node s3 "S3 Data Lake" { icon=aws.service.s3 }
+  node lakeform "Lake Formation" { icon=aws.service.lake-formation }
+  node glue "Glue ETL" { icon=aws.service.glue }
+}
+group analytics "Analytics" { color=#8b5cf6
+  node athena "Athena" { icon=aws.service.athena }
+  node redshift "Redshift" { icon=aws.service.redshift }
+  node qs "QuickSight" { icon=aws.service.quicksight }
+}
 
 edge sources -> s3 { label="Ingest" }
 edge s3 -> lakeform { label="Govern" }
@@ -1046,12 +1184,20 @@ edge redshift -> qs { label="BI" }`,
     description: "S3 + EMR + Glue + Athena + QuickSight",
     category: "ai-data",
     code: `// 🔥 EMRデータ基盤
-node s3raw "S3 Raw" { icon=aws.service.s3 }
-node emr "EMR" { icon=aws.service.emr }
-node s3proc "S3 Processed" { icon=aws.service.s3 }
-node glue "Glue Catalog" { icon=aws.service.glue }
-node athena "Athena" { icon=aws.service.athena }
-node qs "QuickSight" { icon=aws.service.quicksight }
+group storage "Storage" { color=#22c55e
+  node s3raw "S3 Raw" { icon=aws.service.s3 }
+  node s3proc "S3 Processed" { icon=aws.service.s3 }
+}
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node emr "EMR" { icon=aws.service.emr }
+  }
+}
+group analytics "Analytics" { color=#f97316
+  node glue "Glue Catalog" { icon=aws.service.glue }
+  node athena "Athena" { icon=aws.service.athena }
+  node qs "QuickSight" { icon=aws.service.quicksight }
+}
 
 edge s3raw -> emr { label="Spark Job" }
 edge emr -> s3proc { label="Output" }
@@ -1066,11 +1212,15 @@ edge athena -> qs { label="Visualize" }`,
     category: "ai-data",
     code: `// ⚡ リアルタイムETL
 node producer "Producer" { shape=rect }
-node kinesis "Kinesis" { icon=aws.service.kinesis }
-node glue "Glue Streaming" { icon=aws.service.glue }
-node s3 "S3" { icon=aws.service.s3 }
-node redshift "Redshift" { icon=aws.service.redshift }
-node qs "QuickSight" { icon=aws.service.quicksight }
+group etl "ETL Pipeline" { color=#f97316
+  node kinesis "Kinesis" { icon=aws.service.kinesis }
+  node glue "Glue Streaming" { icon=aws.service.glue }
+}
+group storage "Storage & Analytics" { color=#3b82f6
+  node s3 "S3" { icon=aws.service.s3 }
+  node redshift "Redshift" { icon=aws.service.redshift }
+  node qs "QuickSight" { icon=aws.service.quicksight }
+}
 
 edge producer -> kinesis { label="Stream" animate=true }
 edge kinesis -> glue { label="ETL" }
@@ -1086,9 +1236,13 @@ edge redshift -> qs { label="Dashboard" }`,
     code: `// 📨 MSKイベントストリーミング
 node producerA "Service A" { shape=rect }
 node producerB "Service B" { shape=rect }
-node msk "MSK (Kafka)" { icon=aws.service.msk }
+group vpc "VPC" { color=#8b5cf6
+  group private "Private Subnet" { color=#3b82f6
+    node msk "MSK (Kafka)" { icon=aws.service.msk }
+    node consumerB "Consumer B" { icon=aws.service.ecs }
+  }
+}
 node consumerA "Consumer A" { icon=aws.service.lambda }
-node consumerB "Consumer B" { icon=aws.service.ecs }
 node s3 "S3 Archive" { icon=aws.service.s3 }
 node opensearch "OpenSearch" { icon=aws.service.opensearch-service }
 

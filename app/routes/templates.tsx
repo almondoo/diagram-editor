@@ -80,7 +80,7 @@ export default function Templates() {
   }, [activeTab, filtered]);
 
   return (
-    <div className="min-h-screen bg-bg-deepest text-text-primary font-sans">
+    <div className="h-screen overflow-y-auto bg-bg-deepest text-text-primary font-sans">
       {/* ヘッダー */}
       <header className="flex items-center px-6 h-12 bg-bg-raised border-b border-border-subtle gap-2.5">
         <Link to="/" className="flex items-center gap-2.5 no-underline text-inherit">

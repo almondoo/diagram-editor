@@ -501,27 +501,45 @@ export function autoLayout(
     // メンバーノードのレイアウト変更も子グループの更新もなければスキップ
     if (toLayout.length === 0 && !hasUpdatedChildren) continue;
 
-    // 処理済み子グループを直接ノードの下に配置
+    // 処理済み子グループを配置（TB: 縦積み, LR: 横並び）
     if (childDefs.length > 0) {
       let contentBottom = g.y + LABEL_HEIGHT + PADDING;
       if (gnodes.length > 0) {
         contentBottom = Math.max(...gnodes.map((n) => n.y + n.h));
       }
-      const startY = contentBottom + PADDING + LABEL_HEIGHT;
-      let curX = g.x + PADDING;
 
-      for (const childDef of childDefs) {
-        const child = groupUpdates[childDef.id] ?? childDef;
-        const dx = curX - child.x;
-        const dy = startY - child.y;
+      if (rankdir === "TB") {
+        let curY = contentBottom + PADDING;
+        const startX = g.x + PADDING;
+        for (const childDef of childDefs) {
+          const child = groupUpdates[childDef.id] ?? childDef;
+          const dx = startX - child.x;
+          const dy = curY + LABEL_HEIGHT - child.y;
 
-        if (dx !== 0 || dy !== 0) {
-          shiftGroupTree(childDef.id, dx, dy);
-          shiftGroupNodes(childDef.id, dx, dy);
+          if (dx !== 0 || dy !== 0) {
+            shiftGroupTree(childDef.id, dx, dy);
+            shiftGroupNodes(childDef.id, dx, dy);
+          }
+
+          const updatedChild = groupUpdates[childDef.id] ?? childDef;
+          curY += updatedChild.h + PADDING;
         }
+      } else {
+        const startY = contentBottom + PADDING + LABEL_HEIGHT;
+        let curX = g.x + PADDING;
+        for (const childDef of childDefs) {
+          const child = groupUpdates[childDef.id] ?? childDef;
+          const dx = curX - child.x;
+          const dy = startY - child.y;
 
-        const updatedChild = groupUpdates[childDef.id] ?? childDef;
-        curX += updatedChild.w + PADDING;
+          if (dx !== 0 || dy !== 0) {
+            shiftGroupTree(childDef.id, dx, dy);
+            shiftGroupNodes(childDef.id, dx, dy);
+          }
+
+          const updatedChild = groupUpdates[childDef.id] ?? childDef;
+          curX += updatedChild.w + PADDING;
+        }
       }
     }
 
