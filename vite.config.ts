@@ -5,6 +5,9 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  ssr: {
+    noExternal: ["@dagrejs/dagre"],
+  },
   server: {
     host: "0.0.0.0",
     port: 5173,
