@@ -23,6 +23,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
   const errorLines = useMemo(() => new Set(errors.map((e) => e.line)), [errors]);
 
   const composingRef = useRef(false);
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // カーソル行追跡 (0-indexed)
   const [cursorLine, setCursorLine] = useState(0);
@@ -56,6 +57,10 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     if (lineCountRef.current) lineCountRef.current.scrollTop = textarea.scrollTop;
     if (highlightRef.current) highlightRef.current.scrollTop = textarea.scrollTop;
   }, [focusLine]);
+
+  useEffect(() => () => {
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+  }, []);
 
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
@@ -428,7 +433,8 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
           onChange={(e) => {
             pushUndo(code);
             onChange(e.target.value);
-            requestAnimationFrame(() => updateCompletion());
+            if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+            completionTimerRef.current = setTimeout(() => updateCompletion(), 50);
           }}
           onKeyDown={handleKeyDown}
           onKeyUp={updateCursorLine}

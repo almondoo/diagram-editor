@@ -343,7 +343,14 @@ function forceLayout(
     if (g.parentGroup) (childGroupsMap[g.parentGroup] ??= []).push(g);
   });
 
-  const getDepth = (gid: string): number => getGroupDepth(gid, groupById);
+  const depthCache1 = new Map<string, number>();
+  const getDepth = (gid: string): number => {
+    const cached = depthCache1.get(gid);
+    if (cached !== undefined) return cached;
+    const d = getGroupDepth(gid, groupById);
+    depthCache1.set(gid, d);
+    return d;
+  };
   const sortedGroups = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
 
   for (const g of sortedGroups) {
@@ -466,8 +473,15 @@ export function autoLayout(
   });
 
   // グループをボトムアップ順にソート（リーフが先）
-  const getDepth = (gid: string): number => getGroupDepth(gid, groupById);
-  const sortedGroups = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
+  const depthCache2 = new Map<string, number>();
+  const getDepth2 = (gid: string): number => {
+    const cached = depthCache2.get(gid);
+    if (cached !== undefined) return cached;
+    const d = getGroupDepth(gid, groupById);
+    depthCache2.set(gid, d);
+    return d;
+  };
+  const sortedGroups = [...groups].sort((a, b) => getDepth2(b.id) - getDepth2(a.id));
 
   // グループ内ノードをレイアウト → 子グループ配置 → グループ自動フィット（ボトムアップ）
   const groupUpdates: Record<string, DiagramGroup> = {};

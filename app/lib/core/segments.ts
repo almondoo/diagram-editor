@@ -1,5 +1,13 @@
 import type { ParseError } from "./types";
 
+function countChar(s: string, ch: string): number {
+  let count = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === ch) count++;
+  }
+  return count;
+}
+
 export interface Segment {
   text: string;
   startLine: number;
@@ -25,8 +33,8 @@ export function extractSegments(
       continue;
     }
 
-    const opens = (line.match(/\{/g) ?? []).length;
-    const closes = (line.match(/\}/g) ?? []).length;
+    const opens = countChar(line, "{");
+    const closes = countChar(line, "}");
 
     if (opens > closes) {
       // マルチラインブロックの開始
@@ -36,8 +44,8 @@ export function extractSegments(
       i++;
       while (i < lines.length && depth > 0) {
         const bLine = lines[i]!.trim();
-        const bo = (bLine.match(/\{/g) ?? []).length;
-        const bc = (bLine.match(/\}/g) ?? []).length;
+        const bo = countChar(bLine, "{");
+        const bc = countChar(bLine, "}");
         depth += bo - bc;
         blockLines.push(bLine);
         i++;
@@ -79,8 +87,8 @@ export function extractFormatterSegments(code: string): FormatterSegment[] {
       continue;
     }
 
-    const opens = (line.match(/\{/g) ?? []).length;
-    const closes = (line.match(/\}/g) ?? []).length;
+    const opens = countChar(line, "{");
+    const closes = countChar(line, "}");
 
     if (opens > closes) {
       // マルチラインブロック
@@ -89,8 +97,8 @@ export function extractFormatterSegments(code: string): FormatterSegment[] {
       i++;
       while (i < lines.length && depth > 0) {
         const bLine = lines[i]!.trim();
-        const bo = (bLine.match(/\{/g) ?? []).length;
-        const bc = (bLine.match(/\}/g) ?? []).length;
+        const bo = countChar(bLine, "{");
+        const bc = countChar(bLine, "}");
         depth += bo - bc;
         blockLines.push(bLine);
         i++;
