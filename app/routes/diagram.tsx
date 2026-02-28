@@ -21,8 +21,9 @@ export default function Diagram() {
 
   const templateCode = (location.state as { templateCode?: string } | null)?.templateCode;
   const initialDiagram = id ? savedDiagrams.find((d) => d.id === id) : null;
+  const defaultCode = TEMPLATES.find(t => t.id === "architecture")!.code;
   const state = useDiagramState(
-    initialDiagram?.code ?? templateCode ?? TEMPLATES.architecture
+    initialDiagram?.code ?? templateCode ?? defaultCode
   );
 
   const [currentDiagramId, setCurrentDiagramId] = useState<string | null>(

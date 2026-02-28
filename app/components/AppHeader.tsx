@@ -11,15 +11,6 @@ interface AppHeaderProps {
   onRenameDiagram?: (name: string) => void;
 }
 
-const TEMPLATE_LABELS: Record<string, string> = {
-  flowchart: "フローチャート",
-  sequence: "シーケンス",
-  er: "ER図",
-  architecture: "アーキテクチャ",
-  mindmap: "マインドマップ",
-  state: "状態遷移",
-};
-
 export function AppHeader({
   onCreateFromTemplate,
   onSave,
@@ -95,18 +86,18 @@ export function AppHeader({
         </button>
         {showTemplates && (
           <div className="absolute top-[calc(100%+4px)] left-0 bg-bg-panel border border-border rounded-lg min-w-40 z-[100] shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden">
-            {Object.entries(TEMPLATES)
-              .filter(([k]) => k !== "empty")
-              .map(([key, val]) => (
+            {TEMPLATES
+              .filter((t) => t.id !== "empty")
+              .map((t) => (
                 <button
-                  key={key}
+                  key={t.id}
                   onClick={() => {
-                    onCreateFromTemplate(val);
+                    onCreateFromTemplate(t.code);
                     setShowTemplates(false);
                   }}
                   className="block w-full text-left bg-transparent border-none border-b border-border-subtle text-text-muted px-3.5 py-2 cursor-pointer text-xs font-sans hover:bg-surface-alt hover:text-text-primary"
                 >
-                  {TEMPLATE_LABELS[key] ?? key}
+                  {t.name}
                 </button>
               ))}
           </div>
