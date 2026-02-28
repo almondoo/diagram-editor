@@ -7,8 +7,6 @@ interface GroupDragInfo {
   groupId: string;
   type: "move" | "resize";
   handle?: ResizeHandle;
-  startClientX: number;
-  startClientY: number;
   isMulti: boolean;
 }
 
@@ -23,27 +21,52 @@ export function useGroupDrag(
 ) {
   const [dragInfo, setDragInfo] = useState<GroupDragInfo | null>(null);
 
-  const groupByIdRef = useRef(groupById);
-  groupByIdRef.current = groupById;
-
   const onDragEndRef = useRef(onDragEnd);
   onDragEndRef.current = onDragEnd;
   const hasDraggedRef = useRef(false);
 
+  // ドラッグ開始時の初期値（同期的に参照）
+  const dragStartRef = useRef<{
+    cursorX: number;
+    cursorY: number;
+    groupX: number;
+    groupY: number;
+    groupW: number;
+    groupH: number;
+  } | null>(null);
+  // 最後に処理したカーソル位置（incremental delta用）
+  const lastCursorRef = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
   const handleGroupMoveMouseDown = (e: React.MouseEvent, groupId: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+    const group = groupById[groupId];
+    if (!group) return;
     const isMulti = selectedIds.size > 1 && selectedIds.has(groupId);
-    setDragInfo({ groupId, type: "move", startClientX: e.clientX, startClientY: e.clientY, isMulti });
+    dragStartRef.current = {
+      cursorX: e.clientX, cursorY: e.clientY,
+      groupX: group.x, groupY: group.y, groupW: group.w, groupH: group.h,
+    };
+    lastCursorRef.current = { x: e.clientX, y: e.clientY };
+    setDragInfo({ groupId, type: "move", isMulti });
   };
 
   const handleGroupMoveTouchStart = useCallback((e: React.TouchEvent, groupId: string) => {
     if (e.touches.length !== 1) return;
     e.stopPropagation();
     const touch = e.touches[0]!;
+    const group = groupById[groupId];
+    if (!group) return;
     const isMulti = selectedIds.size > 1 && selectedIds.has(groupId);
-    setDragInfo({ groupId, type: "move", startClientX: touch.clientX, startClientY: touch.clientY, isMulti });
-  }, [selectedIds]);
+    dragStartRef.current = {
+      cursorX: touch.clientX, cursorY: touch.clientY,
+      groupX: group.x, groupY: group.y, groupW: group.w, groupH: group.h,
+    };
+    lastCursorRef.current = { x: touch.clientX, y: touch.clientY };
+    setDragInfo({ groupId, type: "move", isMulti });
+  }, [selectedIds, groupById]);
 
   const handleGroupResizeMouseDown = (
     e: React.MouseEvent,
@@ -52,7 +75,14 @@ export function useGroupDrag(
   ) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    setDragInfo({ groupId, type: "resize", handle, startClientX: e.clientX, startClientY: e.clientY, isMulti: false });
+    const group = groupById[groupId];
+    if (!group) return;
+    dragStartRef.current = {
+      cursorX: e.clientX, cursorY: e.clientY,
+      groupX: group.x, groupY: group.y, groupW: group.w, groupH: group.h,
+    };
+    lastCursorRef.current = { x: e.clientX, y: e.clientY };
+    setDragInfo({ groupId, type: "resize", handle, isMulti: false });
   };
 
   const handleGroupResizeTouchStart = useCallback((
@@ -63,43 +93,65 @@ export function useGroupDrag(
     if (e.touches.length !== 1) return;
     e.stopPropagation();
     const touch = e.touches[0]!;
-    setDragInfo({ groupId, type: "resize", handle, startClientX: touch.clientX, startClientY: touch.clientY, isMulti: false });
-  }, []);
+    const group = groupById[groupId];
+    if (!group) return;
+    dragStartRef.current = {
+      cursorX: touch.clientX, cursorY: touch.clientY,
+      groupX: group.x, groupY: group.y, groupW: group.w, groupH: group.h,
+    };
+    lastCursorRef.current = { x: touch.clientX, y: touch.clientY };
+    setDragInfo({ groupId, type: "resize", handle, isMulti: false });
+  }, [groupById]);
 
   useEffect(() => {
     if (!dragInfo) return;
     hasDraggedRef.current = false;
 
     const applyDrag = (clientX: number, clientY: number) => {
-      const dx = (clientX - dragInfo.startClientX) / zoom;
-      const dy = (clientY - dragInfo.startClientY) / zoom;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return false;
-
-      if (!hasDraggedRef.current) {
-        onDragEndRef.current?.();
-        hasDraggedRef.current = true;
-      }
+      const start = dragStartRef.current;
+      if (!start) return false;
+      const z = zoomRef.current;
 
       if (dragInfo.type === "move") {
+        // 移動: incremental delta（同期ref）
+        const dx = (clientX - lastCursorRef.current.x) / z;
+        const dy = (clientY - lastCursorRef.current.y) / z;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return false;
+
+        if (!hasDraggedRef.current) {
+          onDragEndRef.current?.();
+          hasDraggedRef.current = true;
+        }
+
         if (dragInfo.isMulti) {
           onMultiMove(dx, dy);
         } else {
           setGroupLayout(dragInfo.groupId, dx, dy);
         }
       } else {
-        const g = groupByIdRef.current[dragInfo.groupId];
-        if (!g) return false;
+        // リサイズ: 初期値 + 総デルタ（絶対値）
+        const totalDx = (clientX - start.cursorX) / z;
+        const totalDy = (clientY - start.cursorY) / z;
+        if (Math.abs(totalDx) < 1 && Math.abs(totalDy) < 1) return false;
+
+        if (!hasDraggedRef.current) {
+          onDragEndRef.current?.();
+          hasDraggedRef.current = true;
+        }
+
         const handle = dragInfo.handle ?? "se";
         const adjustX = handle === "w";
         const adjustY = handle === "n";
         const adjustW = handle === "e" || handle === "w" || handle === "se";
         const adjustH = handle === "n" || handle === "s" || handle === "se";
-        const newW = adjustW ? Math.max(120, adjustX ? g.w - dx : g.w + dx) : g.w;
-        const newH = adjustH ? Math.max(80, adjustY ? g.h - dy : g.h + dy) : g.h;
-        const newX = adjustX && newW > 120 ? g.x + dx : undefined;
-        const newY = adjustY && newH > 80 ? g.y + dy : undefined;
+        const newW = adjustW ? Math.max(120, adjustX ? start.groupW - totalDx : start.groupW + totalDx) : start.groupW;
+        const newH = adjustH ? Math.max(80, adjustY ? start.groupH - totalDy : start.groupH + totalDy) : start.groupH;
+        const newX = adjustX && newW > 120 ? start.groupX + totalDx : undefined;
+        const newY = adjustY && newH > 80 ? start.groupY + totalDy : undefined;
         setGroupSize(dragInfo.groupId, newW, newH, newX, newY);
       }
+
+      lastCursorRef.current = { x: clientX, y: clientY };
       return true;
     };
 
@@ -108,9 +160,7 @@ export function useGroupDrag(
     const handleMove = (e: MouseEvent) => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        if (applyDrag(e.clientX, e.clientY)) {
-          setDragInfo((d) => d ? { ...d, startClientX: e.clientX, startClientY: e.clientY } : null);
-        }
+        applyDrag(e.clientX, e.clientY);
       });
     };
 
@@ -120,9 +170,7 @@ export function useGroupDrag(
       const touch = e.touches[0]!;
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        if (applyDrag(touch.clientX, touch.clientY)) {
-          setDragInfo((d) => d ? { ...d, startClientX: touch.clientX, startClientY: touch.clientY } : null);
-        }
+        applyDrag(touch.clientX, touch.clientY);
       });
     };
 
@@ -141,7 +189,7 @@ export function useGroupDrag(
       window.removeEventListener("touchend", handleUp);
       window.removeEventListener("touchcancel", handleUp);
     };
-  }, [dragInfo, zoom, setGroupLayout, setGroupSize, onMultiMove]);
+  }, [dragInfo, setGroupLayout, setGroupSize, onMultiMove]);
 
   return { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown, handleGroupResizeTouchStart };
 }

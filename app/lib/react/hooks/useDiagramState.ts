@@ -383,16 +383,32 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       setNodeStates((prev) => ({ ...prev, ...nodeUpdates }));
     }
 
-    // グループ: autoLayout groupUpdates + enforceGroupContainment を一括保存
-    const groupChanges: Record<string, DiagramGroup> = {};
-    for (const g of adjustedGroups) {
-      const current = groupStatesRef.current[g.id];
-      if (!current || current.x !== g.x || current.y !== g.y || current.w !== g.w || current.h !== g.h) {
-        groupChanges[g.id] = g;
+    // グループ: enforceGroupContainment が実際に変更した分だけをデルタとして適用
+    // ※ groupStatesRef.current との比較は、useEffect の非同期実行により ref が
+    //   新しいレンダリングの値に更新済みになる場合があり、古い位置を書き戻してしまう
+    const groupDeltas = new Map<string, { dx: number; dy: number; dw: number; dh: number }>();
+    for (let i = 0; i < adjustedGroups.length; i++) {
+      const adjusted = adjustedGroups[i]!;
+      const before = displayGroupsAfterLayout[i]!;
+      if (adjusted.x !== before.x || adjusted.y !== before.y || adjusted.w !== before.w || adjusted.h !== before.h) {
+        groupDeltas.set(adjusted.id, {
+          dx: adjusted.x - before.x,
+          dy: adjusted.y - before.y,
+          dw: adjusted.w - before.w,
+          dh: adjusted.h - before.h,
+        });
       }
     }
-    if (Object.keys(groupChanges).length > 0) {
-      setGroupStates((prev) => ({ ...prev, ...groupChanges }));
+    if (groupDeltas.size > 0) {
+      setGroupStates((prev) => {
+        const updates: Record<string, DiagramGroup> = {};
+        for (const [id, d] of groupDeltas) {
+          const g = prev[id];
+          if (!g) continue;
+          updates[id] = { ...g, x: g.x + d.dx, y: g.y + d.dy, w: g.w + d.dw, h: g.h + d.dh };
+        }
+        return { ...prev, ...updates };
+      });
     }
 
     // _needsPosition なノートを自動配置（全コンテンツの下に並べる）
@@ -409,7 +425,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       });
       setNoteStates((prev) => ({ ...prev, ...noteUpdates }));
     }
-  }, [displayNodes, displayNotes, adjustedGroups]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [displayNodes, displayNotes, adjustedGroups, displayGroupsAfterLayout]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 最終的な parsed（consumers はこれを使う）
   const parsed: ParseResult = useMemo(
