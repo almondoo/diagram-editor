@@ -383,32 +383,50 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
       setNodeStates((prev) => ({ ...prev, ...nodeUpdates }));
     }
 
-    // グループ: enforceGroupContainment が実際に変更した分だけをデルタとして適用
-    // ※ groupStatesRef.current との比較は、useEffect の非同期実行により ref が
-    //   新しいレンダリングの値に更新済みになる場合があり、古い位置を書き戻してしまう
-    const groupDeltas = new Map<string, { dx: number; dy: number; dw: number; dh: number }>();
-    for (let i = 0; i < adjustedGroups.length; i++) {
-      const adjusted = adjustedGroups[i]!;
-      const before = displayGroupsAfterLayout[i]!;
-      if (adjusted.x !== before.x || adjusted.y !== before.y || adjusted.w !== before.w || adjusted.h !== before.h) {
-        groupDeltas.set(adjusted.id, {
-          dx: adjusted.x - before.x,
-          dy: adjusted.y - before.y,
-          dw: adjusted.w - before.w,
-          dh: adjusted.h - before.h,
-        });
-      }
-    }
-    if (groupDeltas.size > 0) {
+    // autoLayout が groupUpdates を生成した場合は絶対位置で書き込み、
+    // それ以外は enforceGroupContainment のデルタのみ適用
+    // （デルタ方式はドラッグ中の並行更新と安全に共存するため維持）
+    const hasAutoLayoutGroupUpdates = displayGroupsAfterLayout !== displayGroups;
+
+    if (hasAutoLayoutGroupUpdates) {
+      // autoLayout 実行後: adjustedGroups の絶対位置を直接永続化
       setGroupStates((prev) => {
         const updates: Record<string, DiagramGroup> = {};
-        for (const [id, d] of groupDeltas) {
-          const g = prev[id];
-          if (!g) continue;
-          updates[id] = { ...g, x: g.x + d.dx, y: g.y + d.dy, w: g.w + d.dw, h: g.h + d.dh };
+        for (const g of adjustedGroups) {
+          const p = prev[g.id];
+          if (p && (p.x !== g.x || p.y !== g.y || p.w !== g.w || p.h !== g.h)) {
+            updates[g.id] = { ...p, x: g.x, y: g.y, w: g.w, h: g.h };
+          }
         }
-        return { ...prev, ...updates };
+        return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
       });
+    } else {
+      // autoLayout なし: enforceGroupContainment のデルタのみ適用
+      // ※ ドラッグ中の並行更新で古い絶対値を書き戻さないようデルタ方式を使用
+      const groupDeltas = new Map<string, { dx: number; dy: number; dw: number; dh: number }>();
+      for (let i = 0; i < adjustedGroups.length; i++) {
+        const adjusted = adjustedGroups[i]!;
+        const before = displayGroupsAfterLayout[i]!;
+        if (adjusted.x !== before.x || adjusted.y !== before.y || adjusted.w !== before.w || adjusted.h !== before.h) {
+          groupDeltas.set(adjusted.id, {
+            dx: adjusted.x - before.x,
+            dy: adjusted.y - before.y,
+            dw: adjusted.w - before.w,
+            dh: adjusted.h - before.h,
+          });
+        }
+      }
+      if (groupDeltas.size > 0) {
+        setGroupStates((prev) => {
+          const updates: Record<string, DiagramGroup> = {};
+          for (const [id, d] of groupDeltas) {
+            const g = prev[id];
+            if (!g) continue;
+            updates[id] = { ...g, x: g.x + d.dx, y: g.y + d.dy, w: g.w + d.dw, h: g.h + d.dh };
+          }
+          return { ...prev, ...updates };
+        });
+      }
     }
 
     // _needsPosition なノートを自動配置（全コンテンツの下に並べる）

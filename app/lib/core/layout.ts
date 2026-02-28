@@ -391,6 +391,30 @@ function forceLayout(
     }
   }
 
+  // フリーノードをグループ領域外に押し出す
+  const freeNodes = nodes.filter((n) => !n.group);
+  if (freeNodes.length > 0 && Object.keys(groupUpdates).length > 0) {
+    const allGroupRects = Object.values(groupUpdates);
+    const groupsBottom = Math.max(...allGroupRects.map((g) => g.y + g.h));
+    const groupsLeft = Math.min(...allGroupRects.map((g) => g.x));
+    const startY = groupsBottom + 60;
+
+    const overlapping = freeNodes.filter((n) =>
+      allGroupRects.some((g) =>
+        n.x < g.x + g.w + 20 && n.x + n.w + 20 > g.x &&
+        n.y < g.y + g.h + 20 && n.y + n.h + 20 > g.y,
+      ),
+    );
+    if (overlapping.length > 0) {
+      let curX = groupsLeft;
+      for (const n of overlapping) {
+        n.x = curX;
+        n.y = startY;
+        curX += n.w + NODE_SEP;
+      }
+    }
+  }
+
   nodes.forEach((n) => delete n._needsPosition);
   return { nodes, groupUpdates };
 }

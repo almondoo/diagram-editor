@@ -257,6 +257,38 @@ describe("forceLayout (direction=auto)", () => {
     expect(result[0]!.y).toBe(100);
   });
 
+  it("フリーノードがグループ領域外に配置される", () => {
+    const vpc = makeGroup("vpc", 0, 0, 500, 400);
+    const pub = makeGroup("public", 10, 40, 200, 150, "vpc");
+    const priv = makeGroup("private", 10, 200, 200, 150, "vpc");
+    const nodes = [
+      makeNode("alb", true, "public"),
+      makeNode("nat", true, "public"),
+      makeNode("ecs", true, "private"),
+      makeNode("rds", true, "private"),
+      makeNode("cf", true, ""),
+      makeNode("s3", true, ""),
+    ];
+    const edges = [
+      EDGE("cf", "alb"),
+      EDGE("alb", "ecs"),
+      EDGE("ecs", "rds"),
+      EDGE("cf", "s3"),
+    ];
+    const { nodes: result, groupUpdates } = autoLayout(nodes, edges, [vpc, pub, priv], "auto");
+    const allGroupRects = Object.values(groupUpdates);
+
+    // フリーノードがどのグループとも重ならないことを確認
+    for (const n of result.filter(n => !n.group)) {
+      for (const g of allGroupRects) {
+        const overlap =
+          n.x < g.x + g.w && n.x + n.w > g.x &&
+          n.y < g.y + g.h && n.y + n.h > g.y;
+        expect(overlap, `free node ${n.id} overlaps group ${g.id}`).toBe(false);
+      }
+    }
+  });
+
   it("ネストされたグループと別のトップレベルグループが重ならない", () => {
     // AWSアーキテクチャ風: VPC(public, private) + 外部アクセスグループ
     const vpc = makeGroup("vpc", 0, 0, 500, 400);
