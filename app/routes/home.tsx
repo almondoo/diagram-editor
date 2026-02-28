@@ -46,12 +46,20 @@ export default function Home() {
           <h1 className="text-[22px] font-bold text-text-primary m-0 tracking-tight">
             マイ作品
           </h1>
-          <Link
-            to="/diagrams/new"
-            className="bg-primary-darker border border-primary-dark text-primary-lighter px-4 py-1.5 rounded-md cursor-pointer text-[13px] font-semibold no-underline inline-flex items-center gap-1.5"
-          >
-            + 新規作成
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              to="/diagrams/new"
+              className="bg-primary-darker border border-primary-dark text-primary-lighter px-4 py-1.5 rounded-md cursor-pointer text-[13px] font-semibold no-underline inline-flex items-center gap-1.5"
+            >
+              + 新規作成
+            </Link>
+            <Link
+              to="/templates"
+              className="bg-transparent border border-border-subtle text-text-muted px-4 py-1.5 rounded-md cursor-pointer text-[13px] font-semibold no-underline inline-flex items-center gap-1.5 hover:border-primary-dark hover:text-primary-lighter transition-colors"
+            >
+              テンプレート
+            </Link>
+          </div>
         </div>
 
         {/* ダイアグラム一覧 */}
