@@ -173,6 +173,8 @@ export interface DiagramState {
   deleteNote: (noteId: string) => void;
   layoutDirection: LayoutDirection;
   isAnimating: boolean;
+  fitViewRequested: boolean;
+  clearFitViewRequest: () => void;
 }
 
 export function useDiagramState(initialCode: string = ""): DiagramState {
@@ -184,6 +186,8 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
   const [colorPreset, setColorPreset] = useState<ColorPreset>("default");
   const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("auto");
   const [isAnimating, setIsAnimating] = useState(false);
+  const [fitViewRequested, setFitViewRequested] = useState(true);
+  const clearFitViewRequest = useCallback(() => setFitViewRequested(false), []);
   const [historyVersion, setHistoryVersion] = useState(0);
 
   // グループ状態の ref（setNodeLayout の stable callback から読むため）
@@ -977,6 +981,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setGroupStates(initialGroupStates);
     setBendStates({});
     setCode(formatDSLCode(templateCode));
+    setFitViewRequested(true);
   };
 
   // グループをDSLコードから削除（ネストされた { ... } ブロック全体を削除）
@@ -1053,6 +1058,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     setNoteStates(savedNoteStates ?? {});
     setBendStates(savedBendStates ?? {});
     setCode(savedCode);
+    setFitViewRequested(true);
   };
 
   return {
@@ -1097,5 +1103,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     deleteNote,
     layoutDirection,
     isAnimating,
+    fitViewRequested,
+    clearFitViewRequest,
   };
 }

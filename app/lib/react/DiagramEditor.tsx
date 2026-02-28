@@ -65,6 +65,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     colorPreset, setColorPreset,
     undo, redo, canUndo, canRedo, pushSnapshot,
     isAnimating, layoutDirection,
+    fitViewRequested, clearFitViewRequest,
   } = state;
 
   // FLIP アニメーション用の状態管理
@@ -154,6 +155,16 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     }
     prevIsAnimatingRef.current = isAnimating;
   }, [isAnimating, parsed.nodes, parsed.groups, fitView]);
+
+  // loadTemplate / loadSaved 後の自動 fitView
+  useEffect(() => {
+    if (!fitViewRequested) return;
+    clearFitViewRequest();
+    const id = requestAnimationFrame(() => {
+      fitView(parsed.nodes, parsed.groups);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [fitViewRequested, clearFitViewRequest, fitView, parsed.nodes, parsed.groups]);
 
   const {
     selectedIds,
