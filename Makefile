@@ -1,6 +1,6 @@
 .PHONY: up down restart app logs build typecheck lint test shell clean preview e2e e2e-headed e2e-ui e2e-install
 
-docker-build:
+build:
 	docker compose build
 
 up:
@@ -21,8 +21,9 @@ ps:
 dev:
 	docker compose exec app pnpm dev
 
-build:
+start:
 	docker compose exec app pnpm build
+	docker compose exec app pnpm start
 
 typecheck:
 	docker compose exec app pnpm typecheck
