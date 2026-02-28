@@ -191,8 +191,8 @@ function parseSegment(
         thickness: parseFloat(props.thickness!) || 1.5,
         arrow: op.arrow,
         curve: props.curve || "smooth",
-        bendX: parseFloat(props.bendX!) || 0,
-        bendY: parseFloat(props.bendY!) || 0,
+        bendX: 0,
+        bendY: 0,
       });
       return;
     }

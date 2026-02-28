@@ -11,7 +11,7 @@ Diagram DSL はテキストベースでダイアグラムを記述するため�
 
 | フラグ | 対象 | 説明 |
 |---|---|---|
-| `_needsPosition` | node, note | `x`/`y` が未指定の場合に `true` が設定される。`autoLayout` による自動配置の対象マーク |
+| `_needsPosition` | node, note | 新規追加時に `true` が設定される。`autoLayout` による自動配置の対象マーク |
 | `_explicitProps` | node | パーサーがノードごとに DSL で明示的に指定されたプロパティ名を `Set<string>` で記録。`syncNodes` がコード変更時に「コードで指定された値」と「ドラッグで変更された値」を区別するために使用 |
 
 ## プロパティの記法
@@ -23,7 +23,7 @@ key=value           # 値にスペースがない場合
 key="hello world"   # 値にスペースがある場合（ダブルクォート）
 ```
 
-レイアウトプロパティ（`x`, `y`, `w`, `h`）はフォーマット時に除外されますが、パース時には有効です。
+位置・サイズ（`x`, `y`, `w`, `h`）は state で管理されるため、DSL プロパティとしては使用しません。フォーマット時に自動除外されます。
 
 ---
 
@@ -40,16 +40,9 @@ node <id> "ラベル" { プロパティ }
 | `shape` | string | `rect` | シェイプの種類 |
 | `color` | #hex | ランダム | 背景色 |
 | `text` | #hex | `#ffffff` | テキスト色 |
-| `border` | #hex | color と同じ | 枠線色 |
-| `borderWidth` | number | `2` | 枠線の太さ (px) |
 | `icon` | string | なし | アイコン名（例: aws.service.s3, aws.service.lambda） |
-| `fontSize` | number | `13` | フォントサイズ (px) |
 | `opacity` | number | `1` | 不透明度 (0〜1) |
 | `dashed` | boolean | `false` | 枠線を破線にする |
-| `x` | number | auto | X 座標 |
-| `y` | number | auto | Y 座標 |
-| `w` | number | `150` | 幅 (px) |
-| `h` | number | `60` | 高さ (px) |
 
 ### シェイプ一覧
 
@@ -126,28 +119,18 @@ group <id> "ラベル" { プロパティ
 }
 ```
 
-### 座標の解釈
-
-ブロック構文内のノード・子グループの `x`, `y` は**親グループからの相対座標**として解釈されます。パーサーは親グループの絶対座標（`offsetX`, `offsetY`）を加算して絶対座標に変換します。
-
-例: 親グループが `x=100 y=50` の場合、内部ノードの `x=20 y=40` は絶対座標 `(120, 90)` に変換されます。ネストが深くなっても、各レベルで親の絶対座標がオフセットとして再帰的に加算されます。
-
 ### プロパティ
 
 | プロパティ | 型 | デフォルト | 説明 |
 |---|---|---|---|
 | `color` | #hex | ランダム | グループの色 |
-| `x` | number | `0` | X 座標 |
-| `y` | number | `0` | Y 座標 |
-| `w` | number | `300` | 幅 (px) |
-| `h` | number | `200` | 高さ (px) |
 
 ### 例
 
 ```
 group backend "Backend" { color=#6366f1
-  node api "FastAPI" { shape=rect x=20 y=40 }
-  node worker "Worker" { shape=rect x=20 y=120 }
+  node api "FastAPI" { shape=rect }
+  node worker "Worker" { shape=rect }
 }
 ```
 
@@ -166,14 +149,12 @@ note <id> "テキスト" { プロパティ }
 | プロパティ | 型 | デフォルト | 説明 |
 |---|---|---|---|
 | `color` | #hex | `#fbbf24` | ノートの色 |
-| `x` | number | auto | X 座標 |
-| `y` | number | auto | Y 座標 |
 
 ### 例
 
 ```
 note n1 "id, name, email, created_at"
-note n2 "注意: このAPIは非推奨です" { color=#ef4444 x=200 y=100 }
+note n2 "注意: このAPIは非推奨です" { color=#ef4444 }
 ```
 
 ---
@@ -192,8 +173,6 @@ style <nodeId> { プロパティ }
 |---|---|
 | `color` | 背景色 |
 | `shape` | シェイプ |
-| `border` | 枠線色 |
-| `borderWidth` | 枠線の太さ (px) |
 | `text` | テキスト色 |
 
 ### 例

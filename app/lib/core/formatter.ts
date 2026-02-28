@@ -3,7 +3,7 @@ import { extractFormatterSegments } from "./segments";
 export function formatPropsString(str: string): string {
   if (!str.trim()) return "";
   const props: Record<string, string> = {};
-  const LAYOUT_PROPS = new Set(["x", "y", "w", "h", "arrow", "style"]);
+  const LAYOUT_PROPS = new Set(["x", "y", "w", "h", "arrow", "style", "bendX", "bendY"]);
   const regex = /(\w+)\s*=\s*(?:"([^"]*)"|(\S+))/g;
   const order = [
     "shape", "color", "text",

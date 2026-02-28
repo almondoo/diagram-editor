@@ -722,7 +722,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     const col = randomColor(colorPreset);
 
     if (!parentGroupId) {
-      setCode((c) => `${c}\ngroup ${id} "新規グループ" { color=${col} x=0 y=0 w=300 h=200 }`);
+      setCode((c) => `${c}\ngroup ${id} "新規グループ" { color=${col} }`);
       return;
     }
 
@@ -736,7 +736,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
 
         const indent = match[1] ?? "";
         const childIndent = `${indent}  `;
-        const childLine = `${childIndent}group ${id} "新規グループ" { color=${col} w=200 h=150 }`;
+        const childLine = `${childIndent}group ${id} "新規グループ" { color=${col} }`;
         const line = lines[i]!;
 
         // 単一行グループ: { ... } を複数行に展開

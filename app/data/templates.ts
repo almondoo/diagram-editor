@@ -149,12 +149,12 @@ edge success --> idle { label="reset()" }`,
 
   empty: `// ✨ 新規ダイアグラム
 // 構文ガイド:
-//   node <id> "ラベル" { shape=rect color=#hex x=0 y=0 }
+//   node <id> "ラベル" { shape=rect color=#hex }
 //   edge <from> -> <to> { label="text" color=#hex }
 //   group <id> "ラベル" {
 //     node <id> "ラベル" { ... }
 //   }
-//   note <id> "テキスト" { x=0 y=0 color=#hex }
+//   note <id> "テキスト" { color=#hex }
 //
 // Shapes: rect, stadium, diamond, ellipse, cylinder,
 //         parallelogram, hexagon, trapezoid, circle
