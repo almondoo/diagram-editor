@@ -156,11 +156,11 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     prevIsAnimatingRef.current = isAnimating;
   }, [isAnimating, parsed.nodes, parsed.groups, fitView]);
 
-  // loadTemplate / loadSaved 後の自動 fitView
+  // loadTemplate / loadSaved / 初回マウント時の自動 fitView
   useEffect(() => {
     if (!fitViewRequested) return;
-    clearFitViewRequest();
     const id = requestAnimationFrame(() => {
+      clearFitViewRequest();
       fitView(parsed.nodes, parsed.groups);
     });
     return () => cancelAnimationFrame(id);
