@@ -128,9 +128,6 @@ export default function Diagram() {
   return (
     <div className="w-screen h-screen flex flex-col bg-bg-deepest overflow-hidden">
       <AppHeader
-        onCreateFromTemplate={(code) => {
-          void navigate("/diagrams/new", { state: { templateCode: code } });
-        }}
         onSave={handleSave}
         saveLabel={currentDiagramId ? "更新" : "保存"}
         {...(currentDiagramName !== undefined && { currentDiagramName })}

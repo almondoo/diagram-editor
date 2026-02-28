@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router";
-import { TEMPLATES } from "~/data/templates";
 import { useViewport } from "~/lib/react";
 
 interface AppHeaderProps {
-  onCreateFromTemplate: (code: string) => void;
   onSave: () => void;
   saveLabel: string;
   currentDiagramName?: string;
@@ -12,27 +10,15 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({
-  onCreateFromTemplate,
   onSave,
   saveLabel,
   currentDiagramName,
   onRenameDiagram,
 }: AppHeaderProps) {
   const { isMobile } = useViewport();
-  const [showTemplates, setShowTemplates] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!showTemplates) return;
-    const handle = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest("[data-template-dropdown]")) setShowTemplates(false);
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [showTemplates]);
 
   return (
     <header
@@ -59,55 +45,11 @@ export function AppHeader({
         )}
       </Link>
 
-      {/* テンプレートドロップダウン */}
-      <div
-        data-template-dropdown=""
-        className="relative"
-        style={{ marginLeft: isMobile ? 10 : 24 }}
-      >
-        <button
-          onClick={() => setShowTemplates((v) => !v)}
-          style={{
-            background: showTemplates ? "#1e2435" : "#131720",
-            border: `1px solid ${showTemplates ? "#4338ca" : "#2d3548"}`,
-            color: showTemplates ? "#a5b4fc" : "#94a3b8",
-            padding: "3px 10px",
-            borderRadius: 5,
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 500,
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-          }}
-        >
-          テンプレート
-          <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
-        </button>
-        {showTemplates && (
-          <div className="absolute top-[calc(100%+4px)] left-0 bg-bg-panel border border-border rounded-lg min-w-40 z-[100] shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden">
-            {TEMPLATES
-              .filter((t) => t.id !== "empty")
-              .map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    onCreateFromTemplate(t.code);
-                    setShowTemplates(false);
-                  }}
-                  className="block w-full text-left bg-transparent border-none border-b border-border-subtle text-text-muted px-3.5 py-2 cursor-pointer text-xs font-sans hover:bg-surface-alt hover:text-text-primary"
-                >
-                  {t.name}
-                </button>
-              ))}
-          </div>
-        )}
-      </div>
-
       {/* 保存ボタン */}
       <button
         onClick={onSave}
-        className="bg-primary-darker border border-primary-dark text-primary-lighter px-3 py-[3px] rounded-[5px] cursor-pointer text-[11px] font-semibold ml-2"
+        className="bg-primary-darker border border-primary-dark text-primary-lighter px-3 py-[3px] rounded-[5px] cursor-pointer text-[11px] font-semibold"
+        style={{ marginLeft: isMobile ? 10 : 24 }}
       >
         {saveLabel}
       </button>
