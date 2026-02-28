@@ -35,10 +35,11 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const [showSyntax, setShowSyntax] = useState(false);
   const [noteDragInfo, setNoteDragInfo] = useState<{
     noteId: string;
-    startX: number;
-    startY: number;
     isMulti: boolean;
   } | null>(null);
+  // ノートドラッグ用ref（同期更新で位置ずれ防止）
+  const noteStartRef = useRef<{ cursorX: number; cursorY: number; noteX: number; noteY: number } | null>(null);
+  const noteLastCursorRef = useRef({ x: 0, y: 0 });
 
   // ダブルクリック → コードエディタフォーカス
   const [focusLine, setFocusLine] = useState<number | null>(null);
@@ -173,22 +174,33 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     multiMoveLayout(selectedIdsRef.current, dx, dy);
   }, [multiMoveLayout]);
 
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
   // ノートドラッグ（マウス）
   const handleNoteMouseDown = useCallback((e: React.MouseEvent, noteId: string) => {
     e.stopPropagation();
     if (e.button !== 0) return;
+    const note = noteStates[noteId] ?? parsed.notes.find((n) => n.id === noteId);
+    if (!note) return;
     const isMulti = selectedIds.size > 1 && selectedIds.has(noteId);
-    setNoteDragInfo({ noteId, startX: e.clientX, startY: e.clientY, isMulti });
-  }, [selectedIds]);
+    noteStartRef.current = { cursorX: e.clientX, cursorY: e.clientY, noteX: note.x, noteY: note.y };
+    noteLastCursorRef.current = { x: e.clientX, y: e.clientY };
+    setNoteDragInfo({ noteId, isMulti });
+  }, [selectedIds, noteStates, parsed.notes]);
 
   // ノートドラッグ（タッチ）
   const handleNoteTouchStart = useCallback((e: React.TouchEvent, noteId: string) => {
     if (e.touches.length !== 1) return;
     e.stopPropagation();
     const touch = e.touches[0]!;
+    const note = noteStates[noteId] ?? parsed.notes.find((n) => n.id === noteId);
+    if (!note) return;
     const isMulti = selectedIds.size > 1 && selectedIds.has(noteId);
-    setNoteDragInfo({ noteId, startX: touch.clientX, startY: touch.clientY, isMulti });
-  }, [selectedIds]);
+    noteStartRef.current = { cursorX: touch.clientX, cursorY: touch.clientY, noteX: note.x, noteY: note.y };
+    noteLastCursorRef.current = { x: touch.clientX, y: touch.clientY };
+    setNoteDragInfo({ noteId, isMulti });
+  }, [selectedIds, noteStates, parsed.notes]);
 
   useEffect(() => {
     if (!noteDragInfo) return;
@@ -196,18 +208,26 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     let noteDragged = false;
 
     const applyMove = (clientX: number, clientY: number) => {
-      const dx = (clientX - noteDragInfo.startX) / zoom;
-      const dy = (clientY - noteDragInfo.startY) / zoom;
-      if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
-      if (!noteDragged) { pushSnapshot(); noteDragged = true; }
+      const start = noteStartRef.current;
+      if (!start) return;
+      const z = zoomRef.current;
+
       if (noteDragInfo.isMulti) {
+        // 複数選択: incremental delta（同期ref）
+        const dx = (clientX - noteLastCursorRef.current.x) / z;
+        const dy = (clientY - noteLastCursorRef.current.y) / z;
+        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+        if (!noteDragged) { pushSnapshot(); noteDragged = true; }
         onMultiMove(dx, dy);
       } else {
-        const note = noteStates[noteDragInfo.noteId] ?? parsed.notes.find((n) => n.id === noteDragInfo.noteId);
-        if (!note) return;
-        setNoteLayout(noteDragInfo.noteId, Math.round(note.x + dx), Math.round(note.y + dy));
+        // 単体ノート: 初期位置 + 総デルタ（絶対値）
+        const totalDx = (clientX - start.cursorX) / z;
+        const totalDy = (clientY - start.cursorY) / z;
+        if (Math.abs(totalDx) < 2 && Math.abs(totalDy) < 2) return;
+        if (!noteDragged) { pushSnapshot(); noteDragged = true; }
+        setNoteLayout(noteDragInfo.noteId, Math.round(start.noteX + totalDx), Math.round(start.noteY + totalDy));
       }
-      setNoteDragInfo((d) => d ? { ...d, startX: clientX, startY: clientY } : null);
+      noteLastCursorRef.current = { x: clientX, y: clientY };
     };
 
     const handleMove = (e: MouseEvent) => {
@@ -235,7 +255,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       window.removeEventListener("touchend", handleUp);
       window.removeEventListener("touchcancel", handleUp);
     };
-  }, [noteDragInfo, zoom, noteStates, parsed.notes, setNoteLayout, onMultiMove, pushSnapshot]);
+  }, [noteDragInfo, setNoteLayout, onMultiMove, pushSnapshot]);
 
   const parsedRef = useRef(parsed);
   parsedRef.current = parsed;
