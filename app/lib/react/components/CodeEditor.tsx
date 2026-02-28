@@ -215,7 +215,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
         const textBefore = code.slice(0, start);
         const lineIndex = textBefore.split("\n").length - 1;
         const cutLine = codeLines[lineIndex]!;
-        navigator.clipboard.writeText(`${cutLine}\n`);
+        void navigator.clipboard.writeText(`${cutLine}\n`);
         pushUndo(code);
         // 行を削除: splice して再結合
         codeLines.splice(lineIndex, 1);
@@ -255,7 +255,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
         // カーソル位置を移動先の行に合わせる
         let newPos = 0;
         for (let i = 0; i < targetIndex; i++) newPos += codeLines[i]!.length + 1;
-        newPos += Math.min(colInLine, codeLines[targetIndex]!.length);
+        newPos += Math.min(colInLine, codeLines[targetIndex].length);
         requestAnimationFrame(() => {
           textarea.selectionStart = newPos;
           textarea.selectionEnd = newPos;

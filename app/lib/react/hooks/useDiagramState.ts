@@ -657,7 +657,7 @@ export function useDiagramState(initialCode: string = ""): DiagramState {
     const col = randomColor(colorPreset);
 
     if (!parentGroupId) {
-      setCode((c) => c + `\nnode ${id} "新規ノード" { shape=${shape} color=${col} }`);
+      setCode((c) => `${c}\nnode ${id} "新規ノード" { shape=${shape} color=${col} }`);
       return;
     }
 

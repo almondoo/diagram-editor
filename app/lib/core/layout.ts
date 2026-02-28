@@ -2,6 +2,8 @@ import dagre from "@dagrejs/dagre";
 import type { DiagramNode, DiagramEdge, DiagramGroup, LayoutDirection } from "./types";
 import { colorForId } from "./colors";
 
+type DagrePos = { x: number; y: number };
+
 export const GROUP_LABEL_HEIGHT = 26; // グループラベルの高さ
 export const GROUP_PADDING = 12;      // グループ内パディング
 const LABEL_HEIGHT = GROUP_LABEL_HEIGHT;
@@ -57,7 +59,7 @@ function layoutGroupNodesDagre(
   const offsetY = g.y + LABEL_HEIGHT + PADDING;
 
   toLayout.forEach((n) => {
-    const pos = graph.node(n.id);
+    const pos = graph.node(n.id) as DagrePos;
     n.x = offsetX + pos.x - n.w / 2;
     n.y = offsetY + pos.y - n.h / 2;
   });
@@ -136,7 +138,7 @@ function layoutGroupsDagre(
 
   const result: Record<string, DiagramGroup> = { ...groupUpdates };
   effectiveGroups.forEach((g) => {
-    const pos = graph.node(g.id);
+    const pos = graph.node(g.id) as DagrePos;
     result[g.id] = { ...g, x: pos.x - g.w / 2, y: pos.y - g.h / 2 };
   });
   return result;
@@ -170,13 +172,13 @@ function layoutFreeNodesDagre(
 
   // dagre 結果の最小 Y を求めて startY に合わせるオフセットを計算
   const dagreMinY = Math.min(...toLayout.map((n) => {
-    const pos = graph.node(n.id);
+    const pos = graph.node(n.id) as DagrePos;
     return pos.y - n.h / 2;
   }));
   const offsetY = startY - dagreMinY;
 
   toLayout.forEach((n) => {
-    const pos = graph.node(n.id);
+    const pos = graph.node(n.id) as DagrePos;
     n.x = pos.x - n.w / 2;
     n.y = pos.y - n.h / 2 + offsetY;
   });
@@ -240,8 +242,8 @@ function forceLayout(
     }
   });
 
-  const dx: number[] = new Array(allNodes.length).fill(0);
-  const dy: number[] = new Array(allNodes.length).fill(0);
+  const dx = new Array<number>(allNodes.length).fill(0);
+  const dy = new Array<number>(allNodes.length).fill(0);
 
   for (let iter = 0; iter < ITERATIONS; iter++) {
     for (let i = 0; i < allNodes.length; i++) { dx[i] = 0; dy[i] = 0; }

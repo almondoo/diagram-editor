@@ -203,7 +203,7 @@ function parseSegment(
       const id = styleMatch[1]!;
       const props = parseProps(styleMatch[2]!);
       if (ctx.nodeMap[id]) {
-        Object.assign(ctx.nodeMap[id]!, {
+        Object.assign(ctx.nodeMap[id], {
           ...(props.color && { color: props.color }),
           ...(props.shape && { shape: props.shape }),
           ...(props.text && { textColor: props.text }),

@@ -73,7 +73,7 @@ export default function Home() {
                 id={d.id}
                 name={d.name}
                 savedAt={d.savedAt}
-                onClick={() => navigate(`/diagrams/${d.id}`)}
+                onClick={() => void navigate(`/diagrams/${d.id}`)}
                 onDelete={() => deleteDiagram(d.id)}
                 onRename={renameDiagram}
               />

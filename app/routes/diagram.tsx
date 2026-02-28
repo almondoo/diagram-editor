@@ -108,7 +108,7 @@ export default function Diagram() {
       setShowSaveModal(false);
       showToast();
       // /diagrams/new の場合は保存後に /diagrams/:id にリダイレクト
-      navigate(`/diagrams/${saved.id}`, { replace: true });
+      void navigate(`/diagrams/${saved.id}`, { replace: true });
     },
     [code, nodeStates, groupStates, noteStates, bendStates, saveDiagram, navigate, showToast]
   );
@@ -128,7 +128,7 @@ export default function Diagram() {
     <div className="w-screen h-screen flex flex-col bg-bg-deepest overflow-hidden">
       <AppHeader
         onCreateFromTemplate={(code) => {
-          navigate("/diagrams/new", { state: { templateCode: code } });
+          void navigate("/diagrams/new", { state: { templateCode: code } });
         }}
         onSave={handleSave}
         saveLabel={currentDiagramId ? "更新" : "保存"}

@@ -9,7 +9,17 @@ import globals from "globals";
 export default defineConfig(
   // ベースルール
   eslint.configs.recommended,
-  tseslint.configs.recommended,
+  tseslint.configs.recommendedTypeChecked,
+
+  // TypeScript 型チェック設定
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
 
   // 全ファイル共通のベストプラクティス
   {
@@ -49,17 +59,8 @@ export default defineConfig(
       // テンプレートリテラル内の ${} を通常文字列で使用した場合に警告
       "no-template-curly-in-string": "warn",
 
-      // throw は Error オブジェクトのみ
-      "no-throw-literal": "error",
-
-      // 不要な return await
-      "no-return-await": "error",
-
       // eval 禁止
       "no-eval": "error",
-
-      // implied eval 禁止
-      "no-implied-eval": "error",
 
       // スプレッド演算子推奨
       "prefer-spread": "warn",
@@ -130,8 +131,14 @@ export default defineConfig(
     files: ["**/__tests__/**", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
-      "no-throw-literal": "off",
+      "@typescript-eslint/only-throw-error": "off",
     },
+  },
+
+  // JS ファイルは型チェックルールを無効化
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    ...tseslint.configs.disableTypeChecked,
   },
 
   // 除外パターン

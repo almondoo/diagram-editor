@@ -21,7 +21,7 @@ function loadFromStorage(): SavedDiagram[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     const diagrams = Array.isArray(parsed) ? (parsed as SavedDiagram[]) : [];
     return diagrams.map((d) => ({ ...d, groupStates: d.groupStates ?? {}, noteStates: d.noteStates ?? {} }));
   } catch {
