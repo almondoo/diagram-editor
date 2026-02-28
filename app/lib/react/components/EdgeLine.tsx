@@ -6,13 +6,14 @@ interface EdgeLineProps {
   edge: DiagramEdge;
   fromNode: DiagramNode | undefined;
   toNode: DiagramNode | undefined;
+  isPlaying?: boolean;
   onMoveMouseDown?: (e: React.MouseEvent, fromId: string, toId: string) => void;
   onEndpointMouseDown?: (e: React.MouseEvent, fromId: string, toId: string, end: "from" | "to") => void;
   onDoubleClick?: () => void;
 }
 
 export const EdgeLine = memo(
-  function EdgeLine({ edge, fromNode, toNode, onMoveMouseDown, onEndpointMouseDown, onDoubleClick }: EdgeLineProps) {
+  function EdgeLine({ edge, fromNode, toNode, isPlaying, onMoveMouseDown, onEndpointMouseDown, onDoubleClick }: EdgeLineProps) {
     if (!fromNode || !toNode) return null;
     const { from, to } = getEdgePoints(fromNode, toNode);
     const { label, color, style, animate, thickness, arrow, curve, bendX, bendY } = edge;
@@ -22,6 +23,7 @@ export const EdgeLine = memo(
 
     const hasEndMarker = arrow === "end" || arrow === "both";
     const hasStartMarker = arrow === "start" || arrow === "both";
+    const pathTransition = isPlaying ? { transition: "d 300ms ease-out" } : undefined;
 
     return (
       <g className="edge-group">
@@ -31,6 +33,7 @@ export const EdgeLine = memo(
           fill="none"
           stroke="transparent"
           strokeWidth={14}
+          style={pathTransition}
           className="cursor-move"
           onMouseDown={(e) => onMoveMouseDown?.(e, edge.from, edge.to)}
           onDoubleClick={onDoubleClick}
@@ -45,6 +48,7 @@ export const EdgeLine = memo(
           strokeDasharray={style === "dashed" ? "8,4" : "none"}
           markerEnd={hasEndMarker ? `url(#ah-end-${safeColor})` : undefined}
           markerStart={hasStartMarker ? `url(#ah-start-${safeColor})` : undefined}
+          style={pathTransition}
           className={animate ? "edge-animate pointer-events-none" : "pointer-events-none"}
         />
 
@@ -105,6 +109,7 @@ export const EdgeLine = memo(
     prev.edge === next.edge &&
     prev.fromNode === next.fromNode &&
     prev.toNode === next.toNode &&
+    prev.isPlaying === next.isPlaying &&
     prev.onMoveMouseDown === next.onMoveMouseDown &&
     prev.onEndpointMouseDown === next.onEndpointMouseDown &&
     prev.onDoubleClick === next.onDoubleClick,

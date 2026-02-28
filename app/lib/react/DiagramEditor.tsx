@@ -505,20 +505,33 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
               </g>
             );
           })}
-          {parsed.edges.map((edge, i) => (
-            <EdgeLine
-              key={`${edge.from}-${edge.to}-${i}`}
-              edge={edge}
-              fromNode={nodeById[edge.from]}
-              toNode={nodeById[edge.to]}
-              onMoveMouseDown={handleEdgeMoveMouseDown}
-              onEndpointMouseDown={handleEdgeEndpointMouseDown}
-              onDoubleClick={() => {
-                const line = findCodeLine("edge", edge.to, edge.from);
-                if (line) setFocusLine(line);
-              }}
-            />
-          ))}
+          {parsed.edges.map((edge, i) => {
+            // FLIP Phase 1: offset-adjusted positions for smooth edge animation
+            let fromNode = nodeById[edge.from];
+            let toNode = nodeById[edge.to];
+            const hasOffsets = Object.keys(animOffsets).length > 0;
+            if (hasOffsets) {
+              const fromOff = animOffsets[edge.from];
+              const toOff = animOffsets[edge.to];
+              if (fromNode && fromOff) fromNode = { ...fromNode, x: fromNode.x + fromOff.dx, y: fromNode.y + fromOff.dy };
+              if (toNode && toOff) toNode = { ...toNode, x: toNode.x + toOff.dx, y: toNode.y + toOff.dy };
+            }
+            return (
+              <EdgeLine
+                key={`${edge.from}-${edge.to}-${i}`}
+                edge={edge}
+                fromNode={fromNode}
+                toNode={toNode}
+                isPlaying={isPlaying}
+                onMoveMouseDown={handleEdgeMoveMouseDown}
+                onEndpointMouseDown={handleEdgeEndpointMouseDown}
+                onDoubleClick={() => {
+                  const line = findCodeLine("edge", edge.to, edge.from);
+                  if (line) setFocusLine(line);
+                }}
+              />
+            );
+          })}
           {/* 接続付け替え中の仮エッジ線 */}
           {edgeDragInfo?.type === "reconnect" && (() => {
             const anchorNode = nodeById[edgeDragInfo.anchorId];
