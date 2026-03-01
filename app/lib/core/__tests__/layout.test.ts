@@ -124,7 +124,7 @@ describe("autoLayout", () => {
     expect(overlapX && overlapY).toBe(false);
   });
 
-  it("グループ間エッジを考慮してdagreがグループを配置する", () => {
+  it("グループ間エッジを考慮してグループを配置する", () => {
     const g1 = makeGroup("g1", 0, 0, 200, 150);
     const g2 = makeGroup("g2", 0, 0, 200, 150);
     const g3 = makeGroup("g3", 0, 0, 200, 150);
@@ -198,7 +198,7 @@ describe("autoLayout", () => {
     }
   });
 
-  it("parentGroupがあるグループはdagreの対象外", () => {
+  it("parentGroupがあるグループはレイアウト対象外", () => {
     const parent = makeGroup("parent", 0, 0, 500, 400);
     const child = makeGroup("child", 10, 10, 200, 150, "parent");
     const nodes = [
@@ -321,6 +321,39 @@ describe("forceLayout (direction=auto)", () => {
     const overlapX = rVpc.x < rExt.x + rExt.w && rExt.x < rVpc.x + rVpc.w;
     const overlapY = rVpc.y < rExt.y + rExt.h && rExt.y < rVpc.y + rVpc.h;
     expect(overlapX && overlapY).toBe(false);
+  });
+});
+
+describe("sugiyama layout", () => {
+  it("ダイヤモンドグラフで正しいレイヤー順序 (A→B,C→D)", () => {
+    const nodes = [makeNode("A"), makeNode("B"), makeNode("C"), makeNode("D")];
+    const edges = [EDGE("A", "B"), EDGE("A", "C"), EDGE("B", "D"), EDGE("C", "D")];
+    const { nodes: result } = autoLayout(nodes, edges, [], "LR");
+    const byId = Object.fromEntries(result.map(n => [n.id, n]));
+    expect(byId.A!.x).toBeLessThan(byId.B!.x);
+    expect(byId.A!.x).toBeLessThan(byId.C!.x);
+    expect(byId.B!.x).toBeLessThan(byId.D!.x);
+    expect(byId.C!.x).toBeLessThan(byId.D!.x);
+  });
+
+  it("切断グラフ（エッジなし）でも有効な座標を割り当てる", () => {
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
+    const { nodes: result } = autoLayout(nodes, [], [], "LR");
+    for (const n of result) {
+      expect(n.x).not.toBeNaN();
+      expect(n.y).not.toBeNaN();
+    }
+  });
+
+  it("長いチェーン (5ノード) でレイヤー順序が正しい", () => {
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c"), makeNode("d"), makeNode("e")];
+    const edges = [EDGE("a", "b"), EDGE("b", "c"), EDGE("c", "d"), EDGE("d", "e")];
+    const { nodes: result } = autoLayout(nodes, edges, [], "LR");
+    const byId = Object.fromEntries(result.map(n => [n.id, n]));
+    expect(byId.a!.x).toBeLessThan(byId.b!.x);
+    expect(byId.b!.x).toBeLessThan(byId.c!.x);
+    expect(byId.c!.x).toBeLessThan(byId.d!.x);
+    expect(byId.d!.x).toBeLessThan(byId.e!.x);
   });
 });
 

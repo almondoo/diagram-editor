@@ -1,15 +1,291 @@
-import dagre from "@dagrejs/dagre";
 import type { DiagramNode, DiagramEdge, DiagramGroup, LayoutDirection } from "./types";
 import { colorForId } from "./colors";
-
-type DagrePos = { x: number; y: number };
 
 export const GROUP_LABEL_HEIGHT = 26; // グループラベルの高さ
 export const GROUP_PADDING = 12;      // グループ内パディング
 const LABEL_HEIGHT = GROUP_LABEL_HEIGHT;
 const PADDING = GROUP_PADDING;
-const NODE_SEP = 40;     // dagre: 同一レイヤー内ノード間隔
-const RANK_SEP = 80;     // dagre: レイヤー間隔
+const NODE_SEP = 40;     // 同一レイヤー内ノード間隔
+const RANK_SEP = 80;     // レイヤー間隔
+
+// === Sugiyama layout algorithm ===
+
+type SEdge = { from: string; to: string; reversed?: boolean };
+type SNode = { id: string; w: number; h: number; layer: number; dummy?: boolean };
+
+/** Phase 1: DFS でバックエッジを検出・反転し DAG 化 */
+function breakCycles(edges: SEdge[], nodeIds: Set<string>): void {
+  const adj = new Map<string, string[]>();
+  for (const id of nodeIds) adj.set(id, []);
+  for (const e of edges) {
+    if (e.from !== e.to) adj.get(e.from)!.push(e.to);
+  }
+
+  // 0=white, 1=gray, 2=black
+  const color = new Map<string, number>();
+  for (const id of nodeIds) color.set(id, 0);
+  const toReverse: number[] = [];
+
+  function dfs(u: string): void {
+    color.set(u, 1);
+    for (const v of adj.get(u)!) {
+      const c = color.get(v)!;
+      if (c === 1) {
+        const idx = edges.findIndex((e) => e.from === u && e.to === v && !e.reversed);
+        if (idx >= 0) toReverse.push(idx);
+      } else if (c === 0) {
+        dfs(v);
+      }
+    }
+    color.set(u, 2);
+  }
+
+  for (const id of nodeIds) {
+    if (color.get(id) === 0) dfs(id);
+  }
+
+  for (const idx of toReverse) {
+    const e = edges[idx]!;
+    [e.from, e.to] = [e.to, e.from];
+    e.reversed = true;
+  }
+}
+
+/** Phase 2: longest-path レイヤー割り当て (Kahn's algorithm) */
+function assignLayers(nodeIds: Set<string>, edges: SEdge[]): Map<string, number> {
+  const inDeg = new Map<string, number>();
+  const succ = new Map<string, string[]>();
+  for (const id of nodeIds) {
+    inDeg.set(id, 0);
+    succ.set(id, []);
+  }
+  for (const e of edges) {
+    if (nodeIds.has(e.from) && nodeIds.has(e.to) && e.from !== e.to) {
+      inDeg.set(e.to, inDeg.get(e.to)! + 1);
+      succ.get(e.from)!.push(e.to);
+    }
+  }
+
+  const layer = new Map<string, number>();
+  const queue: string[] = [];
+  for (const id of nodeIds) {
+    if (inDeg.get(id) === 0) {
+      queue.push(id);
+      layer.set(id, 0);
+    }
+  }
+
+  let head = 0;
+  while (head < queue.length) {
+    const u = queue[head++]!;
+    const uL = layer.get(u)!;
+    for (const v of succ.get(u)!) {
+      layer.set(v, Math.max(layer.get(v) ?? 0, uL + 1));
+      const d = inDeg.get(v)! - 1;
+      inDeg.set(v, d);
+      if (d === 0) queue.push(v);
+    }
+  }
+
+  for (const id of nodeIds) {
+    if (!layer.has(id)) layer.set(id, 0);
+  }
+  return layer;
+}
+
+/** Phase 2.5: 長エッジにダミーノード挿入 */
+function insertDummyNodes(
+  nodeMap: Map<string, SNode>,
+  edges: SEdge[],
+): SEdge[] {
+  const result: SEdge[] = [];
+  let idx = 0;
+  for (const e of edges) {
+    const fromL = nodeMap.get(e.from)?.layer;
+    const toL = nodeMap.get(e.to)?.layer;
+    if (fromL === undefined || toL === undefined || toL - fromL <= 1) {
+      result.push(e);
+      continue;
+    }
+    let prev = e.from;
+    for (let l = fromL + 1; l < toL; l++) {
+      const did = `__d${idx++}`;
+      nodeMap.set(did, { id: did, w: 0, h: 0, layer: l, dummy: true });
+      result.push({ from: prev, to: did });
+      prev = did;
+    }
+    result.push({ from: prev, to: e.to });
+  }
+  return result;
+}
+
+/** Phase 3: barycenter heuristic + layer sweep 交差最小化 */
+function minimizeCrossings(layers: string[][], edges: SEdge[]): void {
+  const down = new Map<string, string[]>();
+  const up = new Map<string, string[]>();
+  for (const e of edges) {
+    let arr = down.get(e.from);
+    if (!arr) { arr = []; down.set(e.from, arr); }
+    arr.push(e.to);
+    arr = up.get(e.to);
+    if (!arr) { arr = []; up.set(e.to, arr); }
+    arr.push(e.from);
+  }
+
+  const pos = new Map<string, number>();
+  const updatePos = () => {
+    for (const layer of layers) {
+      for (let i = 0; i < layer.length; i++) { pos.set(layer[i]!, i); }
+    }
+  };
+  updatePos();
+
+  const countCross = (upper: string[], _lower: string[]): number => {
+    const pairs: [number, number][] = [];
+    for (const u of upper) {
+      const uP = pos.get(u)!;
+      for (const v of down.get(u) ?? []) { pairs.push([uP, pos.get(v)!]); }
+    }
+    let c = 0;
+    for (let i = 0; i < pairs.length; i++) {
+      for (let j = i + 1; j < pairs.length; j++) {
+        if ((pairs[i]![0] - pairs[j]![0]) * (pairs[i]![1] - pairs[j]![1]) < 0) { c++; }
+      }
+    }
+    return c;
+  };
+
+  for (let sweep = 0; sweep < 24; sweep++) {
+    // Down sweep
+    for (let l = 1; l < layers.length; l++) {
+      const layer = layers[l]!;
+      const bc = new Map<string, number>();
+      for (const v of layer) {
+        const nbrs = up.get(v);
+        bc.set(v, nbrs && nbrs.length > 0
+          ? nbrs.reduce((s, u) => s + pos.get(u)!, 0) / nbrs.length
+          : pos.get(v)!);
+      }
+      layer.sort((a, b) => bc.get(a)! - bc.get(b)!);
+      updatePos();
+    }
+    // Up sweep
+    for (let l = layers.length - 2; l >= 0; l--) {
+      const layer = layers[l]!;
+      const bc = new Map<string, number>();
+      for (const v of layer) {
+        const nbrs = down.get(v);
+        bc.set(v, nbrs && nbrs.length > 0
+          ? nbrs.reduce((s, u) => s + pos.get(u)!, 0) / nbrs.length
+          : pos.get(v)!);
+      }
+      layer.sort((a, b) => bc.get(a)! - bc.get(b)!);
+      updatePos();
+    }
+    // Adjacent swap (single pass per layer pair)
+    for (let l = 0; l + 1 < layers.length; l++) {
+      const layer = layers[l + 1]!;
+      for (let i = 0; i + 1 < layer.length; i++) {
+        const before = countCross(layers[l]!, layer);
+        [layer[i], layer[i + 1]] = [layer[i + 1]!, layer[i]!];
+        updatePos();
+        if (countCross(layers[l]!, layer) >= before) {
+          [layer[i], layer[i + 1]] = [layer[i + 1]!, layer[i]!];
+          updatePos();
+        }
+      }
+    }
+  }
+}
+
+/** Phase 4: レイヤー内配置 → 中心座標 */
+function placeNodes(
+  layers: string[][],
+  nodeMap: Map<string, SNode>,
+  rankdir: "TB" | "LR",
+  nodesep: number,
+  ranksep: number,
+  mx: number,
+  my: number,
+): Map<string, { x: number; y: number }> {
+  const result = new Map<string, { x: number; y: number }>();
+  if (rankdir === "TB") {
+    let y = my;
+    for (const layer of layers) {
+      const real = layer.filter((id) => !nodeMap.get(id)?.dummy);
+      if (real.length === 0) { y += ranksep; continue; }
+      const maxH = Math.max(...real.map((id) => nodeMap.get(id)!.h));
+      let x = mx;
+      for (const id of layer) {
+        const n = nodeMap.get(id)!;
+        if (n.dummy) continue;
+        result.set(id, { x: x + n.w / 2, y: y + maxH / 2 });
+        x += n.w + nodesep;
+      }
+      y += maxH + ranksep;
+    }
+  } else {
+    let x = mx;
+    for (const layer of layers) {
+      const real = layer.filter((id) => !nodeMap.get(id)?.dummy);
+      if (real.length === 0) { x += ranksep; continue; }
+      const maxW = Math.max(...real.map((id) => nodeMap.get(id)!.w));
+      let y = my;
+      for (const id of layer) {
+        const n = nodeMap.get(id)!;
+        if (n.dummy) continue;
+        result.set(id, { x: x + maxW / 2, y: y + n.h / 2 });
+        y += n.h + nodesep;
+      }
+      x += maxW + ranksep;
+    }
+  }
+  return result;
+}
+
+/** Sugiyama レイアウト: ノード中心座標を返す */
+function sugiyamaLayout(
+  nodes: { id: string; w: number; h: number }[],
+  edges: { from: string; to: string }[],
+  rankdir: "TB" | "LR",
+  opts: { nodesep: number; ranksep: number; marginx?: number; marginy?: number },
+): Map<string, { x: number; y: number }> {
+  if (nodes.length === 0) return new Map();
+  const mx = opts.marginx ?? 0;
+  const my = opts.marginy ?? 0;
+  if (nodes.length === 1) {
+    const n = nodes[0]!;
+    return new Map([[n.id, { x: mx + n.w / 2, y: my + n.h / 2 }]]);
+  }
+
+  const ids = new Set(nodes.map((n) => n.id));
+  const sEdges: SEdge[] = edges
+    .filter((e) => ids.has(e.from) && ids.has(e.to) && e.from !== e.to)
+    .map((e) => ({ from: e.from, to: e.to }));
+
+  breakCycles(sEdges, ids);
+  const layerMap = assignLayers(ids, sEdges);
+
+  const nodeMap = new Map<string, SNode>();
+  for (const n of nodes) {
+    nodeMap.set(n.id, { id: n.id, w: n.w, h: n.h, layer: layerMap.get(n.id)! });
+  }
+
+  const expanded = insertDummyNodes(nodeMap, sEdges);
+
+  let maxLayer = 0;
+  for (const n of nodeMap.values()) {
+    if (n.layer > maxLayer) maxLayer = n.layer;
+  }
+  const layers: string[][] = Array.from({ length: maxLayer + 1 }, () => []);
+  for (const [id, n] of nodeMap) layers[n.layer]!.push(id);
+
+  if (expanded.length > 0) minimizeCrossings(layers, expanded);
+
+  return placeNodes(layers, nodeMap, rankdir, opts.nodesep, opts.ranksep, mx, my);
+}
+
+// === Layout helper functions ===
 
 /** 障害物リストとの衝突を解消するまでノードを右にずらす */
 function resolveOverlap(
@@ -30,8 +306,8 @@ function resolveOverlap(
   }
 }
 
-/** グループ内ノードを dagre でレイアウト（グループ左上を原点としたローカル座標） */
-function layoutGroupNodesDagre(
+/** グループ内ノードをレイアウト（グループ左上を原点としたローカル座標） */
+function layoutGroupNodes(
   toLayout: DiagramNode[],
   allGroupNodes: DiagramNode[],
   g: DiagramGroup,
@@ -41,25 +317,19 @@ function layoutGroupNodesDagre(
   if (toLayout.length === 0) return;
 
   const nodeIds = new Set(toLayout.map((n) => n.id));
-  const graph = new dagre.graphlib.Graph();
-  graph.setGraph({ rankdir, nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 0, marginy: 0 });
-  graph.setDefaultEdgeLabel(() => ({}));
+  const positions = sugiyamaLayout(
+    toLayout.map((n) => ({ id: n.id, w: n.w, h: n.h })),
+    edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to)),
+    rankdir,
+    { nodesep: NODE_SEP, ranksep: RANK_SEP },
+  );
 
-  toLayout.forEach((n) => graph.setNode(n.id, { width: n.w, height: n.h }));
-  edges.forEach((e) => {
-    if (nodeIds.has(e.from) && nodeIds.has(e.to)) {
-      graph.setEdge(e.from, e.to);
-    }
-  });
-
-  dagre.layout(graph);
-
-  // dagre の中心座標をグループ左上 + padding に変換
   const offsetX = g.x + PADDING;
   const offsetY = g.y + LABEL_HEIGHT + PADDING;
 
   toLayout.forEach((n) => {
-    const pos = graph.node(n.id) as DagrePos;
+    const pos = positions.get(n.id);
+    if (!pos) return;
     n.x = offsetX + pos.x - n.w / 2;
     n.y = offsetY + pos.y - n.h / 2;
   });
@@ -89,8 +359,8 @@ function computeGroupFit(allMembers: DiagramNode[], childGroups: DiagramGroup[],
 
 const GROUP_GAP = 60; // グループ間の余白
 
-/** グループ自体を dagre でレイアウトして重なりを解消する */
-function layoutGroupsDagre(
+/** グループ自体をレイアウトして重なりを解消する */
+function layoutGroups(
   groups: DiagramGroup[],
   groupUpdates: Record<string, DiagramGroup>,
   edges: DiagramEdge[],
@@ -101,51 +371,42 @@ function layoutGroupsDagre(
 
   const effectiveGroups = groups.map((g) => groupUpdates[g.id] ?? g);
 
-  const graph = new dagre.graphlib.Graph();
-  graph.setGraph({
-    rankdir,
-    nodesep: GROUP_GAP,
-    ranksep: GROUP_GAP * 1.5,
-    marginx: 40,
-    marginy: 40,
-  });
-  graph.setDefaultEdgeLabel(() => ({}));
-
-  // グループを dagre ノードとして追加
-  effectiveGroups.forEach((g) => {
-    graph.setNode(g.id, { width: g.w, height: g.h });
-  });
-
   // ノードレベルのエッジからグループ間エッジを推定
   const nodeToGroup: Record<string, string> = {};
   allNodes.forEach((n) => {
     if (n.group) nodeToGroup[n.id] = n.group;
   });
   const addedEdges = new Set<string>();
+  const groupEdges: { from: string; to: string }[] = [];
   edges.forEach((e) => {
     const fromGroup = nodeToGroup[e.from];
     const toGroup = nodeToGroup[e.to];
     if (fromGroup && toGroup && fromGroup !== toGroup) {
       const key = `${fromGroup}->${toGroup}`;
       if (!addedEdges.has(key)) {
-        graph.setEdge(fromGroup, toGroup);
         addedEdges.add(key);
+        groupEdges.push({ from: fromGroup, to: toGroup });
       }
     }
   });
 
-  dagre.layout(graph);
+  const positions = sugiyamaLayout(
+    effectiveGroups.map((g) => ({ id: g.id, w: g.w, h: g.h })),
+    groupEdges,
+    rankdir,
+    { nodesep: GROUP_GAP, ranksep: GROUP_GAP * 1.5, marginx: 40, marginy: 40 },
+  );
 
   const result: Record<string, DiagramGroup> = { ...groupUpdates };
   effectiveGroups.forEach((g) => {
-    const pos = graph.node(g.id) as DagrePos;
-    result[g.id] = { ...g, x: pos.x - g.w / 2, y: pos.y - g.h / 2 };
+    const pos = positions.get(g.id);
+    if (pos) result[g.id] = { ...g, x: pos.x - g.w / 2, y: pos.y - g.h / 2 };
   });
   return result;
 }
 
-/** フリーノードを dagre でレイアウト（startY の下から開始） */
-function layoutFreeNodesDagre(
+/** フリーノードをレイアウト（startY の下から開始） */
+function layoutFreeNodes(
   toLayout: DiagramNode[],
   allFreeNodes: DiagramNode[],
   edges: DiagramEdge[],
@@ -155,30 +416,22 @@ function layoutFreeNodesDagre(
   if (toLayout.length === 0) return;
 
   const nodeIds = new Set(toLayout.map((n) => n.id));
-  const graph = new dagre.graphlib.Graph();
-  graph.setGraph({ rankdir, nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 40, marginy: 40 });
-  graph.setDefaultEdgeLabel(() => ({}));
+  const positions = sugiyamaLayout(
+    toLayout.map((n) => ({ id: n.id, w: n.w, h: n.h })),
+    edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to)),
+    rankdir,
+    { nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 40, marginy: 40 },
+  );
 
-  toLayout.forEach((n) => graph.setNode(n.id, { width: n.w, height: n.h }));
-
-  // nodeIds 内の両端点を持つエッジのみ追加
-  edges.forEach((e) => {
-    if (nodeIds.has(e.from) && nodeIds.has(e.to)) {
-      graph.setEdge(e.from, e.to);
-    }
-  });
-
-  dagre.layout(graph);
-
-  // dagre 結果の最小 Y を求めて startY に合わせるオフセットを計算
-  const dagreMinY = Math.min(...toLayout.map((n) => {
-    const pos = graph.node(n.id) as DagrePos;
+  // 結果の最小 Y を求めて startY に合わせるオフセットを計算
+  const minY = Math.min(...toLayout.map((n) => {
+    const pos = positions.get(n.id)!;
     return pos.y - n.h / 2;
   }));
-  const offsetY = startY - dagreMinY;
+  const offsetY = startY - minY;
 
   toLayout.forEach((n) => {
-    const pos = graph.node(n.id) as DagrePos;
+    const pos = positions.get(n.id)!;
     n.x = pos.x - n.w / 2;
     n.y = pos.y - n.h / 2 + offsetY;
   });
@@ -354,12 +607,12 @@ function forceLayout(
     }
   }
 
-  // トップレベルグループの重なりを dagre で解消
+  // トップレベルグループの重なりを解消
   const topLevelGroups = groups.filter(
     (g) => groupUpdates[g.id] !== undefined && !g.parentGroup,
   );
   if (topLevelGroups.length > 1) {
-    const repositionedGroups = layoutGroupsDagre(topLevelGroups, groupUpdates, edges, nodes, "LR");
+    const repositionedGroups = layoutGroups(topLevelGroups, groupUpdates, edges, nodes, "LR");
     for (const tlg of topLevelGroups) {
       const newG = repositionedGroups[tlg.id];
       if (!newG) continue;
@@ -493,7 +746,7 @@ export function autoLayout(
   for (const g of sortedGroups) {
     const gnodes = groupedNodesMap[g.id] ?? [];
     const toLayout = gnodes.filter((n) => n._needsPosition);
-    if (toLayout.length > 0) layoutGroupNodesDagre(toLayout, gnodes, g, edges, rankdir);
+    if (toLayout.length > 0) layoutGroupNodes(toLayout, gnodes, g, edges, rankdir);
 
     const childDefs = childGroupsMap[g.id] ?? [];
     const hasUpdatedChildren = childDefs.some((c) => groupUpdates[c.id] !== undefined);
@@ -550,11 +803,11 @@ export function autoLayout(
     }
   }
 
-  // トップレベルグループのみ dagre で再配置（子グループは親に追従）
+  // トップレベルグループのみ再配置（子グループは親に追従）
   const topLevelGroups = groups.filter(
     (g) => groupUpdates[g.id] !== undefined && !g.parentGroup,
   );
-  const repositionedGroups = layoutGroupsDagre(topLevelGroups, groupUpdates, edges, nodes, rankdir);
+  const repositionedGroups = layoutGroups(topLevelGroups, groupUpdates, edges, nodes, rankdir);
   // トップレベルグループの位置変化をグループ・ノードに適用
   for (const tlg of topLevelGroups) {
     const newG = repositionedGroups[tlg.id];
@@ -568,14 +821,14 @@ export function autoLayout(
     shiftGroupNodes(tlg.id, dx, dy);
   }
 
-  // フリーノードを dagre でレイアウト（全グループの下から開始）
+  // フリーノードをレイアウト（全グループの下から開始）
   const freeToLayout = freeNodes.filter((n) => n._needsPosition);
   if (freeToLayout.length > 0) {
     const updatedGroups = groups.map((g) => groupUpdates[g.id] ?? g);
     const groupsBottom =
       updatedGroups.length > 0 ? Math.max(...updatedGroups.map((g) => g.y + g.h)) : 0;
     const startY = groupsBottom > 0 ? groupsBottom + 80 : 40;
-    layoutFreeNodesDagre(freeToLayout, freeNodes, edges, startY, rankdir);
+    layoutFreeNodes(freeToLayout, freeNodes, edges, startY, rankdir);
   }
 
   nodes.forEach((n) => delete n._needsPosition);
