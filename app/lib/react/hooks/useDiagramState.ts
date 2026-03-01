@@ -50,7 +50,8 @@ function enforceGroupContainment(
 
   // ボトムアップ（深い子から先に処理）
   const groupLookup: Record<string, DiagramGroup> = Object.fromEntries(result);
-  const sorted = [...groups].sort((a, b) => getGroupDepth(b.id, groupLookup) - getGroupDepth(a.id, groupLookup));
+  const depthCache = new Map<string, number>();
+  const sorted = [...groups].sort((a, b) => getGroupDepth(b.id, groupLookup, depthCache) - getGroupDepth(a.id, groupLookup, depthCache));
 
   // Step 1: 親と完全に重なっていない子グループのみ再配置
   // 部分的なはみ出しは Step 2 の親グループ拡張で対応する
@@ -127,8 +128,21 @@ function collectDescendantGroups(
   id: string,
   groupStates: Record<string, DiagramGroup>,
 ): string[] {
-  const children = Object.values(groupStates).filter((g) => g.parentGroup === id);
-  return [id, ...children.flatMap((c) => collectDescendantGroups(c.id, groupStates))];
+  const childMap: Record<string, string[]> = {};
+  for (const g of Object.values(groupStates)) {
+    if (g.parentGroup) {
+      (childMap[g.parentGroup] ??= []).push(g.id);
+    }
+  }
+  const result: string[] = [];
+  const collect = (gid: string) => {
+    result.push(gid);
+    for (const childId of childMap[gid] ?? []) {
+      collect(childId);
+    }
+  };
+  collect(id);
+  return result;
 }
 
 export interface DiagramState {

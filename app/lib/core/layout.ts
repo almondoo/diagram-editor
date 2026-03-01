@@ -445,11 +445,20 @@ function layoutFreeNodes(
   }
 }
 
-/** グループの深さを返す（ルート=0） */
-export function getGroupDepth(gid: string, groupById: Record<string, DiagramGroup>): number {
+/** グループの深さを返す（ルート=0）。cache を渡すと結果をキャッシュする */
+export function getGroupDepth(gid: string, groupById: Record<string, DiagramGroup>, cache?: Map<string, number>): number {
+  if (cache) {
+    const cached = cache.get(gid);
+    if (cached !== undefined) return cached;
+  }
   const g = groupById[gid];
-  if (!g?.parentGroup || !groupById[g.parentGroup]) return 0;
-  return getGroupDepth(g.parentGroup, groupById) + 1;
+  if (!g?.parentGroup || !groupById[g.parentGroup]) {
+    cache?.set(gid, 0);
+    return 0;
+  }
+  const d = getGroupDepth(g.parentGroup, groupById, cache) + 1;
+  cache?.set(gid, d);
+  return d;
 }
 
 /** Fruchterman-Reingold フォースレイアウト */
@@ -596,8 +605,8 @@ function forceLayout(
     if (g.parentGroup) (childGroupsMap[g.parentGroup] ??= []).push(g);
   });
 
-  const getDepth = (gid: string): number => getGroupDepth(gid, groupById);
-  const sortedGroups = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
+  const depthCache = new Map<string, number>();
+  const sortedGroups = [...groups].sort((a, b) => getGroupDepth(b.id, groupById, depthCache) - getGroupDepth(a.id, groupById, depthCache));
 
   for (const g of sortedGroups) {
     const members = nodes.filter((n) => n.group === g.id);
@@ -719,8 +728,8 @@ export function autoLayout(
   });
 
   // グループをボトムアップ順にソート（リーフが先）
-  const getDepth = (gid: string): number => getGroupDepth(gid, groupById);
-  const sortedGroups = [...groups].sort((a, b) => getDepth(b.id) - getDepth(a.id));
+  const depthCache = new Map<string, number>();
+  const sortedGroups = [...groups].sort((a, b) => getGroupDepth(b.id, groupById, depthCache) - getGroupDepth(a.id, groupById, depthCache));
 
   // グループ内ノードをレイアウト → 子グループ配置 → グループ自動フィット（ボトムアップ）
   const groupUpdates: Record<string, DiagramGroup> = {};

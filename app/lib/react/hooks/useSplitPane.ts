@@ -6,16 +6,20 @@ export function useSplitPane(containerRef: React.RefObject<HTMLDivElement | null
 
   useEffect(() => {
     if (!isResizing) return;
+    let rafId = 0;
     const move = (e: MouseEvent) => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
-      setSplitPos(Math.max(20, Math.min(70, pct)));
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const pct = ((e.clientX - rect.left) / rect.width) * 100;
+        setSplitPos(Math.max(20, Math.min(70, pct)));
+      });
     };
     const up = () => setIsResizing(false);
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
-    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+    return () => { cancelAnimationFrame(rafId); window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
   }, [isResizing, containerRef]);
 
   return { splitPos, isResizing, setIsResizing };

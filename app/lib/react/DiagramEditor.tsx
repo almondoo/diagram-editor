@@ -370,6 +370,11 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const canvasW = 1200;
   const canvasH = 800;
 
+  const sortedGroups = useMemo(() => {
+    const cache = new Map<string, number>();
+    return [...parsed.groups].sort((a, b) => getGroupDepth(a.id, groupById, cache) - getGroupDepth(b.id, groupById, cache));
+  }, [parsed.groups, groupById]);
+
   // SVGキャンバス描画（モバイル・デスクトップ共通）
   const renderCanvas = () => (
     <div
@@ -448,9 +453,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
         <rect width="100%" height="100%" fill="url(#gridLarge)" data-bg="true" />
 
         <g ref={svgGroupRef} transform={`translate(${panRef.current.x},${panRef.current.y}) scale(${zoom})`}>
-          {[...parsed.groups]
-            .sort((a, b) => getGroupDepth(a.id, groupById) - getGroupDepth(b.id, groupById))
-            .map((g) => {
+          {sortedGroups.map((g) => {
               const offset = animOffsets[g.id];
               return (
                 <g
@@ -723,11 +726,15 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     return () => document.removeEventListener("keydown", handler);
   }, [undo, redo, parsed, selectedIds, nodeById, groupById, noteStates, deleteNode, deleteGroup, deleteNote, clearSelection, setSelectedIds]);
 
-  const existingIds = useMemo(() => [
-    ...parsed.nodes.map((n) => n.id),
-    ...parsed.groups.map((g) => g.id),
-    ...parsed.notes.map((n) => n.id),
-  ], [parsed.nodes, parsed.groups, parsed.notes]);
+  const existingIds = useMemo(
+    () => [
+      ...parsed.nodes.map((n) => n.id),
+      ...parsed.groups.map((g) => g.id),
+      ...parsed.notes.map((n) => n.id),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- IDはcodeのみから決定される
+    [code],
+  );
 
   // コードパネル描画
   const renderCodePanel = () => (

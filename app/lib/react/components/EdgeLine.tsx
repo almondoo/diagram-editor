@@ -107,8 +107,16 @@ export const EdgeLine = memo(
   },
   (prev, next) =>
     prev.edge === next.edge &&
-    prev.fromNode === next.fromNode &&
-    prev.toNode === next.toNode &&
+    prev.fromNode?.x === next.fromNode?.x &&
+    prev.fromNode?.y === next.fromNode?.y &&
+    prev.fromNode?.w === next.fromNode?.w &&
+    prev.fromNode?.h === next.fromNode?.h &&
+    prev.fromNode?.shape === next.fromNode?.shape &&
+    prev.toNode?.x === next.toNode?.x &&
+    prev.toNode?.y === next.toNode?.y &&
+    prev.toNode?.w === next.toNode?.w &&
+    prev.toNode?.h === next.toNode?.h &&
+    prev.toNode?.shape === next.toNode?.shape &&
     prev.isPlaying === next.isPlaying &&
     prev.onMoveMouseDown === next.onMoveMouseDown &&
     prev.onEndpointMouseDown === next.onEndpointMouseDown &&
