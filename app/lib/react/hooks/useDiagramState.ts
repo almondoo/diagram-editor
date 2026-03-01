@@ -51,14 +51,7 @@ function enforceGroupContainment(
   // ボトムアップ（深い子から先に処理）
   const groupLookup: Record<string, DiagramGroup> = Object.fromEntries(result);
   const depthCache = new Map<string, number>();
-  const cachedDepth = (gid: string): number => {
-    const cached = depthCache.get(gid);
-    if (cached !== undefined) return cached;
-    const d = getGroupDepth(gid, groupLookup);
-    depthCache.set(gid, d);
-    return d;
-  };
-  const sorted = [...groups].sort((a, b) => cachedDepth(b.id) - cachedDepth(a.id));
+  const sorted = [...groups].sort((a, b) => getGroupDepth(b.id, groupLookup, depthCache) - getGroupDepth(a.id, groupLookup, depthCache));
 
   // Step 1: 親と完全に重なっていない子グループのみ再配置
   // 部分的なはみ出しは Step 2 の親グループ拡張で対応する

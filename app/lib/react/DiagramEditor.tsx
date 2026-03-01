@@ -370,10 +370,10 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const canvasW = 1200;
   const canvasH = 800;
 
-  const sortedGroups = useMemo(
-    () => [...parsed.groups].sort((a, b) => getGroupDepth(a.id, groupById) - getGroupDepth(b.id, groupById)),
-    [parsed.groups, groupById],
-  );
+  const sortedGroups = useMemo(() => {
+    const cache = new Map<string, number>();
+    return [...parsed.groups].sort((a, b) => getGroupDepth(a.id, groupById, cache) - getGroupDepth(b.id, groupById, cache));
+  }, [parsed.groups, groupById]);
 
   // SVGキャンバス描画（モバイル・デスクトップ共通）
   const renderCanvas = () => (
