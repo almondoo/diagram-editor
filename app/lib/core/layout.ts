@@ -21,6 +21,13 @@ function breakCycles(edges: SEdge[], nodeIds: Set<string>): void {
     if (e.from !== e.to) adj.get(e.from)!.push(e.to);
   }
 
+  // エッジインデックスマップ (from->to → index)
+  const edgeIdx = new Map<string, number>();
+  for (let i = 0; i < edges.length; i++) {
+    const e = edges[i]!;
+    if (!e.reversed) edgeIdx.set(`${e.from}->${e.to}`, i);
+  }
+
   // 0=white, 1=gray, 2=black
   const color = new Map<string, number>();
   for (const id of nodeIds) color.set(id, 0);
@@ -31,8 +38,8 @@ function breakCycles(edges: SEdge[], nodeIds: Set<string>): void {
     for (const v of adj.get(u)!) {
       const c = color.get(v)!;
       if (c === 1) {
-        const idx = edges.findIndex((e) => e.from === u && e.to === v && !e.reversed);
-        if (idx >= 0) toReverse.push(idx);
+        const idx = edgeIdx.get(`${u}->${v}`);
+        if (idx !== undefined) toReverse.push(idx);
       } else if (c === 0) {
         dfs(v);
       }
@@ -60,10 +67,8 @@ function assignLayers(nodeIds: Set<string>, edges: SEdge[]): Map<string, number>
     succ.set(id, []);
   }
   for (const e of edges) {
-    if (nodeIds.has(e.from) && nodeIds.has(e.to) && e.from !== e.to) {
-      inDeg.set(e.to, inDeg.get(e.to)! + 1);
-      succ.get(e.from)!.push(e.to);
-    }
+    inDeg.set(e.to, inDeg.get(e.to)! + 1);
+    succ.get(e.from)!.push(e.to);
   }
 
   const layer = new Map<string, number>();
@@ -133,29 +138,35 @@ function minimizeCrossings(layers: string[][], edges: SEdge[]): void {
   }
 
   const pos = new Map<string, number>();
-  const updatePos = () => {
-    for (const layer of layers) {
-      for (let i = 0; i < layer.length; i++) { pos.set(layer[i]!, i); }
-    }
+  const updateLayerPos = (layer: string[]) => {
+    for (let i = 0; i < layer.length; i++) { pos.set(layer[i]!, i); }
   };
-  updatePos();
+  for (const layer of layers) updateLayerPos(layer);
 
-  const countCross = (upper: string[], _lower: string[]): number => {
-    const pairs: [number, number][] = [];
-    for (const u of upper) {
-      const uP = pos.get(u)!;
-      for (const v of down.get(u) ?? []) { pairs.push([uP, pos.get(v)!]); }
-    }
+  const countCross = (upper: string[]): number => {
     let c = 0;
-    for (let i = 0; i < pairs.length; i++) {
-      for (let j = i + 1; j < pairs.length; j++) {
-        if ((pairs[i]![0] - pairs[j]![0]) * (pairs[i]![1] - pairs[j]![1]) < 0) { c++; }
+    const uNodes = upper;
+    for (let i = 0; i < uNodes.length; i++) {
+      const uP = pos.get(uNodes[i]!)!;
+      const di = down.get(uNodes[i]!);
+      if (!di) continue;
+      for (let j = i + 1; j < uNodes.length; j++) {
+        const vP = pos.get(uNodes[j]!)!;
+        const dj = down.get(uNodes[j]!);
+        if (!dj) continue;
+        for (const a of di) {
+          const aP = pos.get(a)!;
+          for (const b of dj) {
+            if ((uP - vP) * (aP - pos.get(b)!) < 0) c++;
+          }
+        }
       }
     }
     return c;
   };
 
   for (let sweep = 0; sweep < 24; sweep++) {
+    let improved = false;
     // Down sweep
     for (let l = 1; l < layers.length; l++) {
       const layer = layers[l]!;
@@ -166,8 +177,12 @@ function minimizeCrossings(layers: string[][], edges: SEdge[]): void {
           ? nbrs.reduce((s, u) => s + pos.get(u)!, 0) / nbrs.length
           : pos.get(v)!);
       }
+      const prev = layer.slice();
       layer.sort((a, b) => bc.get(a)! - bc.get(b)!);
-      updatePos();
+      if (!improved) {
+        for (let i = 0; i < layer.length; i++) { if (layer[i] !== prev[i]) { improved = true; break; } }
+      }
+      updateLayerPos(layer);
     }
     // Up sweep
     for (let l = layers.length - 2; l >= 0; l--) {
@@ -179,22 +194,31 @@ function minimizeCrossings(layers: string[][], edges: SEdge[]): void {
           ? nbrs.reduce((s, u) => s + pos.get(u)!, 0) / nbrs.length
           : pos.get(v)!);
       }
+      const prev = layer.slice();
       layer.sort((a, b) => bc.get(a)! - bc.get(b)!);
-      updatePos();
+      if (!improved) {
+        for (let i = 0; i < layer.length; i++) { if (layer[i] !== prev[i]) { improved = true; break; } }
+      }
+      updateLayerPos(layer);
     }
     // Adjacent swap (single pass per layer pair)
     for (let l = 0; l + 1 < layers.length; l++) {
       const layer = layers[l + 1]!;
       for (let i = 0; i + 1 < layer.length; i++) {
-        const before = countCross(layers[l]!, layer);
+        const before = countCross(layers[l]!);
         [layer[i], layer[i + 1]] = [layer[i + 1]!, layer[i]!];
-        updatePos();
-        if (countCross(layers[l]!, layer) >= before) {
+        pos.set(layer[i]!, i);
+        pos.set(layer[i + 1]!, i + 1);
+        if (countCross(layers[l]!) >= before) {
           [layer[i], layer[i + 1]] = [layer[i + 1]!, layer[i]!];
-          updatePos();
+          pos.set(layer[i]!, i);
+          pos.set(layer[i + 1]!, i + 1);
+        } else {
+          improved = true;
         }
       }
     }
+    if (!improved) break;
   }
 }
 
@@ -212,9 +236,13 @@ function placeNodes(
   if (rankdir === "TB") {
     let y = my;
     for (const layer of layers) {
-      const real = layer.filter((id) => !nodeMap.get(id)?.dummy);
-      if (real.length === 0) { y += ranksep; continue; }
-      const maxH = Math.max(...real.map((id) => nodeMap.get(id)!.h));
+      let maxH = 0;
+      let hasReal = false;
+      for (const id of layer) {
+        const n = nodeMap.get(id)!;
+        if (!n.dummy) { hasReal = true; if (n.h > maxH) maxH = n.h; }
+      }
+      if (!hasReal) { y += ranksep; continue; }
       let x = mx;
       for (const id of layer) {
         const n = nodeMap.get(id)!;
@@ -227,9 +255,13 @@ function placeNodes(
   } else {
     let x = mx;
     for (const layer of layers) {
-      const real = layer.filter((id) => !nodeMap.get(id)?.dummy);
-      if (real.length === 0) { x += ranksep; continue; }
-      const maxW = Math.max(...real.map((id) => nodeMap.get(id)!.w));
+      let maxW = 0;
+      let hasReal = false;
+      for (const id of layer) {
+        const n = nodeMap.get(id)!;
+        if (!n.dummy) { hasReal = true; if (n.w > maxW) maxW = n.w; }
+      }
+      if (!hasReal) { x += ranksep; continue; }
       let y = my;
       for (const id of layer) {
         const n = nodeMap.get(id)!;
