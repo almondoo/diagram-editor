@@ -390,7 +390,7 @@ function computeGroupFit(allMembers: DiagramNode[], childGroups: DiagramGroup[],
   return { ...g, x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
-const GROUP_GAP = 60; // グループ間の余白
+const GROUP_GAP = 120; // グループ間の余白
 
 /** グループ自体をレイアウトして重なりを解消する */
 function layoutGroups(
