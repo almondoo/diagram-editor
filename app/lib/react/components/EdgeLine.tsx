@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { DiagramNode, DiagramEdge } from "~/lib/core";
+import type { DiagramNode, DiagramEdge, DiagramGroup } from "~/lib/core";
 import { getEdgePoints, buildEdgePath } from "~/lib/core";
 
 interface EdgeLineProps {
@@ -7,13 +7,14 @@ interface EdgeLineProps {
   fromNode: DiagramNode | undefined;
   toNode: DiagramNode | undefined;
   isPlaying?: boolean;
+  groups?: DiagramGroup[];
   onMoveMouseDown?: (e: React.MouseEvent, fromId: string, toId: string) => void;
   onEndpointMouseDown?: (e: React.MouseEvent, fromId: string, toId: string, end: "from" | "to") => void;
   onDoubleClick?: () => void;
 }
 
 export const EdgeLine = memo(
-  function EdgeLine({ edge, fromNode, toNode, isPlaying, onMoveMouseDown, onEndpointMouseDown, onDoubleClick }: EdgeLineProps) {
+  function EdgeLine({ edge, fromNode, toNode, isPlaying, groups, onMoveMouseDown, onEndpointMouseDown, onDoubleClick }: EdgeLineProps) {
     if (!fromNode || !toNode) return null;
     const { from, to } = getEdgePoints(fromNode, toNode);
     const { label, color, style, animate, thickness, arrow, curve, bendX, bendY } = edge;
@@ -35,7 +36,33 @@ export const EdgeLine = memo(
           strokeWidth={14}
           style={pathTransition}
           className="cursor-move"
-          onMouseDown={(e) => onMoveMouseDown?.(e, edge.from, edge.to)}
+          onMouseDown={(e) => {
+            if (groups && groups.length > 0) {
+              const svg = (e.target as SVGElement).closest("svg");
+              if (svg) {
+                const g = svg.querySelector("g[transform]") as SVGGElement | null;
+                if (g) {
+                  const transform = g.getCTM();
+                  if (transform) {
+                    const pt = svg.createSVGPoint();
+                    pt.x = e.clientX;
+                    pt.y = e.clientY;
+                    const svgPt = pt.matrixTransform(transform.inverse());
+                    const HEADER_H = 26;
+                    for (const group of groups) {
+                      if (
+                        svgPt.x >= group.x && svgPt.x <= group.x + group.w &&
+                        svgPt.y >= group.y && svgPt.y <= group.y + HEADER_H
+                      ) {
+                        return;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            onMoveMouseDown?.(e, edge.from, edge.to);
+          }}
           onDoubleClick={onDoubleClick}
         />
 
@@ -118,6 +145,7 @@ export const EdgeLine = memo(
     prev.toNode?.h === next.toNode?.h &&
     prev.toNode?.shape === next.toNode?.shape &&
     prev.isPlaying === next.isPlaying &&
+    prev.groups === next.groups &&
     prev.onMoveMouseDown === next.onMoveMouseDown &&
     prev.onEndpointMouseDown === next.onEndpointMouseDown &&
     prev.onDoubleClick === next.onDoubleClick,

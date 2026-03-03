@@ -540,6 +540,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 fromNode={fromNode}
                 toNode={toNode}
                 isPlaying={isPlaying}
+                groups={parsed.groups}
                 onMoveMouseDown={handleEdgeMoveMouseDown}
                 onEndpointMouseDown={handleEdgeEndpointMouseDown}
                 onDoubleClick={() => {
