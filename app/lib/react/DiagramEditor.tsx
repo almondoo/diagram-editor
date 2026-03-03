@@ -41,8 +41,9 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const noteStartRef = useRef<{ cursorX: number; cursorY: number; noteX: number; noteY: number } | null>(null);
   const noteLastCursorRef = useRef({ x: 0, y: 0 });
 
-  // ダブルクリック → コードエディタフォーカス
+  // コードエディタフォーカス / スクロール
   const [focusLine, setFocusLine] = useState<number | null>(null);
+  const [scrollOnly, setScrollOnly] = useState(false);
   // focusLine を消費後にクリアして、同じ行への再フォーカスを可能にする
   useEffect(() => {
     if (focusLine !== null) {
@@ -127,7 +128,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   // animating かつ offsets が空 = Play フェーズ（アニメーション中）
   const isPlaying = isAnimating && Object.keys(animOffsets).length === 0;
 
-  const findCodeLine = useCallback((type: "node" | "edge" | "note", id: string, fromId?: string) => {
+  const findCodeLine = useCallback((type: "node" | "edge" | "note" | "group", id: string, fromId?: string) => {
     const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const codeLines = code.split("\n");
     for (let i = 0; i < codeLines.length; i++) {
@@ -460,6 +461,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                     isNested={nestedGroupIds.has(g.id)}
                     onMoveMouseDown={(e) => {
                       if (!isSelected(g.id)) selectSingle(g.id);
+                      const line = findCodeLine("group", g.id);
+                      if (line) { setScrollOnly(true); setFocusLine(line); }
                       handleGroupMoveMouseDown(e, g.id);
                     }}
                     onMoveTouchStart={(e) => {
@@ -486,6 +489,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   isSelected={isSelected(n.id)}
                   onMouseDown={(e) => {
                     if (!isSelected(n.id)) selectSingle(n.id);
+                    const line = findCodeLine("note", n.id);
+                    if (line) { setScrollOnly(true); setFocusLine(line); }
                     handleNoteMouseDown(e, n.id);
                   }}
                   onTouchStart={(e) => {
@@ -494,7 +499,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   }}
                   onDoubleClick={() => {
                     const line = findCodeLine("note", n.id);
-                    if (line) setFocusLine(line);
+                    if (line) { setScrollOnly(false); setFocusLine(line); }
                   }}
                 />
               </g>
@@ -576,6 +581,8 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   isEdgeSource={edgeFromId === node.id}
                   onMouseDown={(e) => {
                     if (!isSelected(node.id)) selectSingle(node.id);
+                    const line = findCodeLine("node", node.id);
+                    if (line) { setScrollOnly(true); setFocusLine(line); }
                     handleNodeMouseDown(e, node.id);
                   }}
                   onTouchStart={(e) => {
@@ -586,7 +593,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   onResizeMouseDown={(e, handle) => handleNodeResizeMouseDown(e, node.id, handle)}
                   onDoubleClick={() => {
                     const line = findCodeLine("node", node.id);
-                    if (line) setFocusLine(line);
+                    if (line) { setScrollOnly(false); setFocusLine(line); }
                   }}
                   onConnectionPointMouseDown={handleConnectionPointMouseDown}
                   edgeCreationActive={edgeCreationDragInfo !== null && edgeCreationDragInfo.fromNodeId !== node.id}
@@ -762,7 +769,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} focusLine={focusLine} />
+        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} focusLine={focusLine} scrollOnly={scrollOnly} />
       </div>
 
       {parsed.errors.length > 0 && (

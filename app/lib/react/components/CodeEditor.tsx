@@ -10,11 +10,13 @@ interface CodeEditorProps {
   onFormat: () => void;
   existingIds?: string[];
   focusLine?: number | null;
+  scrollOnly?: boolean;
+  onCursorLineChange?: (line: number) => void;
 }
 
 const UNDO_MERGE_INTERVAL = 300;
 
-export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onFormat, existingIds = [], focusLine }: CodeEditorProps) {
+export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onFormat, existingIds = [], focusLine, scrollOnly, onCursorLineChange }: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const lineCountRef = useRef<HTMLDivElement>(null);
@@ -28,11 +30,16 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
   // カーソル行追跡 (0-indexed)
   const [cursorLine, setCursorLine] = useState(0);
 
+  const onCursorLineChangeRef = useRef(onCursorLineChange);
+  onCursorLineChangeRef.current = onCursorLineChange;
+
   const updateCursorLine = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const textBefore = textarea.value.slice(0, textarea.selectionStart);
-    setCursorLine(textBefore.split("\n").length - 1);
+    const line = textBefore.split("\n").length - 1;
+    setCursorLine(line);
+    onCursorLineChangeRef.current?.(line);
   }, []);
 
   // focusLine による外部からのフォーカス (1-indexed)
@@ -46,9 +53,11 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     for (let i = 0; i < targetIndex; i++) {
       pos += codeLines[i]!.length + 1;
     }
-    textarea.focus();
-    textarea.selectionStart = pos;
-    textarea.selectionEnd = pos;
+    if (!scrollOnly) {
+      textarea.focus();
+      textarea.selectionStart = pos;
+      textarea.selectionEnd = pos;
+    }
     setCursorLine(targetIndex);
     // スクロールして対象行を表示
     const lineHeight = 21;
@@ -56,7 +65,7 @@ export const CodeEditor = memo(function CodeEditor({ code, onChange, errors, onF
     textarea.scrollTop = Math.max(0, scrollTarget);
     if (lineCountRef.current) lineCountRef.current.scrollTop = textarea.scrollTop;
     if (highlightRef.current) highlightRef.current.scrollTop = textarea.scrollTop;
-  }, [focusLine]);
+  }, [focusLine, scrollOnly]);
 
   useEffect(() => () => {
     if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
