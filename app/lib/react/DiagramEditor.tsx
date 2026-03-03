@@ -215,7 +215,6 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
 
   useEffect(() => {
     if (!noteDragInfo) return;
-    let rafId = 0;
     let noteDragged = false;
 
     const applyMove = (clientX: number, clientY: number) => {
@@ -224,32 +223,26 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       const z = zoomRef.current;
 
       if (noteDragInfo.isMulti) {
-        // 複数選択: incremental delta（同期ref）
         const dx = (clientX - noteLastCursorRef.current.x) / z;
         const dy = (clientY - noteLastCursorRef.current.y) / z;
-        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
         if (!noteDragged) { pushSnapshot(); noteDragged = true; }
         onMultiMove(dx, dy);
       } else {
-        // 単体ノート: 初期位置 + 総デルタ（絶対値）
         const totalDx = (clientX - start.cursorX) / z;
         const totalDy = (clientY - start.cursorY) / z;
-        if (Math.abs(totalDx) < 2 && Math.abs(totalDy) < 2) return;
         if (!noteDragged) { pushSnapshot(); noteDragged = true; }
-        setNoteLayout(noteDragInfo.noteId, Math.round(start.noteX + totalDx), Math.round(start.noteY + totalDy));
+        setNoteLayout(noteDragInfo.noteId, start.noteX + totalDx, start.noteY + totalDy);
       }
       noteLastCursorRef.current = { x: clientX, y: clientY };
     };
 
     const handleMove = (e: MouseEvent) => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => applyMove(e.clientX, e.clientY));
+      applyMove(e.clientX, e.clientY);
     };
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => applyMove(e.touches[0]!.clientX, e.touches[0]!.clientY));
+      applyMove(e.touches[0]!.clientX, e.touches[0]!.clientY);
     };
     const handleUp = () => setNoteDragInfo(null);
 
@@ -259,7 +252,6 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     window.addEventListener("touchend", handleUp);
     window.addEventListener("touchcancel", handleUp);
     return () => {
-      cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
       window.removeEventListener("touchmove", handleTouchMove);
