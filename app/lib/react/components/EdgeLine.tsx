@@ -40,7 +40,7 @@ export const EdgeLine = memo(
             if (groups && groups.length > 0) {
               const svg = (e.target as SVGElement).closest("svg");
               if (svg) {
-                const g = svg.querySelector("g[transform]") as SVGGElement | null;
+                const g: SVGGElement | null = svg.querySelector("g[transform]");
                 if (g) {
                   const transform = g.getCTM();
                   if (transform) {
