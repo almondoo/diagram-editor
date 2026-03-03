@@ -113,10 +113,8 @@ export function useGroupDrag(
       const z = zoomRef.current;
 
       if (dragInfo.type === "move") {
-        // 移動: incremental delta（同期ref）
         const dx = (clientX - lastCursorRef.current.x) / z;
         const dy = (clientY - lastCursorRef.current.y) / z;
-        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return false;
 
         if (!hasDraggedRef.current) {
           onDragEndRef.current?.();
@@ -129,10 +127,8 @@ export function useGroupDrag(
           setGroupLayout(dragInfo.groupId, dx, dy);
         }
       } else {
-        // リサイズ: 初期値 + 総デルタ（絶対値）
         const totalDx = (clientX - start.cursorX) / z;
         const totalDy = (clientY - start.cursorY) / z;
-        if (Math.abs(totalDx) < 1 && Math.abs(totalDy) < 1) return false;
 
         if (!hasDraggedRef.current) {
           onDragEndRef.current?.();
@@ -155,23 +151,15 @@ export function useGroupDrag(
       return true;
     };
 
-    let rafId = 0;
-
     const handleMove = (e: MouseEvent) => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        applyDrag(e.clientX, e.clientY);
-      });
+      applyDrag(e.clientX, e.clientY);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
       const touch = e.touches[0]!;
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        applyDrag(touch.clientX, touch.clientY);
-      });
+      applyDrag(touch.clientX, touch.clientY);
     };
 
     const handleUp = () => setDragInfo(null);
@@ -182,7 +170,6 @@ export function useGroupDrag(
     window.addEventListener("touchend", handleUp);
     window.addEventListener("touchcancel", handleUp);
     return () => {
-      cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
       window.removeEventListener("touchmove", handleTouchMove);
