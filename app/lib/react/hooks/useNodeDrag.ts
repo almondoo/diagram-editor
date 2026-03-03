@@ -84,16 +84,14 @@ export function useNodeDrag(
     if (!dragInfo) return;
     hasDraggedRef.current = false;
 
-    const applyDrag = (clientX: number, clientY: number, threshold: number): boolean => {
+    const applyDrag = (clientX: number, clientY: number): boolean => {
       const start = dragStartRef.current;
       if (!start) return false;
       const z = zoomRef.current;
 
       if (dragInfo.type === "resize") {
-        // リサイズ: 初期値 + 総デルタ（絶対値）
         const totalDx = (clientX - start.cursorX) / z;
         const totalDy = (clientY - start.cursorY) / z;
-        if (Math.abs(totalDx) < threshold && Math.abs(totalDy) < threshold) return false;
 
         if (!hasDraggedRef.current) {
           onDragEndRef.current?.();
@@ -111,10 +109,8 @@ export function useNodeDrag(
         const newY = adjustY ? start.nodeY + totalDy : undefined;
         setNodeSize(dragInfo.nodeId, newW, newH, newX, newY);
       } else if (dragInfo.isMulti) {
-        // 複数選択: incremental delta（同期ref）
         const dx = (clientX - lastCursorRef.current.x) / z;
         const dy = (clientY - lastCursorRef.current.y) / z;
-        if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return false;
 
         if (!hasDraggedRef.current) {
           onDragEndRef.current?.();
@@ -123,40 +119,30 @@ export function useNodeDrag(
 
         onMultiMove(dx, dy);
       } else {
-        // 単体ノード: 初期位置 + 総デルタ（絶対値）
         const totalDx = (clientX - start.cursorX) / z;
         const totalDy = (clientY - start.cursorY) / z;
-        if (Math.abs(totalDx) < threshold && Math.abs(totalDy) < threshold) return false;
 
         if (!hasDraggedRef.current) {
           onDragEndRef.current?.();
           hasDraggedRef.current = true;
         }
 
-        setNodeLayout(dragInfo.nodeId, Math.round(start.nodeX + totalDx), Math.round(start.nodeY + totalDy));
+        setNodeLayout(dragInfo.nodeId, start.nodeX + totalDx, start.nodeY + totalDy);
       }
 
       lastCursorRef.current = { x: clientX, y: clientY };
       return true;
     };
 
-    let rafId = 0;
-
     const handleMove = (e: MouseEvent) => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        applyDrag(e.clientX, e.clientY, 1);
-      });
+      applyDrag(e.clientX, e.clientY);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
       const touch = e.touches[0]!;
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        applyDrag(touch.clientX, touch.clientY, 3);
-      });
+      applyDrag(touch.clientX, touch.clientY);
     };
 
     const handleUp = () => setDragInfo(null);
@@ -167,7 +153,6 @@ export function useNodeDrag(
     window.addEventListener("touchend", handleUp);
     window.addEventListener("touchcancel", handleUp);
     return () => {
-      cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
       window.removeEventListener("touchmove", handleTouchMove);
