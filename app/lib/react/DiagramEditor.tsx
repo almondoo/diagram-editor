@@ -18,7 +18,7 @@ import { useSplitPane } from "./hooks/useSplitPane";
 import { useViewport } from "./hooks/useViewport";
 import type { DiagramState } from "./hooks/useDiagramState";
 import type { LayoutDirection } from "~/lib/core";
-import { getGroupDepth } from "~/lib/core";
+import { getGroupDepth, GROUP_LABEL_HEIGHT } from "~/lib/core";
 
 interface DiagramEditorProps {
   state: DiagramState;
@@ -158,6 +158,11 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     }
     return null;
   }, [code]);
+
+  const focusCodeLine = useCallback((type: "node" | "edge" | "note" | "group", id: string, scroll: boolean, fromId?: string) => {
+    const line = findCodeLine(type, id, fromId);
+    if (line) { setScrollOnly(scroll); setFocusLine(line); }
+  }, [findCodeLine]);
 
   const { zoom, panRef, isPanning, isSpaceHeld, handleCanvasMouseDown, zoomIn, zoomOut, fitView } =
     useCanvasInteraction(svgRef, svgGroupRef, gridRef, gridLargeRef);
@@ -307,8 +312,37 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
   const { handleGroupMoveMouseDown, handleGroupMoveTouchStart, handleGroupResizeMouseDown, handleGroupResizeTouchStart } =
     useGroupDrag(groupById, zoom, selectedIds, setGroupLayout, setGroupSize, onMultiMove, pushSnapshot);
 
-  const { edgeDragInfo, handleEdgeMoveMouseDown, handleEdgeEndpointMouseDown } =
+  const { edgeDragInfo, handleEdgeMoveMouseDown: rawEdgeMoveMouseDown, handleEdgeEndpointMouseDown } =
     useEdgeDrag(nodeById, parsed.edges, zoom, updateEdgeBend, reconnectEdge, svgRef, panRef, pushSnapshot);
+
+  // グループヘッダー上のクリックをエッジドラッグより優先させる
+  const wrappedEdgeMoveMouseDown = useCallback((e: React.MouseEvent, fromId: string, toId: string) => {
+    const groups = parsedRef.current.groups;
+    if (groups.length > 0) {
+      const svg = (e.target as SVGElement).closest("svg");
+      if (svg) {
+        const g: SVGGElement | null = svg.querySelector("g[transform]");
+        if (g) {
+          const transform = g.getCTM();
+          if (transform) {
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            const svgPt = pt.matrixTransform(transform.inverse());
+            for (const group of groups) {
+              if (
+                svgPt.x >= group.x && svgPt.x <= group.x + group.w &&
+                svgPt.y >= group.y && svgPt.y <= group.y + GROUP_LABEL_HEIGHT
+              ) {
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
+    rawEdgeMoveMouseDown(e, fromId, toId);
+  }, [rawEdgeMoveMouseDown]);
 
   const { edgeCreationDragInfo, handleConnectionPointMouseDown } =
     useEdgeCreation(nodeById, zoom, addEdge, svgRef, panRef);
@@ -477,8 +511,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                     isCursorHighlighted={cursorHighlightId === g.id}
                     onMoveMouseDown={(e) => {
                       if (!isSelected(g.id)) selectSingle(g.id);
-                      const line = findCodeLine("group", g.id);
-                      if (line) { setScrollOnly(true); setFocusLine(line); }
+                      focusCodeLine("group", g.id, true);
                       handleGroupMoveMouseDown(e, g.id);
                     }}
                     onMoveTouchStart={(e) => {
@@ -506,18 +539,14 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   isCursorHighlighted={cursorHighlightId === n.id}
                   onMouseDown={(e) => {
                     if (!isSelected(n.id)) selectSingle(n.id);
-                    const line = findCodeLine("note", n.id);
-                    if (line) { setScrollOnly(true); setFocusLine(line); }
+                    focusCodeLine("note", n.id, true);
                     handleNoteMouseDown(e, n.id);
                   }}
                   onTouchStart={(e) => {
                     if (!isSelected(n.id)) selectSingle(n.id);
                     handleNoteTouchStart(e, n.id);
                   }}
-                  onDoubleClick={() => {
-                    const line = findCodeLine("note", n.id);
-                    if (line) { setScrollOnly(false); setFocusLine(line); }
-                  }}
+                  onDoubleClick={() => focusCodeLine("note", n.id, false)}
                 />
               </g>
             );
@@ -540,13 +569,9 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                 fromNode={fromNode}
                 toNode={toNode}
                 isPlaying={isPlaying}
-                groups={parsed.groups}
-                onMoveMouseDown={handleEdgeMoveMouseDown}
+                onMoveMouseDown={wrappedEdgeMoveMouseDown}
                 onEndpointMouseDown={handleEdgeEndpointMouseDown}
-                onDoubleClick={() => {
-                  const line = findCodeLine("edge", edge.to, edge.from);
-                  if (line) setFocusLine(line);
-                }}
+                onDoubleClick={() => focusCodeLine("edge", edge.to, false, edge.from)}
               />
             );
           })}
@@ -600,8 +625,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   isCursorHighlighted={cursorHighlightId === node.id}
                   onMouseDown={(e) => {
                     if (!isSelected(node.id)) selectSingle(node.id);
-                    const line = findCodeLine("node", node.id);
-                    if (line) { setScrollOnly(true); setFocusLine(line); }
+                    focusCodeLine("node", node.id, true);
                     handleNodeMouseDown(e, node.id);
                   }}
                   onTouchStart={(e) => {
@@ -610,10 +634,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   }}
                   onTap={() => handleNodeTap(node.id)}
                   onResizeMouseDown={(e, handle) => handleNodeResizeMouseDown(e, node.id, handle)}
-                  onDoubleClick={() => {
-                    const line = findCodeLine("node", node.id);
-                    if (line) { setScrollOnly(false); setFocusLine(line); }
-                  }}
+                  onDoubleClick={() => focusCodeLine("node", node.id, false)}
                   onConnectionPointMouseDown={handleConnectionPointMouseDown}
                   edgeCreationActive={edgeCreationDragInfo !== null && edgeCreationDragInfo.fromNodeId !== node.id}
                 />
