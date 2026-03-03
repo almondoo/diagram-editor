@@ -2,9 +2,10 @@ import type { DiagramNode, DiagramEdge, DiagramGroup, LayoutDirection } from "./
 import { colorForId } from "./colors";
 
 export const GROUP_LABEL_HEIGHT = 26; // グループラベルの高さ
-export const GROUP_PADDING = 12;      // グループ内パディング
+export const GROUP_PADDING = 20;      // グループ内パディング
 const LABEL_HEIGHT = GROUP_LABEL_HEIGHT;
 const PADDING = GROUP_PADDING;
+const NESTED_GROUP_GAP = 24; // ネストグループ間の間隔
 const NODE_SEP = 40;     // 同一レイヤー内ノード間隔
 const RANK_SEP = 80;     // レイヤー間隔
 
@@ -803,7 +804,7 @@ export function autoLayout(
       }
 
       if (rankdir === "TB") {
-        let curY = contentBottom + PADDING;
+        let curY = contentBottom + NESTED_GROUP_GAP;
         const startX = g.x + PADDING;
         for (const childDef of childDefs) {
           const child = groupUpdates[childDef.id] ?? childDef;
@@ -816,10 +817,10 @@ export function autoLayout(
           }
 
           const updatedChild = groupUpdates[childDef.id] ?? childDef;
-          curY += updatedChild.h + PADDING;
+          curY += updatedChild.h + NESTED_GROUP_GAP;
         }
       } else {
-        const startY = contentBottom + PADDING + LABEL_HEIGHT;
+        const startY = contentBottom + NESTED_GROUP_GAP + LABEL_HEIGHT;
         let curX = g.x + PADDING;
         for (const childDef of childDefs) {
           const child = groupUpdates[childDef.id] ?? childDef;
@@ -832,7 +833,7 @@ export function autoLayout(
           }
 
           const updatedChild = groupUpdates[childDef.id] ?? childDef;
-          curX += updatedChild.w + PADDING;
+          curX += updatedChild.w + NESTED_GROUP_GAP;
         }
       }
     }

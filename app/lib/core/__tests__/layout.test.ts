@@ -368,6 +368,36 @@ describe("direction=TB", () => {
   });
 });
 
+describe("group spacing", () => {
+  it("ネストグループ間の間隔が GROUP_PADDING より広い", () => {
+    const parent = makeGroup("parent", 0, 0, 600, 500);
+    const child1 = makeGroup("child1", 10, 40, 200, 150, "parent");
+    const child2 = makeGroup("child2", 10, 200, 200, 150, "parent");
+    const nodes = [
+      makeNode("a", true, "child1"),
+      makeNode("b", true, "child2"),
+    ];
+    const { groupUpdates } = autoLayout(nodes, [], [parent, child1, child2], "TB");
+    const c1 = groupUpdates["child1"] ?? child1;
+    const c2 = groupUpdates["child2"] ?? child2;
+    // child1の下端とchild2の上端の間隔が20px以上
+    const gap = c2.y - (c1.y + c1.h);
+    expect(gap).toBeGreaterThanOrEqual(20);
+  });
+
+  it("グループ内パディングが20px以上", () => {
+    const group = makeGroup("g1", 0, 0, 400, 300);
+    const nodes = [makeNode("a", true, "g1")];
+    const { nodes: result, groupUpdates } = autoLayout(nodes, [], [group]);
+    const g = groupUpdates["g1"]!;
+    const n = result.find(n => n.id === "a")!;
+    // ノードの左端とグループの左端の間隔が20px以上
+    expect(n.x - g.x).toBeGreaterThanOrEqual(20);
+    // ノードの下端とグループの下端の間隔が20px以上
+    expect((g.y + g.h) - (n.y + n.h)).toBeGreaterThanOrEqual(20);
+  });
+});
+
 describe("direction=LR", () => {
   it("a→b→c が左から右に配置される (既存と同じ)", () => {
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
