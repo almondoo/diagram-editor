@@ -51,6 +51,9 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     }
   }, [focusLine]);
 
+  // コード→キャンバス連携: カーソル行ハイライト
+  const [cursorHighlightId, setCursorHighlightId] = useState<string | null>(null);
+
   // レスポンシブ
   const { isMobile } = useViewport();
   // ボトムシート
@@ -68,6 +71,18 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
     isAnimating, layoutDirection,
     fitViewRequested, clearFitViewRequest,
   } = state;
+
+  const handleCursorLineChange = useCallback((line: number) => {
+    const codeLines = code.split("\n");
+    const lineText = codeLines[line]?.trim() ?? "";
+    const nodeMatch = lineText.match(/^node\s+(\S+)/);
+    if (nodeMatch) { setCursorHighlightId(nodeMatch[1]!); return; }
+    const groupMatch = lineText.match(/^group\s+(\S+)/);
+    if (groupMatch) { setCursorHighlightId(groupMatch[1]!); return; }
+    const noteMatch = lineText.match(/^note\s+(\S+)/);
+    if (noteMatch) { setCursorHighlightId(noteMatch[1]!); return; }
+    setCursorHighlightId(null);
+  }, [code]);
 
   // FLIP アニメーション用の状態管理
   const [animOffsets, setAnimOffsets] = useState<Record<string, { dx: number; dy: number }>>({});
@@ -459,6 +474,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                     group={g}
                     isSelected={isSelected(g.id)}
                     isNested={nestedGroupIds.has(g.id)}
+                    isCursorHighlighted={cursorHighlightId === g.id}
                     onMoveMouseDown={(e) => {
                       if (!isSelected(g.id)) selectSingle(g.id);
                       const line = findCodeLine("group", g.id);
@@ -487,6 +503,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   key={n.id}
                   note={n}
                   isSelected={isSelected(n.id)}
+                  isCursorHighlighted={cursorHighlightId === n.id}
                   onMouseDown={(e) => {
                     if (!isSelected(n.id)) selectSingle(n.id);
                     const line = findCodeLine("note", n.id);
@@ -579,6 +596,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
                   node={node}
                   isSelected={isSelected(node.id)}
                   isEdgeSource={edgeFromId === node.id}
+                  isCursorHighlighted={cursorHighlightId === node.id}
                   onMouseDown={(e) => {
                     if (!isSelected(node.id)) selectSingle(node.id);
                     const line = findCodeLine("node", node.id);
@@ -769,7 +787,7 @@ export function DiagramEditor({ state, className, style }: DiagramEditorProps) {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} focusLine={focusLine} scrollOnly={scrollOnly} />
+        <CodeEditor code={code} onChange={setCode} errors={parsed.errors} onFormat={formatCode} existingIds={existingIds} focusLine={focusLine} scrollOnly={scrollOnly} onCursorLineChange={handleCursorLineChange} />
       </div>
 
       {parsed.errors.length > 0 && (

@@ -39,6 +39,7 @@ interface ShapeNodeProps {
   node: DiagramNode;
   isSelected: boolean;
   isEdgeSource?: boolean;
+  isCursorHighlighted?: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
   onResizeMouseDown?: (e: React.MouseEvent, handle: NodeResizeHandle) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
@@ -49,7 +50,7 @@ interface ShapeNodeProps {
 }
 
 export const ShapeNode = memo(
-  function ShapeNode({ node, isSelected, isEdgeSource, onMouseDown, onResizeMouseDown, onTouchStart, onTap, onDoubleClick, onConnectionPointMouseDown, edgeCreationActive }: ShapeNodeProps) {
+  function ShapeNode({ node, isSelected, isEdgeSource, isCursorHighlighted, onMouseDown, onResizeMouseDown, onTouchStart, onTap, onDoubleClick, onConnectionPointMouseDown, edgeCreationActive }: ShapeNodeProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
     const onTouchStartRef = useRef(onTouchStart);
@@ -236,6 +237,17 @@ export const ShapeNode = memo(
       />
     ) : null;
 
+    const cursorOutline = isCursorHighlighted && !isSelected ? (
+      <rect
+        x={x - 3} y={y - 3}
+        width={w + 6} height={h + 6}
+        rx={6} fill="none"
+        stroke="#6366f1" strokeOpacity={0.4} strokeWidth={1.5}
+        strokeDasharray="4,3"
+        className="pointer-events-none"
+      />
+    ) : null;
+
     const handleDoubleClick = useCallback(() => {
       onDoubleClickRef.current?.();
     }, []);
@@ -253,6 +265,7 @@ export const ShapeNode = memo(
     if (icon) {
       return (
         <g {...gProps}>
+          {cursorOutline}
           {selOutline}
           <rect x={x} y={y} width={w} height={h} fill="transparent" stroke="none" />
           {textEl}
@@ -268,6 +281,7 @@ export const ShapeNode = memo(
     if (shape === "ellipse" || shape === "circle") {
       return (
         <g {...gProps}>
+          {cursorOutline}
           {selOutline}
           <ellipse
             cx={x + w / 2}
@@ -291,6 +305,7 @@ export const ShapeNode = memo(
       const ry = 10;
       return (
         <g {...gProps}>
+          {cursorOutline}
           {selOutline}
           <path
             d={`M${x},${y + ry} L${x},${y + h - ry} A${w / 2},${ry} 0 0,0 ${x + w},${y + h - ry} L${x + w},${y + ry}`}
@@ -328,6 +343,7 @@ export const ShapeNode = memo(
     if (path) {
       return (
         <g {...gProps}>
+          {cursorOutline}
           {selOutline}
           <path
             d={path}
@@ -346,6 +362,7 @@ export const ShapeNode = memo(
 
     return (
       <g {...gProps}>
+        {cursorOutline}
         {selOutline}
         <rect
           x={x}
@@ -366,5 +383,5 @@ export const ShapeNode = memo(
     );
   },
   // node と isSelected/isEdgeSource だけ比較。ハンドラは ref で最新を参照するため除外
-  (prev, next) => prev.node === next.node && prev.isSelected === next.isSelected && prev.isEdgeSource === next.isEdgeSource && prev.edgeCreationActive === next.edgeCreationActive,
+  (prev, next) => prev.node === next.node && prev.isSelected === next.isSelected && prev.isEdgeSource === next.isEdgeSource && prev.isCursorHighlighted === next.isCursorHighlighted && prev.edgeCreationActive === next.edgeCreationActive,
 );

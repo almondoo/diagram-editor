@@ -5,13 +5,14 @@ import type { MouseEvent, TouchEvent as RTouchEvent } from "react";
 interface NoteBoxProps {
   note: DiagramNote;
   isSelected?: boolean;
+  isCursorHighlighted?: boolean;
   onMouseDown?: (e: MouseEvent) => void;
   onTouchStart?: (e: RTouchEvent) => void;
   onDoubleClick?: () => void;
 }
 
 export const NoteBox = memo(
-  function NoteBox({ note, isSelected, onMouseDown, onTouchStart, onDoubleClick }: NoteBoxProps) {
+  function NoteBox({ note, isSelected, isCursorHighlighted, onMouseDown, onTouchStart, onDoubleClick }: NoteBoxProps) {
     const onMouseDownRef = useRef(onMouseDown);
     onMouseDownRef.current = onMouseDown;
     const onTouchStartRef = useRef(onTouchStart);
@@ -39,6 +40,16 @@ export const NoteBox = memo(
         onTouchStart={handleTouchStart}
         onDoubleClick={handleDoubleClick}
       >
+        {isCursorHighlighted && !isSelected && (
+          <rect
+            x={note.x - 3} y={note.y - 3}
+            width={w + 6} height={34}
+            rx={6} fill="none"
+            stroke="#6366f1" strokeOpacity={0.4} strokeWidth={1.5}
+            strokeDasharray="4,3"
+            className="pointer-events-none"
+          />
+        )}
         <rect
           x={note.x}
           y={note.y}
@@ -63,5 +74,5 @@ export const NoteBox = memo(
       </g>
     );
   },
-  (prev, next) => prev.note === next.note && prev.isSelected === next.isSelected,
+  (prev, next) => prev.note === next.note && prev.isSelected === next.isSelected && prev.isCursorHighlighted === next.isCursorHighlighted,
 );

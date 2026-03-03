@@ -7,6 +7,7 @@ interface GroupBoxProps {
   group: DiagramGroup;
   isSelected?: boolean;
   isNested?: boolean;
+  isCursorHighlighted?: boolean;
   onMoveMouseDown: (e: MouseEvent) => void;
   onMoveTouchStart?: (e: RTouchEvent) => void;
   onResizeMouseDown: (e: MouseEvent, handle: ResizeHandle) => void;
@@ -19,7 +20,7 @@ const HEADER_H = 26;
 const FRAME_W = 12;
 
 export const GroupBox = memo(
-  function GroupBox({ group, isSelected, isNested, onMoveMouseDown, onMoveTouchStart, onResizeMouseDown, onResizeTouchStart }: GroupBoxProps) {
+  function GroupBox({ group, isSelected, isNested, isCursorHighlighted, onMoveMouseDown, onMoveTouchStart, onResizeMouseDown, onResizeTouchStart }: GroupBoxProps) {
     const onMoveRef = useRef(onMoveMouseDown);
     onMoveRef.current = onMoveMouseDown;
     const onMoveTouchRef = useRef(onMoveTouchStart);
@@ -46,6 +47,16 @@ export const GroupBox = memo(
 
     return (
       <g>
+        {isCursorHighlighted && !isSelected && (
+          <rect
+            x={x - 3} y={y - 3}
+            width={w + 6} height={h + 6}
+            rx={14} fill="none"
+            stroke="#6366f1" strokeOpacity={0.4} strokeWidth={1.5}
+            strokeDasharray="4,3"
+            className="pointer-events-none"
+          />
+        )}
         <rect
           x={x}
           y={y}
@@ -192,5 +203,5 @@ export const GroupBox = memo(
       </g>
     );
   },
-  (prev, next) => prev.group === next.group && prev.isSelected === next.isSelected && prev.isNested === next.isNested,
+  (prev, next) => prev.group === next.group && prev.isSelected === next.isSelected && prev.isNested === next.isNested && prev.isCursorHighlighted === next.isCursorHighlighted,
 );
