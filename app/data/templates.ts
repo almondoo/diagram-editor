@@ -73,10 +73,13 @@ edge res1 -> client { label="HTTP Response" }`,
     description: "CloudFront + ECS + Aurora のWebアプリ構成",
     category: "aws",
     code: `// 🏗️ AWS アーキテクチャ
+node client "Client" { shape=rect }
+node cf "CloudFront" { icon=aws.service.cloudfront }
 group vpc "VPC" { color=#8b5cf6
+  node igw "IGW" { icon=aws.resource.vpc.internet-gateway }
   group public "Public Subnet" { color=#22c55e
     node alb "ALB" { icon=aws.service.elb }
-    node nat "NAT Gateway" { icon=aws.resource.vpc.nat-gateway }
+    node nat "NAT GW" { icon=aws.resource.vpc.nat-gateway }
   }
   group private "Private Subnet" { color=#3b82f6
     node ecs "ECS Service" { icon=aws.service.ecs }
@@ -84,15 +87,18 @@ group vpc "VPC" { color=#8b5cf6
     node cache "ElastiCache" { icon=aws.service.elasticache }
   }
 }
-node cf "CloudFront" { icon=aws.service.cloudfront }
 node s3 "S3 Bucket" { icon=aws.service.s3 }
 
-edge cf -> alb { label="HTTPS" animate=true }
+// メインフロー
+edge client -> cf { label="HTTPS" animate=true }
+edge cf -> igw { label="Origin" }
+edge igw -> alb
 edge alb -> ecs { label="HTTP" }
 edge ecs -> rds { label="SQL" }
 edge ecs -> cache { label="Redis" }
-edge cf -> s3 { label="Static" }
-edge ecs --> s3 { label="Upload" }`,
+// サイド接続
+edge cf --> s3 { label="Static" }
+edge ecs --> nat { label="Outbound" }`,
   },
   {
     id: "serverless",
@@ -100,8 +106,8 @@ edge ecs --> s3 { label="Upload" }`,
     description: "API Gateway + Lambda + DynamoDB のサーバーレス構成",
     category: "aws",
     code: `// ⚡ サーバーレスアーキテクチャ
+node client "Client" { shape=rect }
 node cf "CloudFront" { icon=aws.service.cloudfront }
-node s3 "S3 Bucket" { icon=aws.service.s3 }
 group api "API Backend" { color=#f97316
   node apigw "API Gateway" { icon=aws.service.api-gateway }
   node lambda1 "Auth Function" { icon=aws.service.lambda }
@@ -113,15 +119,20 @@ group async "非同期処理" { color=#8b5cf6
   node sqs "SQS Queue" { icon=aws.service.sqs }
   node lambda3 "Worker" { icon=aws.service.lambda }
 }
+node s3 "S3 Bucket" { icon=aws.service.s3 }
 
-edge cf -> s3 { label="Static" }
+// メインフロー
+edge client -> cf { label="HTTPS" animate=true }
 edge cf -> apigw { label="API" }
 edge apigw -> lambda1 { label="Auth" }
 edge apigw -> lambda2 { label="Request" }
 edge lambda1 -> cognito { label="Verify" }
 edge lambda2 -> dynamo { label="CRUD" }
+// 非同期処理
 edge lambda2 --> sqs { label="Enqueue" }
-edge sqs -> lambda3 { label="Process" animate=true }
+edge sqs -> lambda3 { label="Process" }
+// サイド接続
+edge cf --> s3 { label="Static" }
 edge lambda3 --> s3 { label="Store" }`,
   },
   {
@@ -244,7 +255,10 @@ edge a -> b { label="接続" }`,
     description: "ALB + EC2 + RDS の定番3層構成",
     category: "aws",
     code: `// 🏗️ 3層Webアプリ
+node client "Client" { shape=rect }
+node route53 "Route 53" { icon=aws.service.route-53 }
 group vpc "VPC" { color=#8b5cf6
+  node igw "IGW" { icon=aws.resource.vpc.internet-gateway }
   group public "Public Subnet" { color=#22c55e
     node alb "ALB" { icon=aws.service.elb }
     node nat "NAT GW" { icon=aws.resource.vpc.nat-gateway }
@@ -258,14 +272,18 @@ group vpc "VPC" { color=#8b5cf6
     node rds2 "RDS Standby" { icon=aws.service.rds }
   }
 }
-node route53 "Route 53" { icon=aws.service.route-53 }
 
-edge route53 -> alb { label="DNS" }
+// メインフロー
+edge client -> route53 { label="DNS" animate=true }
+edge route53 -> igw
+edge igw -> alb
 edge alb -> ec2a { label="HTTP" }
 edge alb -> ec2b { label="HTTP" }
 edge ec2a -> rds1 { label="SQL" }
 edge ec2b -> rds1 { label="SQL" }
-edge rds1 --> rds2 { label="Replication" }`,
+// サイド接続
+edge rds1 --> rds2 { label="Replication" }
+edge ec2a --> nat { label="Outbound" }`,
   },
   {
     id: "aws-serverless-api",
@@ -273,6 +291,7 @@ edge rds1 --> rds2 { label="Replication" }`,
     description: "API Gateway + Lambda + DynamoDB",
     category: "aws",
     code: `// ⚡ サーバーレスAPI
+node client "Client" { shape=rect }
 group api "API" { color=#f97316
   node apigw "API Gateway" { icon=aws.service.api-gateway }
   node authFn "Authorizer" { icon=aws.service.lambda }
@@ -282,6 +301,7 @@ group api "API" { color=#f97316
 node cognito "Cognito" { icon=aws.service.cognito }
 node dynamo "DynamoDB" { icon=aws.service.dynamodb }
 
+edge client -> apigw { label="HTTPS" animate=true }
 edge apigw -> authFn { label="Auth" }
 edge authFn -> cognito { label="Verify" }
 edge apigw -> getFn { label="GET" }
@@ -295,9 +315,12 @@ edge postFn -> dynamo { label="Put" }`,
     description: "ECS Fargate + ALB + RDS のマイクロサービス構成",
     category: "aws",
     code: `// 🐳 マイクロサービス
+node client "Client" { shape=rect }
 group vpc "VPC" { color=#8b5cf6
+  node igw "IGW" { icon=aws.resource.vpc.internet-gateway }
   group public "Public Subnet" { color=#22c55e
     node alb "ALB" { icon=aws.service.elb }
+    node nat "NAT GW" { icon=aws.resource.vpc.nat-gateway }
   }
   group private "Private Subnet" { color=#3b82f6
     node svcA "User Service" { icon=aws.service.fargate }
@@ -307,17 +330,22 @@ group vpc "VPC" { color=#8b5cf6
     node rdsB "Orders DB" { icon=aws.service.aurora }
   }
 }
-node ecr "ECR" { icon=aws.service.ecr }
 node sqs "SQS" { icon=aws.service.sqs }
+node ecr "ECR" { icon=aws.service.ecr }
 
+// メインフロー
+edge client -> igw { label="HTTPS" animate=true }
+edge igw -> alb
 edge alb -> svcA { label="/users" }
 edge alb -> svcB { label="/orders" }
 edge alb -> svcC { label="/payments" }
 edge svcA -> rdsA { label="SQL" }
 edge svcB -> rdsB { label="SQL" }
+// イベント駆動
 edge svcB --> sqs { label="Event" }
-edge sqs -> svcC { label="Process" animate=true }
-edge ecr --> svcA { label="Image" }`,
+edge sqs -> svcC { label="Process" }
+// サイド接続
+edge ecr --> nat { label="Image Pull" }`,
   },
   {
     id: "aws-static-site",
@@ -419,10 +447,12 @@ edge lambdaProc --> cw { label="Metrics" }`,
     description: "EKS + ECR + ALB",
     category: "aws",
     code: `// ☸️ EKS コンテナオーケストレーション
-node ecr "ECR" { icon=aws.service.ecr }
+node client "Client" { shape=rect }
 group vpc "VPC" { color=#8b5cf6
+  node igw "IGW" { icon=aws.resource.vpc.internet-gateway }
   group public "Public Subnet" { color=#22c55e
     node alb "ALB" { icon=aws.service.elb }
+    node nat "NAT GW" { icon=aws.resource.vpc.nat-gateway }
   }
   group private "Private Subnet" { color=#3b82f6
     node podA "Pod A" { icon=aws.service.eks }
@@ -431,15 +461,20 @@ group vpc "VPC" { color=#8b5cf6
     node rds "Aurora" { icon=aws.service.aurora }
   }
 }
+node ecr "ECR" { icon=aws.service.ecr }
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
+// メインフロー
+edge client -> igw { label="HTTPS" animate=true }
+edge igw -> alb
 edge alb -> podA { label="Route" }
 edge alb -> podB { label="Route" }
 edge alb -> podC { label="Route" }
-edge ecr --> podA { label="Pull" }
 edge podA -> rds { label="SQL" }
 edge podB -> rds { label="SQL" }
-edge podA --> cw { label="Logs" }`,
+// サイド接続
+edge podA --> cw { label="Logs" }
+edge ecr --> nat { label="Image Pull" }`,
   },
   {
     id: "aws-messaging",
@@ -447,6 +482,7 @@ edge podA --> cw { label="Logs" }`,
     description: "SQS + SNS + Lambda のイベント駆動構成",
     category: "aws",
     code: `// 📬 メッセージングシステム
+node client "Client" { shape=rect }
 node api "API Gateway" { icon=aws.service.api-gateway }
 node sns "SNS Topic" { icon=aws.service.sns }
 group queues "Message Queues" { color=#f97316
@@ -460,13 +496,16 @@ group handlers "Lambda Handlers" { color=#3b82f6
   node fnAudit "Audit Fn" { icon=aws.service.lambda }
 }
 
+// メインフロー
+edge client -> api { label="HTTPS" animate=true }
 edge api -> sns { label="Publish" }
+// Fan-out
 edge sns -> sqsOrder { label="Fan-out" }
+edge sqsOrder -> fnOrder { label="Process" }
 edge sns -> sqsNotify { label="Fan-out" }
+edge sqsNotify -> fnNotify { label="Process" }
 edge sns -> sqsAudit { label="Fan-out" }
-edge sqsOrder -> fnOrder { label="Process" animate=true }
-edge sqsNotify -> fnNotify { label="Process" animate=true }
-edge sqsAudit -> fnAudit { label="Process" animate=true }`,
+edge sqsAudit -> fnAudit { label="Process" }`,
   },
   {
     id: "aws-iot",
@@ -526,6 +565,7 @@ edge sage --> cw { label="Metrics" }`,
     description: "Route53 + ALB + Aurora Global",
     category: "aws",
     code: `// 🌍 マルチリージョンHA
+node client "Client" { shape=rect }
 node r53 "Route 53" { icon=aws.service.route-53 }
 group regionA "Region A (Primary)" { color=#22c55e
   node albA "ALB" { icon=aws.service.elb }
@@ -538,6 +578,7 @@ group regionB "Region B (Standby)" { color=#3b82f6
   node auroraB "Aurora Replica" { icon=aws.service.aurora }
 }
 
+edge client -> r53 { label="DNS" animate=true }
 edge r53 -> albA { label="Active" }
 edge r53 --> albB { label="Failover" }
 edge albA -> ecsA
@@ -629,6 +670,7 @@ node shield "Shield" { icon=aws.service.shield }
 node waf "WAF" { icon=aws.service.waf }
 node cf "CloudFront" { icon=aws.service.cloudfront }
 group vpc "VPC" { color=#8b5cf6
+  node igw "IGW" { icon=aws.resource.vpc.internet-gateway }
   group public "Public Subnet" { color=#22c55e
     node alb "ALB" { icon=aws.service.elb }
   }
@@ -638,11 +680,14 @@ group vpc "VPC" { color=#8b5cf6
 }
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
-edge users -> shield { label="Request" }
+// メインフロー
+edge users -> shield { label="Request" animate=true }
 edge shield -> waf { label="DDoS Filter" }
 edge waf -> cf { label="WAF Rules" }
-edge cf -> alb { label="Origin" }
+edge cf -> igw { label="Origin" }
+edge igw -> alb
 edge alb -> ecs { label="HTTP" }
+// サイド接続
 edge waf --> cw { label="Metrics" }`,
   },
   {
@@ -699,7 +744,12 @@ edge fn1 --> sqs { label="Failed" }`,
     description: "ElastiCache + RDS のキャッシュ戦略",
     category: "aws",
     code: `// ⚡ ElastiCacheキャッシュ構成
+node client "Client" { shape=rect }
 group vpc "VPC" { color=#8b5cf6
+  node igw "IGW" { icon=aws.resource.vpc.internet-gateway }
+  group public "Public Subnet" { color=#22c55e
+    node alb "ALB" { icon=aws.service.elb }
+  }
   group private "Private Subnet" { color=#3b82f6
     node app "Application" { icon=aws.service.ecs }
     node cache "ElastiCache" { icon=aws.service.elasticache }
@@ -708,10 +758,13 @@ group vpc "VPC" { color=#8b5cf6
 }
 node cw "CloudWatch" { icon=aws.service.cloudwatch }
 
-edge app -> cache { label="Cache Hit?" }
-edge cache -> app { label="Hit: Return" }
+// メインフロー
+edge client -> igw { label="HTTPS" animate=true }
+edge igw -> alb
+edge alb -> app { label="HTTP" }
+edge app -> cache { label="Lookup" }
 edge app -> rds { label="Miss: Query" }
-edge rds -> app { label="Result" }
+// サイド接続
 edge app --> cache { label="Set Cache" }
 edge cache --> cw { label="Metrics" }`,
   },
@@ -747,8 +800,10 @@ edge lambda --> sns { label="Complete" }`,
 node pipeline "CodePipeline" { icon=aws.service.codepipeline }
 node deploy "CodeDeploy" { icon=aws.service.codedeploy }
 group vpc "VPC" { color=#8b5cf6
+  node igw "IGW" { icon=aws.resource.vpc.internet-gateway }
   group public "Public Subnet" { color=#22c55e
     node alb "ALB" { icon=aws.service.elb }
+    node nat "NAT GW" { icon=aws.resource.vpc.nat-gateway }
   }
   group private "Private Subnet" { color=#3b82f6
     node ecsBlue "ECS Blue" { icon=aws.service.ecs }
@@ -757,11 +812,14 @@ group vpc "VPC" { color=#8b5cf6
 }
 node ecr "ECR" { icon=aws.service.ecr }
 
+// デプロイフロー
 edge pipeline -> deploy { label="Deploy" }
 edge deploy -> alb { label="Switch" }
+// トラフィックフロー
 edge alb -> ecsBlue { label="Current" }
 edge alb --> ecsGreen { label="New" }
-edge ecr -> ecsGreen { label="Pull" }`,
+// サイド接続
+edge ecr --> nat { label="Image Pull" }`,
   },
   {
     id: "aws-aurora-serverless",
@@ -769,6 +827,7 @@ edge ecr -> ecsGreen { label="Pull" }`,
     description: "Aurora Serverless + API Gateway 構成",
     category: "aws",
     code: `// 🗄️ Aurora Serverless + API
+node client "Client" { shape=rect }
 node apigw "API Gateway" { icon=aws.service.api-gateway }
 node lambda "Lambda" { icon=aws.service.lambda }
 group vpc "VPC" { color=#8b5cf6
@@ -779,6 +838,7 @@ group vpc "VPC" { color=#8b5cf6
 node s3 "S3" { icon=aws.service.s3 }
 node secrets "Secrets Manager" { shape=rect }
 
+edge client -> apigw { label="HTTPS" animate=true }
 edge apigw -> lambda { label="Request" }
 edge lambda -> aurora { label="Data API" }
 edge lambda -> s3 { label="Files" }
@@ -879,7 +939,9 @@ edge lambda -> rds { label="SQL" }`,
     description: "EFS + ECS による共有ファイルシステム",
     category: "aws",
     code: `// 📁 EFS共有ストレージ
+node client "Client" { shape=rect }
 group vpc "VPC" { color=#8b5cf6
+  node igw "IGW" { icon=aws.resource.vpc.internet-gateway }
   group public "Public Subnet" { color=#22c55e
     node alb "ALB" { icon=aws.service.elb }
   }
@@ -891,10 +953,14 @@ group vpc "VPC" { color=#8b5cf6
 }
 node backup "AWS Backup" { icon=aws.service.backup }
 
+// メインフロー
+edge client -> igw { label="HTTPS" animate=true }
+edge igw -> alb
 edge alb -> taskA
 edge alb -> taskB
 edge taskA -> efs { label="Mount" }
 edge taskB -> efs { label="Mount" }
+// サイド接続
 edge efs --> backup { label="Backup" }`,
   },
   {
